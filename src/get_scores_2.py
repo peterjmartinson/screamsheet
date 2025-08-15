@@ -1,8 +1,12 @@
-import requests
 from datetime import datetime, timedelta
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Frame, PageTemplate, FrameBreak
 import pandas as pd
+import requests
+
 
 def get_mlb_scores_last_24_hours():
     now = datetime.utcnow()
@@ -154,10 +158,95 @@ def make_pdf(games, standings, filename):
 
     c.save()
 
+
+def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
+    """
+    Generates a two-column PDF report with MLB game scores and team standings.
+
+    Args:
+        games (list): A list of dictionaries, where each dictionary represents a game.
+        standings_df (pd.DataFrame): A DataFrame of team standings, assumed to be pre-sorted.
+        filename (str): The name of the output PDF file.
+    """
+    doc = SimpleDocTemplate(filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # --- Header (Title and Subtitle) ---
+    story.append(Paragraph("MLB Scream Sheet", styles['h1']))
+    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), styles['h2']))
+    story.append(Spacer(1, 24))
+
+    # --- Prepare the main content for the two columns ---
+    # Left Column: Game Scores
+    for game in games:
+        if game.get("away_score") is not None and game.get("home_score") is not None:
+            table_data = [
+                [game['away_team'], str(game['away_score'])],
+                [f"@{game['home_team']}", str(game['home_score'])]
+            ]
+            table_style = TableStyle([
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('LEFTPADDING', (0, 0), (0, -1), 0),
+                ('RIGHTPADDING', (0, 0), (0, -1), 0),
+            ])
+            game_table = Table(table_data, colWidths=[200, 50])
+            game_table.setStyle(table_style)
+            story.append(game_table)
+            story.append(Spacer(1, 10))
+
+    # Use FrameBreak to switch to the right column
+    story.append(FrameBreak())
+
+    # Right Column: Standings
+    division_header_style = styles['h3']
+    division_header_style.alignment = 1
+
+    for division_name, group in standings_df.groupby('division'):
+        standings_story = [Paragraph(division_name, division_header_style), Spacer(1, 6)]
+        header = ["Team", "W", "L"]
+        table_data = [header]
+        for index, row in group.iterrows():
+            table_data.append([row['team'], row['wins'], row['losses']])
+        
+        table_style = TableStyle([
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ])
+        standings_table = Table(table_data, colWidths=[150, 30, 30])
+        standings_table.setStyle(table_style)
+        standings_story.append(standings_table)
+        standings_story.append(Spacer(1, 12))
+        
+        # Add the standings story for this division to the main story
+        story.extend(standings_story)
+
+    # --- Define and assign frames for a two-column layout ---
+    # Create two frames for your two columns
+    frame_left = Frame(doc.leftMargin, doc.bottomMargin, doc.width/2 - 6, doc.height, id='col_left')
+    frame_right = Frame(doc.leftMargin + doc.width/2 + 6, doc.bottomMargin, doc.width/2 - 6, doc.height, id='col_right')
+
+    # Create a PageTemplate and assign the frames
+    two_column_template = PageTemplate(id='TwoColumns', frames=[frame_left, frame_right])
+    doc.addPageTemplates([two_column_template])
+
+    # --- Build the PDF ---
+    doc.build(story)
+    print(f"PDF file '{filename}' has been created.")
+
+
+
+
 if __name__ == "__main__":
     scores = get_mlb_scores_last_24_hours()
     standings = get_standings(2025)
     today_str = datetime.utcnow().strftime("%Y%m%d")
     filename = f"MLB_Scores_{today_str}.pdf"
-    make_pdf(scores, standings, filename)
+    # make_pdf(scores, standings, filename)
+    generate_mlb_report(scores, standings, filename)
     print(f"PDF saved as: {filename}")
+

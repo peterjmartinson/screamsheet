@@ -7,9 +7,10 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 import pandas as pd
 import requests
 import os
+import json
 
 
-def get_mlb_scores_last_24_hours():
+def get_mlb_scores_last_24_hours() -> list:
     now = datetime.utcnow()
     yesterday = now - timedelta(days=1)
     start_date = yesterday.strftime("%Y-%m-%d")
@@ -40,7 +41,7 @@ def get_mlb_scores_last_24_hours():
             games.append(game_info)
     return games
 
-def get_division(record):
+def get_division(record) -> str:
     base_url = f"https://statsapi.mlb.com"
     url = base_url + record.get("division", {}).get("link", {})
     response = requests.get(url)
@@ -48,7 +49,7 @@ def get_division(record):
     division = data["divisions"][0].get("name")
     return division
 
-def get_standings(season=2025):
+def get_standings(season: int =2025) -> pd.DataFrame:
     base_url = f"https://statsapi.mlb.com"
     url = f"{base_url}/api/v1/standings?season={season}&leagueId=103,104"
     response = requests.get(url)
@@ -272,13 +273,20 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
 if __name__ == "__main__":
     scores = get_mlb_scores_last_24_hours()
     standings = get_standings(2025)
+
     today_str = datetime.utcnow().strftime("%Y%m%d")
     filename = f"MLB_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(runtime_dir, '..', 'Files')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
-    # make_pdf(scores, standings, filename)
+
     generate_mlb_report(scores, standings, output_file_path)
+
+    with open(f"scores_{today_str}.json", "w") as file:
+        json.dump(scores, file, indent=4)
+
+    standings.to_csv(f"standings_{today_str}.csv", index=False)
+
     print(f"PDF saved as: {filename}")
 

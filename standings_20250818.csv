@@ -1,0 +1,31 @@
+division,team,wins,losses,ties,pct,divisionRank
+American League Central,Detroit Tigers,73,53,0,.579,1
+American League Central,Cleveland Guardians,63,60,0,.512,2
+American League Central,Kansas City Royals,63,61,0,.508,3
+American League Central,Minnesota Twins,58,66,0,.468,4
+American League Central,Chicago White Sox,44,80,0,.355,5
+American League East,Toronto Blue Jays,73,52,0,.584,1
+American League East,Boston Red Sox,68,57,0,.544,2
+American League East,New York Yankees,67,57,0,.540,3
+American League East,Tampa Bay Rays,61,64,0,.488,4
+American League East,Baltimore Orioles,57,67,0,.460,5
+American League West,Houston Astros,69,55,0,.556,1
+American League West,Seattle Mariners,68,56,0,.548,2
+American League West,Texas Rangers,62,63,0,.496,3
+American League West,Los Angeles Angels,60,64,0,.484,4
+American League West,Athletics,56,70,0,.444,5
+National League Central,Milwaukee Brewers,78,45,0,.634,1
+National League Central,Chicago Cubs,70,53,0,.569,2
+National League Central,Cincinnati Reds,65,60,0,.520,3
+National League Central,St. Louis Cardinals,61,64,0,.488,4
+National League Central,Pittsburgh Pirates,52,73,0,.416,5
+National League East,Philadelphia Phillies,71,53,0,.573,1
+National League East,New York Mets,65,58,0,.528,2
+National League East,Miami Marlins,59,65,0,.476,3
+National League East,Atlanta Braves,56,68,0,.452,4
+National League East,Washington Nationals,50,74,0,.403,5
+National League West,Los Angeles Dodgers,71,53,0,.573,1
+National League West,San Diego Padres,69,55,0,.556,2
+National League West,San Francisco Giants,60,64,0,.484,3
+National League West,Arizona Diamondbacks,60,65,0,.480,4
+National League West,Colorado Rockies,35,89,0,.282,5

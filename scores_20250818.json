@@ -1,0 +1,226 @@
+[
+    {
+        "gameDate": "2025-08-17T15:35:00Z",
+        "away_team": "Philadelphia Phillies",
+        "home_team": "Washington Nationals",
+        "away_score": 11,
+        "home_score": 9,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T17:35:00Z",
+        "away_team": "Miami Marlins",
+        "home_team": "Boston Red Sox",
+        "away_score": 5,
+        "home_score": 3,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T17:37:00Z",
+        "away_team": "Texas Rangers",
+        "home_team": "Toronto Blue Jays",
+        "away_score": 10,
+        "home_score": 4,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T17:40:00Z",
+        "away_team": "Atlanta Braves",
+        "home_team": "Cleveland Guardians",
+        "away_score": 5,
+        "home_score": 4,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T17:40:00Z",
+        "away_team": "Milwaukee Brewers",
+        "home_team": "Cincinnati Reds",
+        "away_score": 2,
+        "home_score": 3,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T18:10:00Z",
+        "away_team": "Baltimore Orioles",
+        "home_team": "Houston Astros",
+        "away_score": 12,
+        "home_score": 0,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T18:10:00Z",
+        "away_team": "Detroit Tigers",
+        "home_team": "Minnesota Twins",
+        "away_score": 1,
+        "home_score": 8,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T18:10:00Z",
+        "away_team": "Chicago White Sox",
+        "home_team": "Kansas City Royals",
+        "away_score": 2,
+        "home_score": 6,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T18:15:00Z",
+        "away_team": "New York Yankees",
+        "home_team": "St. Louis Cardinals",
+        "away_score": 8,
+        "home_score": 4,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T18:20:00Z",
+        "away_team": "Pittsburgh Pirates",
+        "home_team": "Chicago Cubs",
+        "away_score": 3,
+        "home_score": 4,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T19:10:00Z",
+        "away_team": "Arizona Diamondbacks",
+        "home_team": "Colorado Rockies",
+        "away_score": 5,
+        "home_score": 6,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T20:05:00Z",
+        "away_team": "Los Angeles Angels",
+        "home_team": "Athletics",
+        "away_score": 11,
+        "home_score": 5,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T20:05:00Z",
+        "away_team": "Tampa Bay Rays",
+        "home_team": "San Francisco Giants",
+        "away_score": 1,
+        "home_score": 7,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T20:10:00Z",
+        "away_team": "San Diego Padres",
+        "home_team": "Los Angeles Dodgers",
+        "away_score": 4,
+        "home_score": 5,
+        "status": "Final"
+    },
+    {
+        "gameDate": "2025-08-17T23:10:00Z",
+        "away_team": "Seattle Mariners",
+        "home_team": "New York Mets",
+        "away_score": 3,
+        "home_score": 7,
+        "status": "In Progress"
+    },
+    {
+        "gameDate": "2025-08-18T18:20:00Z",
+        "away_team": "Milwaukee Brewers",
+        "home_team": "Chicago Cubs",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-19T00:05:00Z",
+        "away_team": "Milwaukee Brewers",
+        "home_team": "Chicago Cubs",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T22:40:00Z",
+        "away_team": "Houston Astros",
+        "home_team": "Detroit Tigers",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T22:40:00Z",
+        "away_team": "Toronto Blue Jays",
+        "home_team": "Pittsburgh Pirates",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T22:40:00Z",
+        "away_team": "St. Louis Cardinals",
+        "home_team": "Miami Marlins",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T22:45:00Z",
+        "away_team": "Seattle Mariners",
+        "home_team": "Philadelphia Phillies",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T23:10:00Z",
+        "away_team": "Baltimore Orioles",
+        "home_team": "Boston Red Sox",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T23:15:00Z",
+        "away_team": "Chicago White Sox",
+        "home_team": "Atlanta Braves",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-18T23:40:00Z",
+        "away_team": "Texas Rangers",
+        "home_team": "Kansas City Royals",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-19T00:40:00Z",
+        "away_team": "Los Angeles Dodgers",
+        "home_team": "Colorado Rockies",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-19T01:38:00Z",
+        "away_team": "Cincinnati Reds",
+        "home_team": "Los Angeles Angels",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-19T01:40:00Z",
+        "away_team": "Cleveland Guardians",
+        "home_team": "Arizona Diamondbacks",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    },
+    {
+        "gameDate": "2025-08-19T01:40:00Z",
+        "away_team": "San Francisco Giants",
+        "home_team": "San Diego Padres",
+        "away_score": null,
+        "home_score": null,
+        "status": "Scheduled"
+    }
+]

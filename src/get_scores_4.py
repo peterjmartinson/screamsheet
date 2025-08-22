@@ -10,11 +10,30 @@ import requests
 import os
 import json
 
+styles = getSampleStyleSheet()
+
 CENTERED_STYLE = ParagraphStyle(
     name="CenteredText",
     alignment=TA_CENTER
 )
 
+TITLE_STYLE = ParagraphStyle(
+    name="Title",
+    parent=styles['h1'],
+    fontName='Helvetica-Bold',
+    fontSize=28,
+    spaceAfter=12,
+    alignment=TA_CENTER
+)
+
+SUBTITLE_STYLE = ParagraphStyle(
+    name="Subtitle",
+    parent=styles['h2'],
+    fontName='Helvetica',
+    fontSize=18,
+    spaceAfter=12,
+    alignment=TA_CENTER
+)
 
 def get_mlb_scores_last_24_hours() -> list:
     now = datetime.utcnow()
@@ -186,12 +205,11 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
         topMargin=margin,
         bottomMargin=margin
     )
-    styles = getSampleStyleSheet()
     story = []
 
     # --- Header (Title and Subtitle) ---
-    story.append(Paragraph("MLB Scream Sheet", styles['h1']))
-    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), styles['h2']))
+    story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
+    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
 
     # --- Prepare Game Scores for Two Columns ---
@@ -223,7 +241,7 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
                 scores_right.append(game_table)
                 scores_right.append(Spacer(1, 10))
 
-    scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3], hAlign='LEFT')
+    scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT')
     story.append(scores_table)
     story.append(Spacer(1, 24))
 

@@ -210,3 +210,6 @@ __marimo__/
 # vim
 .*.sw*
 *.sw*
+
+*.pdf
+*.PDF

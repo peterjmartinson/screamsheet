@@ -307,10 +307,10 @@ def get_standings_from_file(filename) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    scores = get_scores_from_file("scores_20250818.json")
-    standings = get_standings_from_file("standings_20250818.csv")
-    # scores = get_mlb_scores_last_24_hours()
-    # standings = get_standings(2025)
+    # scores = get_scores_from_file("scores_20250818.json")
+    # standings = get_standings_from_file("standings_20250818.csv")
+    scores = get_mlb_scores_last_24_hours()
+    standings = get_standings(2025)
 
     today_str = datetime.utcnow().strftime("%Y%m%d")
     filename = f"MLB_Scores_{today_str}.pdf"

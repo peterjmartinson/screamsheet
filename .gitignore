@@ -213,3 +213,6 @@ __marimo__/
 
 *.pdf
 *.PDF
+
+*.json
+*.csv

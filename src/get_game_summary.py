@@ -74,7 +74,7 @@ class GameSummaryGenerator:
             # A simple way to get some play-by-play narrative
             play_by_play_narrative = []
             plays = raw_data['liveData']['plays']['allPlays']
-            for play in plays[:10]: # Limiting to the first 10 for conciseness
+            for play in plays:#[:10]: # Limiting to the first 10 for conciseness
                 play_by_play_narrative.append(play['result']['description'])
 
             return {
@@ -97,7 +97,7 @@ class GameSummaryGenerator:
 
         prompt = f"""
         You are a professional sports journalist. Write a concise, engaging summary of the following baseball game. 
-        Focus on the final score and a few key highlights.
+        Focus on the final score and a few key highlights from each inning, in order.
 
         Game details:
         Home Team: {extracted_info['home_team']}
@@ -130,7 +130,6 @@ class GameSummaryGenerator:
         raw_data = self._fetch_raw_game_data(team_id, date_str)
         extracted_info = self._extract_key_info(raw_data)
         llm_summary = self._generate_llm_summary(extracted_info)
-        
         return llm_summary
 
 # Example Usage in your main script

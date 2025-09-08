@@ -1,26 +1,61 @@
 from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Frame, PageTemplate, FrameBreak
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    Frame,
+    PageBreak,  # <-- Import the PageBreak flowable
+)
 import pandas as pd
 import requests
 import os
 import json
 
+from get_game_summary import GameSummaryGenerator
 
-def get_mlb_scores_last_24_hours() -> list:
-    now = datetime.utcnow()
-    yesterday = now - timedelta(days=1)
-    start_date = yesterday.strftime("%Y-%m-%d")
-    end_date = now.strftime("%Y-%m-%d")
+styles = getSampleStyleSheet()
+
+CENTERED_STYLE = ParagraphStyle(
+    name="CenteredText",
+    alignment=TA_CENTER
+)
+
+TITLE_STYLE = ParagraphStyle(
+    name="Title",
+    parent=styles['h1'],
+    fontName='Helvetica-Bold',
+    fontSize=28,
+    spaceAfter=12,
+    alignment=TA_CENTER
+)
+
+SUBTITLE_STYLE = ParagraphStyle(
+    name="Subtitle",
+    parent=styles['h2'],
+    fontName='Helvetica',
+    fontSize=18,
+    spaceAfter=12,
+    alignment=TA_CENTER
+)
+
+def get_game_scores_for_day(game_date=None) -> list:
+    if not game_date:
+        now = datetime.utcnow()
+        yesterday = now - timedelta(days=1)
+        game_date = yesterday.strftime("%Y-%m-%d")
 
     url = (
         f"https://statsapi.mlb.com/api/v1/schedule"
         f"?sportId=1"
-        f"&startDate={start_date}"
-        f"&endDate={end_date}"
+        f"&startDate={game_date}"
+        f"&endDate={game_date}"
     )
 
     response = requests.get(url)
@@ -161,7 +196,7 @@ def make_pdf(games, standings, filename):
     c.save()
 
 
-def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
+def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -180,12 +215,11 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
         topMargin=margin,
         bottomMargin=margin
     )
-    styles = getSampleStyleSheet()
     story = []
 
     # --- Header (Title and Subtitle) ---
-    story.append(Paragraph("MLB Scream Sheet", styles['h1']))
-    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), styles['h2']))
+    story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
+    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
 
     # --- Prepare Game Scores for Two Columns ---
@@ -217,7 +251,7 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
                 scores_right.append(game_table)
                 scores_right.append(Spacer(1, 10))
 
-    scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3], hAlign='LEFT')
+    scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT')
     story.append(scores_table)
     story.append(Spacer(1, 24))
 
@@ -227,17 +261,17 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
     divisions_order = ['East', 'Central', 'West']
 
     grid_data = [
-        ['', Paragraph("<b>American League</b>", styles['Normal']), Paragraph("<b>National League</b>", styles['Normal'])],
+        ['', Paragraph("<b>American League</b>", CENTERED_STYLE), Paragraph("<b>National League</b>", CENTERED_STYLE)],
     ]
     for geography in divisions_order:
-        row_list = [Paragraph(f"<b>{geography}</b>", styles['Normal'])]
+        row_list = [Paragraph(f"<b>{geography}</b>", CENTERED_STYLE)]
         al_group = al_divisions[al_divisions['division'].str.contains(geography)]
         nl_group = nl_divisions[nl_divisions['division'].str.contains(geography)]
         
         for group in [al_group, nl_group]:
             if not group.empty:
-                header = ["Team", "W", "L"]
-                table_data = [header] + group[['team', 'wins', 'losses']].values.tolist()
+                header = ["Team", "W", "L", "%"]
+                table_data = [header] + group[['team', 'wins', 'losses', 'pct']].values.tolist()
                 table_style = TableStyle([
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -245,7 +279,7 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
                     ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                     ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
                 ])
-                standings_table = Table(table_data, colWidths=[150, 30, 30])
+                standings_table = Table(table_data, colWidths=[150, 30, 30, 30])
                 standings_table.setStyle(table_style)
                 row_list.append(standings_table)
             else:
@@ -253,40 +287,81 @@ def generate_mlb_report(games, standings_df, filename="mlb_report.pdf"):
         grid_data.append(row_list)
         
     master_table_style = TableStyle([
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        # ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BACKGROUND', (1, 0), (-1, 0), colors.lightgrey),
-        ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
+        ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
+        # ('BACKGROUND', (1, 0), (-1, 0), colors.lightgrey),
+        # ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
     ])
     final_standings_table = Table(grid_data, colWidths=[60, 250, 250])
     final_standings_table.setStyle(master_table_style)
     story.append(final_standings_table)
 
+    # --- NEW: Add a page break and the game summary ---
+    story.append(PageBreak())
+
+    # Create a heading for the summary
+    summary_heading_style = ParagraphStyle(
+        name="SummaryHeading",
+        parent=styles['h3'],
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        spaceAfter=12,
+    )
+    story.append(Paragraph("Game Summary", summary_heading_style))
+    
+    # Add the game summary text as a Paragraph
+    summary_text_style = styles['Normal']
+    summary_text_style.fontName = 'Helvetica'
+    story.append(Paragraph(game_summary_text, summary_text_style))
+
+
     # --- Build the PDF ---
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 
+def get_scores_from_file(filename) -> list:
+    scores_list = []
+    with open(filename, "r") as file:
+        scores_list = json.load(file)
+    return scores_list
+
+
+def get_standings_from_file(filename) -> pd.DataFrame:
+    standings_df = pd.read_csv(filename)
+    return standings_df
+
 
 
 if __name__ == "__main__":
-    scores = get_mlb_scores_last_24_hours()
+
+    today = datetime.utcnow()
+    yesterday = today - timedelta(days=1)
+    today_str = today.strftime("%Y%m%d")
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+
+    # scores = get_scores_from_file("scores_20250818.json")
+    # standings = get_standings_from_file("standings_20250818.csv")
+    scores = get_game_scores_for_day()
     standings = get_standings(2025)
 
-    today_str = datetime.utcnow().strftime("%Y%m%d")
+    game_summarizer = GameSummaryGenerator()
+    game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
+
     filename = f"MLB_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(runtime_dir, '..', 'Files')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    generate_mlb_report(scores, standings, output_file_path)
+    generate_mlb_report(scores, standings, game_summary_text, output_file_path)
 
-    with open(f"scores_{today_str}.json", "w") as file:
-        json.dump(scores, file, indent=4)
+    # with open(f"scores_{today_str}.json", "w") as file:
+    #     json.dump(scores, file, indent=4)
 
-    standings.to_csv(f"standings_{today_str}.csv", index=False)
+    # standings.to_csv(f"standings_{today_str}.csv", index=False)
 
     print(f"PDF saved as: {filename}")
 

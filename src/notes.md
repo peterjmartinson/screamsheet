@@ -36,3 +36,4 @@ leagueRecord.pct
 5
 6
 
+export GEMINI_API_KEY='AIzaSyAtUXAaCqfI4i0MygIwH3BktRkfCsdHtP4'

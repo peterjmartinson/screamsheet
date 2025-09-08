@@ -47,7 +47,7 @@ SUBTITLE_STYLE = ParagraphStyle(
 
 def get_game_scores_for_day(game_date=None) -> list:
     if not game_date:
-        now = datetime.utcnow()
+        now = datetime.now()
         yesterday = now - timedelta(days=1)
         game_date = yesterday.strftime("%Y-%m-%d")
 
@@ -315,6 +315,12 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
     # Add the game summary text as a Paragraph
     summary_text_style = styles['Normal']
     summary_text_style.fontName = 'Helvetica'
+    summary_text_style = ParagraphStyle(
+        name="SummaryText",
+        parent=styles['Normal'],
+        fontName='Courier',
+        fontSize=12,
+    )
     story.append(Paragraph(game_summary_text, summary_text_style))
 
 
@@ -337,7 +343,7 @@ def get_standings_from_file(filename) -> pd.DataFrame:
 
 if __name__ == "__main__":
 
-    today = datetime.utcnow()
+    today = datetime.now()
     yesterday = today - timedelta(days=1)
     today_str = today.strftime("%Y%m%d")
     yesterday_str = yesterday.strftime("%Y-%m-%d")

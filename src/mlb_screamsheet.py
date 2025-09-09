@@ -344,8 +344,8 @@ def get_standings_from_file(filename) -> pd.DataFrame:
 if __name__ == "__main__":
 
     today = datetime.now()
-    yesterday = today - timedelta(days=1)
     today_str = today.strftime("%Y%m%d")
+    yesterday = today - timedelta(days=1)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
     # scores = get_scores_from_file("scores_20250818.json")

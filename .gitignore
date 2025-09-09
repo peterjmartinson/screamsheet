@@ -216,3 +216,5 @@ __marimo__/
 
 *.json
 *.csv
+
+GEMINI_API_KEY

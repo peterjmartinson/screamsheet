@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -75,7 +75,7 @@ def get_game_scores_for_day(game_date=None) -> list:
             games.append(game_info)
     return games
 
-def get_current_nfl_week(season: int) -> int | None:
+def get_current_nfl_week(season: int) -> dict | None:
     """
     Determines the current NFL regular season week for a given season.
 
@@ -86,6 +86,14 @@ def get_current_nfl_week(season: int) -> int | None:
         int: The number of the current regular season week, or None if not found.
     """
     url = f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={season}&seasontype=2"
+    now = datetime.now(timezone.utc)
+    week_info = {
+        "SeasonName": "",
+        "SeasonValue": 0,
+        "WeekName": "",
+        "WeekDetail": "",
+        "WeekValue": 0
+    }
     
     try:
         response = requests.get(url)
@@ -95,26 +103,42 @@ def get_current_nfl_week(season: int) -> int | None:
         print(f"Error fetching scoreboard data: {e}")
         return None
 
-    # The week information is nested under 'week'
-    week_info = data.get("week")
+    calendar = data["leagues"][0]["calendar"]
+
+    for period in calendar:
+        start_date = datetime.fromisoformat(period["startDate"].replace('Z', '+00:00'))
+        end_date = datetime.fromisoformat(period["endDate"].replace('Z', '+00:00'))
+        if now >= start_date and now <= end_date:
+            week_info["SeasonName"] = period["label"]
+            week_info["SeasonValue"] = period["value"]
+            for week in period["entries"]:
+                week_start_date = datetime.fromisoformat(week["startDate"].replace('Z', '+00:00'))
+                week_end_date = datetime.fromisoformat(week["endDate"].replace('Z', '+00:00'))
+                if now >= week_start_date and now <= week_end_date:
+                    week_info["WeekName"] = week["label"]
+                    week_info["WeekDetail"] = week["detail"]
+                    week_info["WeekValue"] = week["value"]
     
     # Check if the week object exists and has a valid number
-    if week_info and "number" in week_info:
-        return week_info["number"]
+    if week_info["WeekValue"] != 0:
+        return week_info
     else:
         print("Could not determine the current week from the API response.")
         return None
 
-def get_nfl_weekly_scores(season, week) -> list:
+def get_nfl_weekly_scores(year, week_info) -> list:
     """
     Fetches NFL game scores for a specific season and week from ESPN's unofficial API.
     """
+    season = week_info["SeasonValue"]
+    week = week_info["WeekValue"]
     url = (
         f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-        f"?dates={season}"
-        f"&seasontype=2"  # 2 is for regular season
+        f"?dates={year}"
+        f"&seasontype={season}"  # 2 is for regular season
         f"&week={week}"
     )
+    print(url)
 
     try:
         response = requests.get(url)
@@ -149,7 +173,7 @@ def get_nfl_weekly_scores(season, week) -> list:
                 
     return games
 
-def get_nfl_data(season: int = 2025) -> pd.DataFrame:
+def get_nfl_data(year: int = 2025) -> pd.DataFrame:
     """
     Fetches NFL team data and conference standings from ESPN APIs, 
     and combines them into a single, clean DataFrame.
@@ -182,7 +206,7 @@ def get_nfl_data(season: int = 2025) -> pd.DataFrame:
     print(f"Successfully created a lookup for {len(team_name_lookup)} NFL teams.")
 
     # 2. Fetch conference standings using the previous logic
-    base_standings_url = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{season}/types/2/groups/"
+    base_standings_url = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/types/2/groups/"
     conferences = {7: "NFC", 8: "AFC"}
     all_standings = []
     
@@ -230,7 +254,7 @@ def get_nfl_data(season: int = 2025) -> pd.DataFrame:
     return final_standings.sort_values(by=['Conference', 'Win Pct', 'Wins'], ascending=[True, False, False])
 
 
-def generate_nfl_report(games, standings_df=None, game_summary_text="", filename="nfl_report.pdf"):
+def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="", filename="nfl_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -239,6 +263,11 @@ def generate_nfl_report(games, standings_df=None, game_summary_text="", filename
         standings_df (pd.DataFrame): A DataFrame of team standings, assumed to be pre-sorted.
         filename (str): The name of the output PDF file.
     """
+    season = week_info["SeasonName"]
+    week = week_info["WeekName"]
+    week_detail = week_info["WeekDetail"]
+    week_string = f"{season}, {week} ({week_detail})"
+
     # --- Adjust margins here ---
     margin = 36 # 0.5 inches in points
     doc = SimpleDocTemplate(
@@ -254,6 +283,7 @@ def generate_nfl_report(games, standings_df=None, game_summary_text="", filename
     # --- Header (Title and Subtitle) ---
     story.append(Paragraph("NFL Scream Sheet", TITLE_STYLE))
     story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
+    story.append(Paragraph(week_string, SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
 
     # --- Prepare Game Scores for Two Columns ---
@@ -294,10 +324,10 @@ def generate_nfl_report(games, standings_df=None, game_summary_text="", filename
     nfc_standings = standings_df[standings_df['Conference'] == 'NFC']
 
     # Prepare the data for the two tables
-    header = ["Team", "W", "L", "T", "%"]
+    header = ["Team", "W", "L", "T"]
     
-    afc_table_data = [header] + afc_standings[['Team', 'Wins', 'Losses', 'Ties', 'Win Pct']].values.tolist()
-    nfc_table_data = [header] + nfc_standings[['Team', 'Wins', 'Losses', 'Ties', 'Win Pct']].values.tolist()
+    afc_table_data = [header] + afc_standings[['Team', 'Wins', 'Losses', 'Ties']].values.tolist()
+    nfc_table_data = [header] + nfc_standings[['Team', 'Wins', 'Losses', 'Ties']].values.tolist()
 
     # Define the table style
     table_style = TableStyle([
@@ -360,35 +390,17 @@ def generate_nfl_report(games, standings_df=None, game_summary_text="", filename
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 
-
-if __name__ == "__main__":
-
+def main():
     today = datetime.now()
+    current_year = today.year
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
-    # Example usage:
-    # To get the scores for Week 2 of the 2025 season
-    # Note: You may need to dynamically determine the current week and season
-    # based on the current date and the NFL schedule.
-    current_season = 2025
-    current_week = get_current_nfl_week(current_season)
+    week_info = get_current_nfl_week(current_year)
 
-    weekly_scores = get_nfl_weekly_scores(current_season, current_week)
-    # if weekly_scores:
-    #     for game in weekly_scores:
-    #         print(f"{game['away_team']} {game['away_score']} at {game['home_team']} {game['home_score']} - Final")
-    # else:
-    #     print("No completed games found for this week.")
-
-    # scores = get_scores_from_file("scores_20250818.json")
-    # standings = get_standings_from_file("standings_20250818.csv")
-    # scores = get_game_scores_for_day()
-    # standings = get_standings(2025)
-
-    # game_summarizer = GameSummaryGenerator()
-    # game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
+    weekly_scores = get_nfl_weekly_scores(current_year, week_info)
+    standings_df = get_nfl_data(current_year)
 
     filename = f"NFL_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
@@ -396,7 +408,13 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    generate_nfl_report(weekly_scores, standings_df, filename=output_file_path)
+    generate_nfl_report(week_info, weekly_scores, standings_df, filename=output_file_path)
 
-    print(f"PDF saved as: {filename}")
+
+if __name__ == "__main__":
+
+    main()
+
+
+    # print(f"PDF saved as: {filename}")
 

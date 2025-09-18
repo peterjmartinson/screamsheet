@@ -75,6 +75,36 @@ def get_game_scores_for_day(game_date=None) -> list:
             games.append(game_info)
     return games
 
+def get_current_nfl_week(season: int) -> int | None:
+    """
+    Determines the current NFL regular season week for a given season.
+
+    Args:
+        season (int): The NFL season year (e.g., 2025).
+
+    Returns:
+        int: The number of the current regular season week, or None if not found.
+    """
+    url = f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={season}&seasontype=2"
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching scoreboard data: {e}")
+        return None
+
+    # The week information is nested under 'week'
+    week_info = data.get("week")
+    
+    # Check if the week object exists and has a valid number
+    if week_info and "number" in week_info:
+        return week_info["number"]
+    else:
+        print("Could not determine the current week from the API response.")
+        return None
+
 def get_nfl_weekly_scores(season, week) -> list:
     """
     Fetches NFL game scores for a specific season and week from ESPN's unofficial API.
@@ -343,7 +373,7 @@ if __name__ == "__main__":
     # Note: You may need to dynamically determine the current week and season
     # based on the current date and the NFL schedule.
     current_season = 2025
-    current_week = 2 
+    current_week = get_current_nfl_week(current_season)
 
     weekly_scores = get_nfl_weekly_scores(current_season, current_week)
     # if weekly_scores:
@@ -356,14 +386,6 @@ if __name__ == "__main__":
     # standings = get_standings_from_file("standings_20250818.csv")
     # scores = get_game_scores_for_day()
     # standings = get_standings(2025)
-
-    # Example Usage:
-    standings_df = get_nfl_data(2025)
-    print(standings_df)
-
-    # for team in standings_df["team"]:
-    #     print(team)
-
 
     # game_summarizer = GameSummaryGenerator()
     # game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)

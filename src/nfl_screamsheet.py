@@ -380,7 +380,7 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
 
     # Combine the two tables into a single master table
     master_table_data = [
-        [Paragraph("<b>AFC Standings</b>", CENTERED_STYLE), Paragraph("<b>NFC Standings</b>", CENTERED_STYLE)],
+        [Paragraph("<b>American Football Conference</b>", CENTERED_STYLE), Paragraph("<b>National Football Conference</b>", CENTERED_STYLE)],
         [afc_table, nfc_table]
     ]
 

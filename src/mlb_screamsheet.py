@@ -223,9 +223,9 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
     story = []
 
     # --- Header (Title and Subtitle) ---
-    story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
-    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
-    story.append(Spacer(1, 12))
+    # story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
+    # story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
+    # story.append(Spacer(1, 12))
 
     # --- Prepare Game Scores for Two Columns ---
     scores_left = []
@@ -257,8 +257,10 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
                 scores_right.append(Spacer(1, 10))
 
     scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT')
-    story.append(scores_table)
-    story.append(Spacer(1, 24))
+
+    # -- add scores_table
+    # story.append(scores_table)
+    # story.append(Spacer(1, 24))
 
     # --- Standings as a 2x3 Grid ---
     al_divisions = standings_df[standings_df['division'].str.contains('American League')]
@@ -302,10 +304,12 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
     ])
     final_standings_table = Table(grid_data, colWidths=[60, 250, 250])
     final_standings_table.setStyle(master_table_style)
-    story.append(final_standings_table)
+
+    # -- Add standings tables
+    # story.append(final_standings_table)
 
     # --- NEW: Add a page break and the game summary ---
-    story.append(PageBreak())
+    # story.append(PageBreak())
 
     # Create a heading for the summary
     summary_heading_style = ParagraphStyle(
@@ -315,7 +319,7 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
         fontSize=14,
         spaceAfter=12,
     )
-    story.append(Paragraph("Game Summary", summary_heading_style))
+    # story.append(Paragraph("Game Summary", summary_heading_style))
     
     # Add the game summary text as a Paragraph
     summary_text_style = styles['Normal']
@@ -326,10 +330,19 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
         fontName='Courier',
         fontSize=12,
     )
-    story.append(Paragraph(game_summary_text, summary_text_style))
+    # story.append(Paragraph(game_summary_text, summary_text_style))
 
 
     # --- Build the PDF ---
+    story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
+    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
+    story.append(Spacer(1, 12))
+    story.append(scores_table)
+    story.append(Spacer(1, 24))
+    story.append(Paragraph("Game Summary", summary_heading_style))
+    story.append(Paragraph(game_summary_text, summary_text_style))
+    story.append(PageBreak())
+    story.append(final_standings_table)
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 

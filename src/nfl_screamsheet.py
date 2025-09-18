@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -42,6 +42,15 @@ SUBTITLE_STYLE = ParagraphStyle(
     fontSize=18,
     spaceAfter=12,
     alignment=TA_CENTER
+)
+
+ASIDE_STYLE = ParagraphStyle(
+    name="Aside",
+    parent=styles['Normal'],
+    fontName='Helvetica-Oblique',
+    fontSize=12,
+    spaceAfter=12,
+    alignment=TA_LEFT
 )
 
 def get_game_scores_for_day(game_date=None) -> list:
@@ -126,12 +135,18 @@ def get_current_nfl_week(season: int) -> dict | None:
         print("Could not determine the current week from the API response.")
         return None
 
-def get_nfl_weekly_scores(year, week_info) -> list:
+def get_nfl_weekly_scores(year, week_info, previous_week=False) -> list:
     """
     Fetches NFL game scores for a specific season and week from ESPN's unofficial API.
     """
     season = week_info["SeasonValue"]
-    week = week_info["WeekValue"]
+    week = int(week_info["WeekValue"])
+    if previous_week:
+        if week - 1 == 0:
+            print(f"First week of {week_info['SeasonName']}")
+        else:
+            week = week - 1
+            print("No NFL games yet this week, getting last week's games instead")
     url = (
         f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
         f"?dates={year}"
@@ -170,6 +185,17 @@ def get_nfl_weekly_scores(year, week_info) -> list:
                     "status": game["status"]["type"]["name"]
                 }
                 games.append(game_info)
+    if previous_week:
+        game_info = {
+            "gameId": -1,
+            "date": None,
+            "away_team": None,
+            "away_score": None,
+            "home_team": None,
+            "home_score": None,
+            "status": "Last Week's Games"
+        }
+        games.append(game_info)
                 
     return games
 
@@ -281,15 +307,21 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
     story = []
 
     # --- Header (Title and Subtitle) ---
-    story.append(Paragraph("NFL Scream Sheet", TITLE_STYLE))
-    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
-    story.append(Paragraph(week_string, SUBTITLE_STYLE))
-    story.append(Spacer(1, 12))
+    # story.append(Paragraph("NFL Scream Sheet", TITLE_STYLE))
+    # story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
+    # story.append(Paragraph(week_string, SUBTITLE_STYLE))
+    # story.append(Spacer(1, 12))
 
     # --- Prepare Game Scores for Two Columns ---
     scores_left = []
     scores_center = []
     scores_right = []
+
+    previous_game = False
+    if games[-1]["gameId"] == -1:
+        games.pop()
+        previous_game = True
+
     for i, game in enumerate(games):
         if game.get("away_score") is not None and game.get("home_score") is not None:
             table_data = [
@@ -316,8 +348,8 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
                 scores_right.append(Spacer(1, 10))
 
     scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT')
-    story.append(scores_table)
-    story.append(Spacer(1, 12))
+    # story.append(scores_table)
+    # story.append(Spacer(1, 12))
 
     # Get the data for each conference
     afc_standings = standings_df[standings_df['Conference'] == 'AFC']
@@ -359,7 +391,7 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
 
     final_table = Table(master_table_data, colWidths=[250, 250])
     final_table.setStyle(master_table_style)
-    story.append(final_table)
+    # story.append(final_table)
 
     # # --- NEW: Add a page break and the game summary ---
     # story.append(PageBreak())
@@ -387,6 +419,18 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
 
 
     # --- Build the PDF ---
+    story.append(Paragraph("NFL Scream Sheet", TITLE_STYLE))
+    story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
+    story.append(Paragraph(week_string, SUBTITLE_STYLE))
+    story.append(Spacer(1, 12))
+    if previous_game:
+        story.append(Paragraph("Previous week's games (no games yet this week)", ASIDE_STYLE))
+    story.append(scores_table)
+    story.append(Spacer(1, 12))
+    # story.append(Paragraph("Game Summary", summary_heading_style))
+    # story.append(Paragraph(game_summary_text, summary_text_style))
+    story.append(PageBreak())
+    story.append(final_table)
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 
@@ -400,6 +444,8 @@ def main():
     week_info = get_current_nfl_week(current_year)
 
     weekly_scores = get_nfl_weekly_scores(current_year, week_info)
+    if len(weekly_scores) == 0:
+        weekly_scores = get_nfl_weekly_scores(current_year, week_info, previous_week=True)
     standings_df = get_nfl_data(current_year)
 
     filename = f"NFL_Scores_{today_str}.pdf"

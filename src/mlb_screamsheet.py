@@ -20,6 +20,11 @@ import json
 
 from get_game_summary import GameSummaryGenerator
 
+from dotenv import load_dotenv
+
+# Optional: Load environment variables from a .env file for API keys
+load_dotenv()
+
 styles = getSampleStyleSheet()
 
 CENTERED_STYLE = ParagraphStyle(
@@ -353,7 +358,11 @@ if __name__ == "__main__":
     scores = get_game_scores_for_day()
     standings = get_standings(2025)
 
-    game_summarizer = GameSummaryGenerator()
+    try:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+    except Exception:
+        gemini_api_key = None
+    game_summarizer = GameSummaryGenerator(gemini_api_key)
     game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
 
     filename = f"MLB_Scores_{today_str}.pdf"

@@ -218,3 +218,4 @@ __marimo__/
 *.csv
 
 GEMINI_API_KEY
+logfiles

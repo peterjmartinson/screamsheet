@@ -1,29 +1,25 @@
 import os
 import requests
 import google.generativeai as genai
-from dotenv import load_dotenv
-
-# Optional: Load environment variables from a .env file for API keys
-load_dotenv()
 
 class GameSummaryGenerator:
     """
     A class to fetch MLB game data and generate a human-readable summary
     using a Large Language Model.
     """
+
+    _use_default_text = True
+    _default_text = "This is just some placeholder text."
+
     def __init__(self, gemini_api_key=None):
         """
         Initializes the generator with a Gemini API key.
         """
-        if gemini_api_key is None:
-            gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if gemini_api_key is not None:
+            self._use_default_text = False
+            genai.configure(api_key=gemini_api_key)
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
         
-        if not gemini_api_key:
-            raise ValueError("Gemini API key not found. Set it as an environment variable or pass it to the constructor.")
-        
-        genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
-
     def _fetch_raw_game_data(self, team_id, date_str):
         """
         Internal method to get the raw JSON data for a specific game.
@@ -127,9 +123,11 @@ class GameSummaryGenerator:
         Returns:
             str: A formatted game summary from the LLM.
         """
-        raw_data = self._fetch_raw_game_data(team_id, date_str)
-        extracted_info = self._extract_key_info(raw_data)
-        llm_summary = self._generate_llm_summary(extracted_info)
+        llm_summary = self._default_text
+        if not self._use_default_text:
+            raw_data = self._fetch_raw_game_data(team_id, date_str)
+            extracted_info = self._extract_key_info(raw_data)
+            llm_summary = self._generate_llm_summary(extracted_info)
         return llm_summary
 
 # Example Usage in your main script

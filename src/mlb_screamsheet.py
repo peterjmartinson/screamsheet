@@ -20,6 +20,11 @@ import json
 
 from get_game_summary import GameSummaryGenerator
 
+from dotenv import load_dotenv
+
+# Optional: Load environment variables from a .env file for API keys
+load_dotenv()
+
 styles = getSampleStyleSheet()
 
 CENTERED_STYLE = ParagraphStyle(
@@ -339,10 +344,7 @@ def get_standings_from_file(filename) -> pd.DataFrame:
     standings_df = pd.read_csv(filename)
     return standings_df
 
-
-
-if __name__ == "__main__":
-
+def main():
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)
@@ -353,7 +355,11 @@ if __name__ == "__main__":
     scores = get_game_scores_for_day()
     standings = get_standings(2025)
 
-    game_summarizer = GameSummaryGenerator()
+    try:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+    except Exception:
+        gemini_api_key = None
+    game_summarizer = GameSummaryGenerator(gemini_api_key)
     game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
 
     filename = f"MLB_Scores_{today_str}.pdf"
@@ -364,10 +370,8 @@ if __name__ == "__main__":
 
     generate_mlb_report(scores, standings, game_summary_text, output_file_path)
 
-    # with open(f"scores_{today_str}.json", "w") as file:
-    #     json.dump(scores, file, indent=4)
 
-    # standings.to_csv(f"standings_{today_str}.csv", index=False)
+if __name__ == "__main__":
 
-    print(f"PDF saved as: {filename}")
+    main()
 

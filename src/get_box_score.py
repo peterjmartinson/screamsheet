@@ -233,19 +233,3 @@ if __name__ == '__main__':
 
     story.append(section_table)
     doc.build(story)
-    # story.append(Paragraph("Game Summary", summary_heading_style))
-    # story.append(boxscore_tables['batting_table'])
-
-    # # You would normally append these to a story, but for a test, we can print them
-    # print("--- Formatted Hitting Table (for ReportLab) ---")
-    # print(boxscore_tables['batting_table'])
-    # print("\n--- Formatted Pitching Table (for ReportLab) ---")
-    # print(boxscore_tables['pitching_table'])
-
-
-
-# if __name__ == '__main__':
-
-#     phillies = 143
-#     parsed_score = get_box_score(phillies)
-#     print(parsed_score)

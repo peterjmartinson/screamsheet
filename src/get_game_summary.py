@@ -1,5 +1,6 @@
 import os
 import requests
+from lorem_text import lorem
 import google.generativeai as genai
 
 class GameSummaryGenerator:
@@ -9,7 +10,7 @@ class GameSummaryGenerator:
     """
 
     _use_default_text = True
-    _default_text = "This is just some placeholder text."
+    _default_text = lorem.paragraphs(1)
 
     def __init__(self, gemini_api_key=None):
         """
@@ -46,7 +47,9 @@ class GameSummaryGenerator:
             summary_response = requests.get(game_summary_url)
             summary_response.raise_for_status()
             
-            return summary_response.json()
+            output = summary_response.json()
+            print(output)
+            return output
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching game data: {e}")

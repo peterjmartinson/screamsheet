@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
@@ -19,6 +20,7 @@ import os
 import json
 
 from get_game_summary import GameSummaryGenerator
+from get_box_score import get_box_score
 
 from dotenv import load_dotenv
 
@@ -201,7 +203,7 @@ def make_pdf(games, standings, filename):
     c.save()
 
 
-def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb_report.pdf"):
+def generate_mlb_report(games, standings_df, game_summary_text="", box_score=None, filename="mlb_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -256,7 +258,12 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
                 scores_right.append(game_table)
                 scores_right.append(Spacer(1, 10))
 
-    scores_table = Table([[scores_left, scores_center, scores_right]], colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT')
+    scores_table = Table(
+        [
+            [scores_left, scores_center, scores_right]
+        ],
+        colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT'
+    )
 
     # -- add scores_table
     # story.append(scores_table)
@@ -332,6 +339,31 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
     )
     # story.append(Paragraph(game_summary_text, summary_text_style))
 
+    boxscore_table = create_boxscore_tables(box_score)
+
+    summary = [
+        Paragraph("Game Summary", summary_heading_style),
+        Paragraph(game_summary_text, summary_text_style)
+    ]
+    box_content = [
+        boxscore_table['batting_table'],
+        Spacer(1, 0.15 * inch),
+        boxscore_table['pitching_table']
+    ]
+
+    box_column_table = Table(
+        [[flowable] for flowable in box_content],
+        colWidths=['*'],
+        hAlign='CENTER'
+    )
+
+    yesterday_game_table = Table(
+        [
+            [summary, box_column_table]
+        ],
+        colWidths=[doc.width/2, doc.width/2], hAlign='LEFT'
+    )
+
 
     # --- Build the PDF ---
     story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
@@ -339,8 +371,7 @@ def generate_mlb_report(games, standings_df, game_summary_text="", filename="mlb
     story.append(Spacer(1, 12))
     story.append(scores_table)
     story.append(Spacer(1, 24))
-    story.append(Paragraph("Game Summary", summary_heading_style))
-    story.append(Paragraph(game_summary_text, summary_text_style))
+    story.append(yesterday_game_table)
     story.append(PageBreak())
     story.append(final_standings_table)
     doc.build(story)
@@ -357,7 +388,77 @@ def get_standings_from_file(filename) -> pd.DataFrame:
     standings_df = pd.read_csv(filename)
     return standings_df
 
+def create_boxscore_tables(boxscore_stats):
+    """
+    Creates ReportLab Table objects for hitting and pitching stats.
+
+    Args:
+        boxscore_stats: A dictionary containing 'batting_stats' and 
+                        'pitching_stats' lists.
+
+    Returns:
+        A dictionary with ReportLab Table objects for batting and pitching.
+    """
+    batting_stats = boxscore_stats['batting_stats']
+    pitching_stats = boxscore_stats['pitching_stats']
+
+    # --- Hitting Table ---
+    hitting_header = ["Batter", "AB", "R", "H", "HR", "RBI", "BB", "SO"]
+    hitting_data = [hitting_header]
+
+    for player in batting_stats:
+        row = [
+            player['name'],
+            str(player.get('AB', 0)),
+            str(player.get('R', 0)),
+            str(player.get('H', 0)),
+            str(player.get('HR', 0)),
+            str(player.get('RBI', 0)),
+            str(player.get('BB', 0)),
+            str(player.get('SO', 0))
+        ]
+        hitting_data.append(row)
+
+    hitting_table = Table(hitting_data)
+    hitting_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
+
+    # --- Pitching Table ---
+    pitching_header = ["Pitcher", "IP", "H", "R", "ER", "BB", "SO"]
+    pitching_data = [pitching_header]
+
+    for player in pitching_stats:
+        row = [
+            player['name'],
+            player.get('IP', '0.0'),
+            str(player.get('H', 0)),
+            str(player.get('R', 0)),
+            str(player.get('ER', 0)),
+            str(player.get('BB', 0)),
+            str(player.get('SO', 0))
+        ]
+        pitching_data.append(row)
+
+    pitching_table = Table(pitching_data)
+    pitching_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+    ]))
+
+    return {'batting_table': hitting_table, 'pitching_table': pitching_table}
+
 def main():
+    phillies = 143
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)
@@ -375,13 +476,15 @@ def main():
     game_summarizer = GameSummaryGenerator(gemini_api_key)
     game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
 
+    box_score = get_box_score(phillies, yesterday)
+
     filename = f"MLB_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(runtime_dir, '..', 'Files')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    generate_mlb_report(scores, standings, game_summary_text, output_file_path)
+    generate_mlb_report(scores, standings, game_summary_text, box_score, output_file_path)
 
 
 if __name__ == "__main__":

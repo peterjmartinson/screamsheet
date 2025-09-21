@@ -5,17 +5,20 @@ on:
     types: [closed]
     branches:
       - master
-  workflow_dispatch:  # This allows you to run it manually
+  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: self-hosted  # This is the key part - tells GitHub to use your desktop runner
+    runs-on: self-hosted
     if: github.event.pull_request.merged == true
-   
+
     steps:
       - name: Git Pull on Desktop
         run: |
-          # Use your SSH key to perform a git pull
-          # Make sure your runner has SSH access to the project directory
           cd /home/peter/Code/screamsheet
           git pull origin master
+
+      - name: Install requirements
+        run: |
+          cd /home/peter/Code/screamsheet
+          pip install -r requirements.txt

@@ -18,4 +18,4 @@ jobs:
           # Use your SSH key to perform a git pull
           # Make sure your runner has SSH access to the project directory
           cd /home/peter/Code/screamsheet
-          git pull origin main
+          git pull origin master

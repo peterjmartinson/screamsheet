@@ -1,7 +1,7 @@
 import os
 import requests
 from lorem_text import lorem
-import google.generativeai as genai
+from google import genai
 
 class GameSummaryGenerator:
     """
@@ -18,9 +18,13 @@ class GameSummaryGenerator:
         """
         if gemini_api_key is not None:
             self._use_default_text = False
-            genai.configure(api_key=gemini_api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-        
+            self.client = genai.Client(api_key=gemini_api_key)
+            self.model_name = 'gemini-2.5-flash' 
+        else:
+            self._use_default_text = True
+            self.client = None
+            self.model_name = None
+
     def _fetch_raw_game_data(self, team_id, date_str):
         """
         Internal method to get the raw JSON data for a specific game.
@@ -109,7 +113,10 @@ class GameSummaryGenerator:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             print(f"Error generating summary with LLM: {e}")

@@ -458,7 +458,7 @@ def create_boxscore_tables(boxscore_stats):
     return {'batting_table': hitting_table, 'pitching_table': pitching_table}
 
 def main():
-    phillies = 143
+    phillies = 147
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)

@@ -24,6 +24,38 @@ from get_box_score import get_box_score
 
 from dotenv import load_dotenv
 
+ANGELS = 108
+ASTROS = 117
+ATHLETICS = 133
+BLUE JAYS = 141
+BRAVES = 144
+BREWERS = 158
+CARDINALS = 138
+CUBS = 112
+DIAMONDBACKS = 109
+DODGERS = 119
+GIANTS = 137
+GUARDIANS = 114
+MARINERS = 136
+MARLINS = 146
+METS = 121
+NATIONALS = 120
+ORIOLES = 110
+PADRES = 135
+PHILLIES = 143
+PIRATES = 134
+RANGERS = 140
+RAYS = 139
+REDSOX = 111
+REDS = 113
+ROCKIES = 115
+ROYALS = 118
+TIGERS = 116
+TWINS = 142
+WHITESOX = 145
+YANKEES = 147
+
+
 # Optional: Load environment variables from a .env file for API keys
 load_dotenv()
 
@@ -457,8 +489,7 @@ def create_boxscore_tables(boxscore_stats):
 
     return {'batting_table': hitting_table, 'pitching_table': pitching_table}
 
-def main():
-    phillies = 147
+def main(team_id = PHILLIES):
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)
@@ -474,9 +505,9 @@ def main():
     except Exception:
         gemini_api_key = None
     game_summarizer = GameSummaryGenerator(gemini_api_key)
-    game_summary_text = game_summarizer.generate_summary(date_str=yesterday_str)
+    game_summary_text = game_summarizer.generate_summary(team_id=team_id, date_str=yesterday_str)
 
-    box_score = get_box_score(phillies, yesterday)
+    box_score = get_box_score(team_id, yesterday)
 
     filename = f"MLB_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
@@ -489,5 +520,7 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    main(YANKEES)
+
+
 

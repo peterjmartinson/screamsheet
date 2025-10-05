@@ -520,7 +520,7 @@ def main(team_id = PHILLIES):
 
 if __name__ == "__main__":
 
-    main(YANKEES)
+    main(PHILLIES)
 
 
 

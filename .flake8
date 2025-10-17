@@ -1,0 +1,9 @@
+[flake8]
+# E302: expected 2 blank lines, found 1 (before function/class definition)
+# W293: blank line contains whitespace
+# E501 line too long
+# F841 local variable is assigned to but never used
+ignore = E302, E501, F841, W293
+
+max-line-length = 88 
+# You can set the max line length here. 88 is the default for tools like Black

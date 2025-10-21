@@ -34,5 +34,5 @@ YANKEES = 147
 
 if __name__ == "__main__":
 
-    mlb.main(BREWERS)
+    mlb.main(MARINERS)
     nfl.main()

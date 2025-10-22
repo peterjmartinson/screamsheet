@@ -1,5 +1,6 @@
 import mlb_screamsheet as mlb
 import nfl_screamsheet as nfl
+import nhl_screamsheet as nhl
 
 ANGELS = 108
 ASTROS = 117
@@ -34,5 +35,6 @@ YANKEES = 147
 
 if __name__ == "__main__":
 
-    mlb.main(MARINERS)
+    mlb.main(DODGERS)
     nfl.main()
+    nhl.main()

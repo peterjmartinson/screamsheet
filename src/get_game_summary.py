@@ -2,6 +2,8 @@ import os
 import requests
 from lorem_text import lorem
 from google import genai
+from typing import Optional, Dict, Union, Any, List
+
 
 class GameSummaryGenerator:
     """
@@ -9,37 +11,39 @@ class GameSummaryGenerator:
     using a Large Language Model.
     """
 
-    _use_default_text = True
-    _default_text = lorem.paragraphs(1)
+    # Class attributes
+    _use_default_text: bool = True
+    _default_text: str = lorem.paragraphs(1)
 
-    def __init__(self, gemini_api_key=None):
+    def __init__(self, gemini_api_key: Optional[str] = None) -> None:
         """
         Initializes the generator with a Gemini API key.
         """
         if gemini_api_key is not None:
             self._use_default_text = False
-            self.client = genai.Client(api_key=gemini_api_key)
-            self.model_name = 'gemini-2.5-flash' 
+            self.client: genai.Client = genai.Client(api_key=gemini_api_key)
+            self.model_name: str = 'gemini-2.5-flash'
         else:
             self._use_default_text = True
             self.client = None
             self.model_name = None
 
-    def _fetch_raw_game_data(self, team_id, date_str):
+    def _fetch_raw_game_data(self, team_id: int, date_str: str) -> Optional[Dict[str, Any]]:
         """
         Internal method to get the raw JSON data for a specific game.
         """
-        schedule_url = "https://statsapi.mlb.com/api/v1/schedule"
-        params = {'sportId': 1, 'teamId': team_id, 'date': date_str}
+        schedule_url: str = "https://statsapi.mlb.com/api/v1/schedule"
+        params: Dict[str, Union[int, str]] = {'sportId': 1, 'teamId': team_id, 'date': date_str}
         
         try:
-            schedule_response = requests.get(schedule_url, params=params)
+            schedule_response: requests.Response = requests.get(schedule_url, params=params)
             schedule_response.raise_for_status()
-            schedule_data = schedule_response.json()
+            schedule_data: Dict[str, Any] = schedule_response.json()
 
-            game_pk = None
+            game_pk: Optional[int] = None
             if 'dates' in schedule_data and schedule_data['dates']:
                 for game in schedule_data['dates'][0]['games']:
+                    # Assuming team IDs are integers
                     if game['teams']['away']['team']['id'] == team_id or game['teams']['home']['team']['id'] == team_id:
                         game_pk = game['gamePk']
                         break
@@ -47,11 +51,11 @@ class GameSummaryGenerator:
             if not game_pk:
                 return None
             
-            game_summary_url = f"https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
-            summary_response = requests.get(game_summary_url)
+            game_summary_url: str = f"https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
+            summary_response: requests.Response = requests.get(game_summary_url)
             summary_response.raise_for_status()
             
-            output = summary_response.json()
+            output: Dict[str, Any] = summary_response.json()
             print(output)
             return output
 
@@ -59,7 +63,7 @@ class GameSummaryGenerator:
             print(f"Error fetching game data: {e}")
             return None
 
-    def _extract_key_info(self, raw_data):
+    def _extract_key_info(self, raw_data: Optional[Dict[str, Any]]) -> Union[Dict[str, Union[str, int]], str]:
         """
         Internal method to parse and extract key game events.
         """
@@ -67,19 +71,20 @@ class GameSummaryGenerator:
             return "No game data available."
         
         try:
-            home_team = raw_data['gameData']['teams']['home']['name']
-            away_team = raw_data['gameData']['teams']['away']['name']
+            home_team: str = raw_data['gameData']['teams']['home']['name']
+            away_team: str = raw_data['gameData']['teams']['away']['name']
             
             # Use 'linescore' to get the final score
-            home_score = raw_data['liveData']['linescore']['teams']['home']['runs']
-            away_score = raw_data['liveData']['linescore']['teams']['away']['runs']
+            home_score: int = raw_data['liveData']['linescore']['teams']['home']['runs']
+            away_score: int = raw_data['liveData']['linescore']['teams']['away']['runs']
             
             # A simple way to get some play-by-play narrative
-            play_by_play_narrative = []
-            plays = raw_data['liveData']['plays']['allPlays']
-            for play in plays:#[:10]: # Limiting to the first 10 for conciseness
+            play_by_play_narrative: List[str] = []
+            plays: List[Dict[str, Any]] = raw_data['liveData']['plays']['allPlays']
+            for play in plays: #[:10]: # Limiting to the first 10 for conciseness
                 play_by_play_narrative.append(play['result']['description'])
 
+            # Type annotation for the return dictionary
             return {
                 'home_team': home_team,
                 'away_team': away_team,
@@ -91,29 +96,33 @@ class GameSummaryGenerator:
             print(f"Error parsing game data: {e}")
             return "Could not parse game details for summary generation."
 
-    def _generate_llm_summary(self, extracted_info):
+    def _generate_llm_summary(self, extracted_info: Union[Dict[str, Union[str, int]], str]) -> str:
         """
         Internal method to send extracted data to the LLM and get a summary.
         """
         if isinstance(extracted_info, str):
             return extracted_info
 
-        prompt = f"""
+        # Extracted info is guaranteed to be a Dict here
+        extracted_info_dict: Dict[str, Union[str, int]] = extracted_info # Type alias for clarity
+
+        prompt: str = f"""
         You are a professional sports journalist. Write a concise, engaging summary of the following baseball game. 
         Focus on the final score and a few key highlights from each inning, in order.
 
         Game details:
-        Home Team: {extracted_info['home_team']}
-        Away Team: {extracted_info['away_team']}
-        Final Score: {extracted_info['home_team']} {extracted_info['home_score']}, {extracted_info['away_team']} {extracted_info['away_score']}
+        Home Team: {extracted_info_dict['home_team']}
+        Away Team: {extracted_info_dict['away_team']}
+        Final Score: {extracted_info_dict['home_team']} {extracted_info_dict['home_score']}, {extracted_info_dict['away_team']} {extracted_info_dict['away_score']}
         
-        Narrative snippets (for context): {extracted_info['narrative_snippets']}
+        Narrative snippets (for context): {extracted_info_dict['narrative_snippets']}
 
         Provide the summary in a single paragraph.
         """
         
         try:
-            response = self.client.models.generate_content(
+            # Assuming self.client is properly initialized as a genai.Client
+            response: Any = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt
             )
@@ -122,7 +131,7 @@ class GameSummaryGenerator:
             print(f"Error generating summary with LLM: {e}")
             return "Summary generation failed."
 
-    def generate_summary(self, team_id=143, date_str="2025-09-05"):
+    def generate_summary(self, team_id: int = 143, date_str: str = "2025-09-05") -> str:
         """
         Public method to generate the full game summary.
         
@@ -133,25 +142,20 @@ class GameSummaryGenerator:
         Returns:
             str: A formatted game summary from the LLM.
         """
-        llm_summary = self._default_text
+        llm_summary: str = self._default_text
         if not self._use_default_text:
-            raw_data = self._fetch_raw_game_data(team_id, date_str)
-            extracted_info = self._extract_key_info(raw_data)
+            raw_data: Optional[Dict[str, Any]] = self._fetch_raw_game_data(team_id, date_str)
+            extracted_info: Union[Dict[str, Union[str, int]], str] = self._extract_key_info(raw_data)
             llm_summary = self._generate_llm_summary(extracted_info)
         return llm_summary
 
 # Example Usage in your main script
 if __name__ == "__main__":
-    # You would need to have your GEMINI_API_KEY set as an environment variable
-    # or pass it directly to the constructor.
-    # For example: export GEMINI_API_KEY='your-key-here' in your terminal
-    
     # Instantiate the class
-    summary_generator = GameSummaryGenerator()
+    summary_generator: GameSummaryGenerator = GameSummaryGenerator()
 
     # Generate the summary for the Phillies on 2025-09-05
-    # The default arguments match your request
-    summary = summary_generator.generate_summary()
+    summary: str = summary_generator.generate_summary()
     
     print("\n--- MLB Game Summary ---")
     print(summary)

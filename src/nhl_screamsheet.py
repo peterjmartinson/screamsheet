@@ -21,46 +21,6 @@ import json
 from screamsheet_structures import GameScore
 from typing import List, Dict, Any
 
-# from get_game_summary import GameSummaryGenerator
-# from get_box_score import get_box_score
-
-# from dotenv import load_dotenv
-
-# ANGELS = 108
-# ASTROS = 117
-# ATHLETICS = 133
-# BLUEJAYS = 141
-# BRAVES = 144
-# BREWERS = 158
-# CARDINALS = 138
-# CUBS = 112
-# DIAMONDBACKS = 109
-# DODGERS = 119
-# GIANTS = 137
-# GUARDIANS = 114
-# MARINERS = 136
-# MARLINS = 146
-# METS = 121
-# NATIONALS = 120
-# ORIOLES = 110
-# PADRES = 135
-# PHILLIES = 143
-# PIRATES = 134
-# RANGERS = 140
-# RAYS = 139
-# REDSOX = 111
-# REDS = 113
-# ROCKIES = 115
-# ROYALS = 118
-# TIGERS = 116
-# TWINS = 142
-# WHITESOX = 145
-# YANKEES = 147
-
-
-# Optional: Load environment variables from a .env file for API keys
-# load_dotenv()
-
 styles = getSampleStyleSheet()
 
 CENTERED_STYLE = ParagraphStyle(
@@ -232,8 +192,8 @@ def create_standings_table(standings_df: pd.DataFrame):
     # *** CHANGE: Removed the first empty string column ***
     grid_data = [
         [
-            Paragraph("<b>EASTERN CONFERENCE</b>", CENTERED_STYLE), 
-            Paragraph("<b>WESTERN CONFERENCE</b>", CENTERED_STYLE)
+            Paragraph("<b>Eastern Conference</b>", CENTERED_STYLE), 
+            Paragraph("<b>Western Conference</b>", CENTERED_STYLE)
         ],
     ]
     
@@ -258,12 +218,11 @@ def create_standings_table(standings_df: pd.DataFrame):
             
             # Apply table style
             table_style = TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E0E0E0')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8)
             ])
             
             standings_table = Table(table_data, colWidths=INNER_COL_WIDTHS)

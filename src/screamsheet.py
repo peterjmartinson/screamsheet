@@ -32,9 +32,10 @@ TIGERS = 116
 TWINS = 142
 WHITESOX = 145
 YANKEES = 147
+FLYERS = 4
 
 if __name__ == "__main__":
 
-    mlb.main(DODGERS)
+    mlb.main(BLUEJAYS)
     nfl.main()
-    nhl.main()
+    nhl.main(FLYERS)

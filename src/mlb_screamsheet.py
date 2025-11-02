@@ -19,7 +19,7 @@ import requests
 import os
 import json
 
-from get_game_summary import GameSummaryGenerator
+from get_game_summary import GameSummaryGeneratorMLB
 from get_box_score import get_box_score
 
 from dotenv import load_dotenv
@@ -504,7 +504,7 @@ def main(team_id = PHILLIES):
         gemini_api_key = os.getenv("GEMINI_API_KEY")
     except Exception:
         gemini_api_key = None
-    game_summarizer = GameSummaryGenerator(gemini_api_key)
+    game_summarizer = GameSummaryGeneratorMLB(gemini_api_key)
     game_summary_text = game_summarizer.generate_summary(team_id=team_id, date_str=yesterday_str)
 
     box_score = get_box_score(team_id, yesterday)

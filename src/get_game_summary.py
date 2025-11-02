@@ -385,9 +385,10 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
         Public method to generate the full NHL game summary.
         Uses the 'game_pk' argument expected by _fetch_raw_game_data.
         """
-        return super()._generate_llm_summary(
-            self._extract_key_info(self._fetch_raw_game_data(game_pk=game_pk))
-        )
+        raw_data = self._fetch_raw_game_data(game_pk=game_pk)
+        key_info = self._extract_key_info(raw_data)
+        result = super()._generate_llm_summary(key_info)
+        return result
 
 # Example Usage in your main script
 if __name__ == "__main__":

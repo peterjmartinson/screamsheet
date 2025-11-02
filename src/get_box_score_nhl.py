@@ -39,52 +39,6 @@ class PlayerGoalie:
 
 
 
-def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
-    """
-    Fetches the gamePk for the last completed game of the specified NHL team on a given date.
-
-    Args:
-        team_id: The NHL team ID (e.g., Flyers is 4).
-        game_date_str: The specific date to check in 'YYYY-MM-DD' format.
-    Returns:
-        The gamePk if found, otherwise None.
-    """
-    # NHL Schedule API uses a URL format based on the date
-    game_date_str = game_date.strftime('%Y-%m-%d')
-    schedule_url = f"https://api-web.nhle.com/v1/schedule/{game_date_str}"
-    
-    try:
-        # Step 1: Find the Game ID (gamePk)
-        schedule_response = requests.get(schedule_url)
-        schedule_response.raise_for_status()
-        schedule_data = schedule_response.json()
-        
-        game_pk = None
-        
-        # NHL data structure is simpler: 'gameWeek' contains 'games'
-        if 'gameWeek' in schedule_data and schedule_data['gameWeek']:
-            for day in schedule_data['gameWeek']:
-                for game in day.get('games', []):
-                    # Check for completed game status (e.g., 'Final' or '3')
-                    if str(game['gameState']) == FINAL_STATUS_CODE:
-                        
-                        # Check if the target team is in the game
-                        home_id = game['homeTeam']['id']
-                        away_id = game['awayTeam']['id']
-                        
-                        if home_id == team_id or away_id == team_id:
-                            # The game's ID is the 'id' field in the game object
-                            game_pk = game['id']
-                            break
-                if game_pk:
-                    return game_pk
-
-        if not game_pk:
-            print(f"No completed game found for Flyers (ID {team_id}) on {game_date_str}.")
-            return None
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching NHL data: {e}")
-        return None
     
 
 def get_game_boxscore(game_pk: int) -> Optional[Dict[str, Any]]:
@@ -253,14 +207,12 @@ def create_nhl_boxscore_tables(boxscore_stats: Dict[str, List[Dict[str, Any]]]) 
 
 # --- Orchestration Function ---
 
-def get_nhl_boxscore(team_id: int, game_date: Optional[datetime] = None) -> Dict[str, Table]:
+def get_nhl_boxscore(team_id: int, game_pk: int) -> Dict[str, Table]:
     """
     Orchestrates the data retrieval and parsing for the Flyers' NHL box score.
     This function is designed to be called by your main report generation script.
     """
     # Use the Flyers' Team ID (4)
-    game_pk = get_game_pk(team_id, game_date)
-    print(game_pk)
     box_score_data = get_game_boxscore(game_pk)
     
     if not box_score_data:

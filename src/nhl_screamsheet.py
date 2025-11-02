@@ -18,8 +18,21 @@ import pandas as pd
 import requests
 import os
 import json
+from get_game_summary import GameSummaryGeneratorNHL
 from screamsheet_structures import GameScore
-from typing import List, Dict, Any
+from typing import Optional, Dict, Any, List
+from get_box_score_nhl import get_nhl_boxscore
+from dotenv import load_dotenv
+load_dotenv()
+
+page_height = 11 * inch
+page_width = 8.5 * inch
+left_margin = 36
+right_margin = 36
+top_margin = 36
+bottom_margin = 36
+available_width = page_width - left_margin - right_margin
+available_height = page_height - top_margin - bottom_margin
 
 styles = getSampleStyleSheet()
 
@@ -48,6 +61,52 @@ SUBTITLE_STYLE = ParagraphStyle(
 
 
 
+def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
+    """
+    Fetches the gamePk for the last completed game of the specified NHL team on a given date.
+
+    Args:
+        team_id: The NHL team ID (e.g., Flyers is 4).
+        game_date_str: The specific date to check in 'YYYY-MM-DD' format.
+    Returns:
+        The gamePk if found, otherwise None.
+    """
+    # NHL Schedule API uses a URL format based on the date
+    game_date_str = game_date.strftime('%Y-%m-%d')
+    schedule_url = f"https://api-web.nhle.com/v1/schedule/{game_date_str}"
+    
+    try:
+        # Step 1: Find the Game ID (gamePk)
+        schedule_response = requests.get(schedule_url)
+        schedule_response.raise_for_status()
+        schedule_data = schedule_response.json()
+        
+        game_pk = None
+        
+        # NHL data structure is simpler: 'gameWeek' contains 'games'
+        if 'gameWeek' in schedule_data and schedule_data['gameWeek']:
+            for day in schedule_data['gameWeek']:
+                for game in day.get('games', []):
+                    # Check for completed game status (e.g., 'Final' or '3')
+                    if str(game['gameState']) == FINAL_STATUS_CODE:
+                        
+                        # Check if the target team is in the game
+                        home_id = game['homeTeam']['id']
+                        away_id = game['awayTeam']['id']
+                        
+                        if home_id == team_id or away_id == team_id:
+                            # The game's ID is the 'id' field in the game object
+                            game_pk = game['id']
+                            break
+                if game_pk:
+                    return game_pk
+
+        if not game_pk:
+            print(f"No completed game found for Flyers (ID {team_id}) on {game_date_str}.")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching NHL data: {e}")
+        return None
 
 def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
     """
@@ -262,6 +321,7 @@ def create_standings_table(standings_df: pd.DataFrame):
     
     final_standings_table = Table(grid_data, colWidths=MASTER_COL_WIDTHS)
     final_standings_table.setStyle(master_table_style)
+    get_chart_dimensions(final_standings_table)
     
     return final_standings_table
 
@@ -392,12 +452,13 @@ def get_scores_table(games_list: List[GameScore], doc=None):
         ],
         colWidths=[doc.width/3, doc.width/3, doc.width/3], hAlign='LEFT'
     )
+    get_chart_dimensions(scores_table)
 
     return scores_table
 
 
 # def generate_mlb_report(games, standings_df, game_summary_text="", box_score=None, filename="mlb_report.pdf"):
-def generate_nhl_report(games, standings, filename="nhl_report.pdf"):
+def generate_nhl_report(games, standings, game_summary_text="", box_score=None, filename="nhl_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -426,8 +487,12 @@ def generate_nhl_report(games, standings, filename="nhl_report.pdf"):
 
     # --- Prepare Game Scores for Two Columns ---
 
+    print("make scores table")
     scores_table = get_scores_table(games, doc)
+    print("make standings table")
     standings_table = create_standings_table(standings)
+    box_score_skaters = box_score["skater_table"]
+    box_score_goalies = box_score["goalie_table"]
     # -- add scores_table
     # story.append(scores_table)
     # story.append(Spacer(1, 24))
@@ -482,60 +547,60 @@ def generate_nhl_report(games, standings, filename="nhl_report.pdf"):
     # story.append(PageBreak())
 
     # Create a heading for the summary
-    # summary_heading_style = ParagraphStyle(
-    #     name="SummaryHeading",
-    #     parent=styles['h3'],
-    #     fontName='Helvetica-Bold',
-    #     fontSize=14,
-    #     spaceAfter=12,
-    # )
+    summary_heading_style = ParagraphStyle(
+        name="SummaryHeading",
+        parent=styles['h3'],
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        spaceAfter=12,
+    )
     # story.append(Paragraph("Game Summary", summary_heading_style))
     
     # Add the game summary text as a Paragraph
     # summary_text_style = styles['Normal']
     # summary_text_style.fontName = 'Helvetica'
-    # summary_text_style = ParagraphStyle(
-    #     name="SummaryText",
-    #     parent=styles['Normal'],
-    #     fontName='Courier',
-    #     fontSize=12,
-    # )
+    summary_text_style = ParagraphStyle(
+        name="SummaryText",
+        parent=styles['Normal'],
+        fontName='Courier',
+        fontSize=12,
+    )
     # story.append(Paragraph(game_summary_text, summary_text_style))
 
     # boxscore_table = create_boxscore_tables(box_score)
 
-    # summary = [
-    #     Paragraph("Game Summary", summary_heading_style),
-    #     Paragraph(game_summary_text, summary_text_style)
-    # ]
-    # box_content = [
-    #     boxscore_table['batting_table'],
-    #     Spacer(1, 0.15 * inch),
-    #     boxscore_table['pitching_table']
-    # ]
+    summary = [
+        Paragraph("Game Summary", summary_heading_style),
+        Paragraph(game_summary_text, summary_text_style)
+    ]
+    box_content = [
+        box_score_skaters,
+        Spacer(1, 0.15 * inch),
+        box_score_goalies
+    ]
 
-    # box_column_table = Table(
-    #     [[flowable] for flowable in box_content],
-    #     colWidths=['*'],
-    #     hAlign='CENTER'
-    # )
+    box_column_table = Table(
+        [[flowable] for flowable in box_content],
+        colWidths=['*'],
+        hAlign='CENTER'
+    )
 
-    # yesterday_game_table = Table(
-    #     [
-    #         [summary, box_column_table]
-    #     ],
-    #     colWidths=[doc.width/2, doc.width/2], hAlign='LEFT'
-    # )
+    yesterday_game_table = Table(
+        [
+            [summary, box_column_table]
+        ],
+        colWidths=[doc.width/2, doc.width/2], hAlign='LEFT'
+    )
 
     # --- Build the PDF ---
     story.append(Paragraph(title, TITLE_STYLE))
     story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
     story.append(scores_table)
-    # story.append(Spacer(1, 24))
-    # story.append(yesterday_game_table)
-    story.append(PageBreak())
+    story.append(Spacer(1, 24))
     story.append(standings_table)
+    story.append(PageBreak())
+    story.append(yesterday_game_table)
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 
@@ -619,27 +684,50 @@ def create_boxscore_tables(boxscore_stats):
 
     return {'batting_table': hitting_table, 'pitching_table': pitching_table}
 
-def main(team_id = 1):
+def get_paragraph_dimensions(p: Paragraph) -> dict:
+    required_width, required_height = p.wrapOn(None, available_width, 100 * inch)
+    dimensions = {
+        "width_pt": required_width,
+        "height_pt": required_height,
+        "width_inch": required_width / inch,
+        "height_inch": required_height / inch
+    }
+    # print(f"paragraph dimensions: {dimensions}")
+    return dimensions
+
+def get_chart_dimensions(c: Table) -> dict:
+    required_width, required_height = c.wrap(available_width, 0)
+    dimensions = {
+      "width_pt": required_width,
+      "height_pt": required_height,
+      "width_inch": required_width / inch,
+      "height_inch": required_height / inch
+    }
+    # print(f"chart dimensions: {dimensions}")
+    return dimensions
+
+def main(team_id = 4):
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
     yesterday = today - timedelta(days=1)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
+    # print(f"height, width = ({available_height, available_width})")
+
     # scores = get_scores_from_file("scores_20250818.json")
     # standings = get_standings_from_file("standings_20250818.csv")
+    game_pk = get_game_pk(team_id, yesterday)
     scores = get_game_scores_for_day(yesterday_str)
     # print(scores)
     standings = get_nhl_standings()
-    print(standings)
+    box_score = get_nhl_boxscore(team_id, game_pk)
 
-    # try:
-        # gemini_api_key = os.getenv("GEMINI_API_KEY")
-    # except Exception:
-        # gemini_api_key = None
-    # game_summarizer = GameSummaryGenerator(gemini_api_key)
-    # game_summary_text = game_summarizer.generate_summary(team_id=team_id, date_str=yesterday_str)
-
-    # box_score = get_box_score(team_id, yesterday)
+    try:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+    except Exception:
+        gemini_api_key = None
+    game_summarizer = GameSummaryGeneratorNHL(gemini_api_key)
+    game_summary_text = game_summarizer.generate_summary(game_pk)
 
     filename = f"NHL_Scores_{today.strftime('%Y%m%d')}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
@@ -647,13 +735,12 @@ def main(team_id = 1):
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    # generate_nhl_report(scores, standings, game_summary_text, box_score, output_file_path)
-    generate_nhl_report(scores, standings, output_file_path)
+    generate_nhl_report(scores, standings, game_summary_text, box_score, output_file_path)
 
 
 if __name__ == "__main__":
 
-    main()
+    main(FLYERS)
 
 
 

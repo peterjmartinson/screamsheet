@@ -25,6 +25,7 @@ def get_last_game_boxscore(team_id: int, game_date: datetime = None):
 
     Args:
         team_id: The MLB team ID (e.g., Phillies is 143).
+        game_date: The date of the game.  If None, defaults to yesterday.
 
     Returns:
         A dictionary with parsed box score data, or None if not found.

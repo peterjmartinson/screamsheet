@@ -1,0 +1,11 @@
+2025020194
+https://api-web.nhle.com/v1/gamecenter/2025020194/play-by-play
+https://api-web.nhle.com/v1/wsc/game-story/2025020194
+
+
+https://api-web.nhle.com/v1/roster/TOR/current
+
+
+
+
+https://api.openweathermap.org/data/2.5/weather?lat=40&lon=-75&appid=bf87a19199b054d12c864b92078e32df

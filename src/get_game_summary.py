@@ -3,6 +3,8 @@ import requests
 from lorem_text import lorem
 from google import genai
 from typing import Optional, Dict, Union, Any, List
+from pathlib import Path
+import json
 
 
 class GameSummaryGenerator:
@@ -19,6 +21,7 @@ class GameSummaryGenerator:
         """
         Initializes the generator with a Gemini API key.
         """
+        self._cwd = Path.cwd()
         if gemini_api_key is not None:
             self._use_default_text = False
             self.client: genai.Client = genai.Client(api_key=gemini_api_key)
@@ -149,13 +152,226 @@ class GameSummaryGenerator:
             llm_summary = self._generate_llm_summary(extracted_info)
         return llm_summary
 
+class GameSummaryGeneratorNHL(GameSummaryGenerator):
+    """
+    A subclass of GameSummaryGenerator for NHL games.
+    """
+
+    def __init__(self, gemini_api_key: Optional[str] = None) -> None:
+        super().__init__(gemini_api_key)
+        self._doc_dir = self._cwd / "documentation"
+        player_file = self._doc_dir / "nhl_players.json"
+        with open(player_file, "r") as f:
+            self._player_map = json.load(f)
+        team_file = self._doc_dir / "nhl_teams.json"
+        with open(team_file, "r") as f:
+            self._team_map = json.load(f)
+
+
+    def _fetch_raw_game_data(self, game_pk: int) -> Optional[Dict[str, Any]]:
+        """
+        Internal method to get the raw JSON data for a specific NHL game.
+        """
+        schedule_url: str = "https://statsapi.web.nhl.com/api/v1/schedule"
+        
+        try:
+            game_summary_url: str = f"https://api-web.nhle.com/v1/gamecenter/{game_pk}/play-by-play"
+            summary_response: requests.Response = requests.get(game_summary_url)
+            summary_response.raise_for_status()
+            
+            output: Dict[str, Any] = summary_response.json()
+            return output
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching game data: {e}")
+            return None
+
+    def _get_team_roster(self, team_id):
+        pass
+
+    def _lookup_player(self, player_id):
+        for player in self._player_map:
+            if player["player_id"] == player_id:
+                return player["first_name"] + " " + player["last_name"]
+        try:
+            url = f"https://api-web.nhle.com/v1/player/{player_id}/landing"
+            res = requests.get(url)
+            player_info = res.json()
+            first_name = player_info["firstName"]["default"]
+            last_name = player_info["lastName"]["default"]
+            return first_name + " " + last_name
+        except Exception as ex:
+            print(f"Player {player_id} not found:  {ex}")
+        return "Unknown Player"
+
+
+    def _lookup_team(self, team_id):
+        for team in self._team_map["data"]:
+            if team["id"] == team_id:
+                return team["fullName"]
+        return "Unknown Team"
+
+
+    def _build_narrative(self, play):
+        period = play["periodDescriptor"]["number"]
+        time_remaining = play["timeRemaining"]
+        narrative = f"[Period {period}, {time_remaining} remaining] "
+        details = play["details"]
+        zone = details["zoneCode"]
+        play_type = play["typeDescKey"]
+        if play_type == "goal":
+            description = self._parse_goal(details)
+        elif play_type == "hit":
+            description = self._parse_hit(details)
+        elif play_type == "penalty":
+            description = self._parse_penalty(details)
+        elif play_type == "shot-on-goal":
+            description = self._parse_shot_on_goal(details)
+        elif play_type == "takeaway":
+            description = self._parse_takeaway(details)
+        narrative += description + f"in zone {zone}."
+        return narrative
+        
+    def _parse_takeaway(self, details):
+        team = self._lookup_team(details["eventOwnerTeamId"])
+        player = self._lookup_player(details["playerId"])
+        narrative = f"Takeaway by {player} ({team})"
+        return narrative
+
+    def _parse_penalty(self, details):
+        reason = details["descKey"]
+        duration = f'{details["duration"]} {details["typeCode"]}'
+        team = self._lookup_team(details["eventOwnerTeamId"])
+        committed_by_player = self._lookup_player(details["committedByPlayerId"])
+        narrative = f"{duration} penalty for {committed_by_player} ({team}) for {reason}"
+        if "drawnByPlayerId" in details:
+            drawn_by_player = self._lookup_player(details["drawnByPlayerId"])
+            narrative += f" against {drawn_by_player}"
+        return narrative
+
+    def _parse_hit(self, details):
+        hitting_player = self._lookup_player(details["hittingPlayerId"])
+        hittee_player = self._lookup_player(details["hitteePlayerId"])
+        team = self._lookup_team(details["eventOwnerTeamId"])
+        narrative = f"{hitting_player} ({team}) hit {hittee_player}"
+        return narrative
+
+    def _parse_goal(self, details):
+        scoring_player = self._lookup_player(details["scoringPlayerId"])
+        team = self._lookup_team(details["eventOwnerTeamId"])
+        goalie = "Empty Net (goalie pulled)"
+        if "goalieInNetId" in details:
+            goalie = self._lookup_player(details["goalieInNetId"])
+        narrative = f"{scoring_player} ({team}) scored on {goalie}"
+        if "assist1PlayerId" in details:
+            assist_player_1 = self._lookup_player(details["assist1PlayerId"])
+            narrative += f" assisted by {assist_player_1}"
+        if "assist2PlayerId" in details:
+            assist_player_2 = self._lookup_player(details["assist2PlayerId"])
+            narrative += f" and {assist_player_2}"
+        return narrative
+
+    def _parse_shot_on_goal(self, details):
+        shooting_player = self._lookup_player(details["shootingPlayerId"])
+        team = self._lookup_team(details["eventOwnerTeamId"])
+        goalie = self._lookup_player(details["goalieInNetId"])
+        narrative = f"{shooting_player} ({team}) shot on {goalie}"
+        return narrative
+
+    def _extract_key_info(self, raw_data: Optional[Dict[str, Any]]) -> Union[Dict[str, Union[str, int]], str]:
+        """
+        Internal method to parse and extract key game events.
+        """
+        if not raw_data:
+            return "No game data available."
+        
+        try:
+            home_team = {
+              "id": raw_data["homeTeam"]["id"],
+              "name": raw_data["homeTeam"]["commonName"]["default"],
+              "place": raw_data["homeTeam"]["placeName"]["default"],
+              "score": raw_data["homeTeam"]["score"]
+            }
+            away_team = {
+              "id": raw_data["awayTeam"]["id"],
+              "name": raw_data["awayTeam"]["commonName"]["default"],
+              "place": raw_data["awayTeam"]["placeName"]["default"],
+              "score": raw_data["awayTeam"]["score"]
+            }
+
+            
+            # A simple way to get some play-by-play narrative
+            play_by_play_narrative: List[str] = []
+            for play in raw_data["plays"]:
+                if play["typeDescKey"] in ['goal', 'hit', 'penalty', 'shot-on-goal', 'takeaway']:
+                    play_by_play_narrative.append(self._build_narrative(play))
+
+            # Type annotation for the return dictionary
+            return {
+                'home_team': home_team["place"] + " " + home_team["name"],
+                'away_team': away_team["place"] + " " + away_team["name"],
+                'home_score': home_team["score"],
+                'away_score': away_team["score"],
+                'narrative_snippets': " ".join(play_by_play_narrative)
+            }
+        except (KeyError, IndexError) as e:
+            print(f"Error parsing game data: {e}")
+            return "Could not parse game details for summary generation."
+
+    def _generate_llm_summary(self, extracted_info: Union[Dict[str, Union[str, int]], str]) -> str:
+        """
+        Internal method to send extracted data to the LLM and get a summary.
+        """
+        if isinstance(extracted_info, str):
+            return extracted_info
+
+        # Extracted info is guaranteed to be a Dict here
+        extracted_info_dict: Dict[str, Union[str, int]] = extracted_info # Type alias for clarity
+
+        prompt: str = f"""
+        You are a friendly, enthusiastic sports broadcaster writing a recap for
+        a young boy who is just starting to learn about hockey. Explain any
+        complex terms (like 'power play' or 'penalty kill') simply, and focus on
+        the action and excitement. The final summary must be a single paragraph.
+
+        Game details to include:
+        Home Team: {extracted_info_dict['home_team']}
+        Away Team: {extracted_info_dict['away_team']}
+        Final Score: {extracted_info_dict['home_team']} {extracted_info_dict['home_score']} to {extracted_info_dict['away_team']} {extracted_info_dict['away_score']}
+
+        Narrative snippets (for context, include highlights from each period in order): {extracted_info_dict['narrative_snippets']}
+
+        Write the exciting, one-paragraph recap now.
+        """
+        
+        try:
+            # Assuming self.client is properly initialized as a genai.Client
+            response: Any = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            print(f"Error generating summary with LLM: {e}")
+            return "Summary generation failed."
+
+
+
+
+
+
 # Example Usage in your main script
 if __name__ == "__main__":
     # Instantiate the class
-    summary_generator: GameSummaryGenerator = GameSummaryGenerator()
+    summary_generator: GameSummaryGenerator = GameSummaryGeneratorNHL("AIzaSyARxhq7R287MSTqMxKJu2Xd7vsxcMGNDO0")
+    game_pk = 2025020178
+    raw_data = summary_generator._fetch_raw_game_data(game_pk)
+
+    info = summary_generator._extract_key_info(raw_data)
+    summary = summary_generator._generate_llm_summary(info)
 
     # Generate the summary for the Phillies on 2025-09-05
-    summary: str = summary_generator.generate_summary()
+    # summary: str = summary_generator.generate_summary()
     
-    print("\n--- MLB Game Summary ---")
+    print("\n--- NHL Game Summary ---")
     print(summary)

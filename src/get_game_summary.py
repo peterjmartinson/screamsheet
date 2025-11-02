@@ -393,7 +393,7 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 # Example Usage in your main script
 if __name__ == "__main__":
     # Instantiate the class
-    summary_generator: GameSummaryGeneratorNHL = GameSummaryGeneratorNHL("AIzaSyARxhq7R287MSTqMxKJu2Xd7vsxcMGNDO0")
+    summary_generator: GameSummaryGeneratorNHL = GameSummaryGeneratorNHL()
     game_pk = 2025020178
     raw_data = summary_generator._fetch_raw_game_data(game_pk)
 

@@ -4,7 +4,7 @@ from reportlab.lib.pagesizes import letter
 
 import requests
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from dataclasses import dataclass
 
 # NOTE: You will need to import ReportLab components (like Table, TableStyle, colors)
@@ -34,12 +34,6 @@ class PlayerGoalie:
     saves: int
     save_percentage: Optional[float]
 
-
-
-
-
-
-    
 
 def get_game_boxscore(game_pk: int) -> Optional[Dict[str, Any]]:
     """
@@ -138,18 +132,19 @@ def parse_nhl_boxscore(boxscore_data: Optional[Dict[str, Any]], team_id: int) ->
             'SV%': f"{(player.get('saves', 0) / player.get('shotsAgainst', 1)):.3f}" if player.get('shotsAgainst', 0) > 0 else 'N/A'
         })
 
-    print({'skater_stats': skater_stats_obj, 'goalie_stats': goalie_stats_obj})
-    return {'skater_stats': skater_stats, 'goalie_stats': goalie_stats}
+    # print({'skater_stats': skater_stats_obj, 'goalie_stats': goalie_stats_obj})
+    # return {'skater_stats': skater_stats, 'goalie_stats': goalie_stats}
+    return {'skater_stats': skater_stats_obj, 'goalie_stats': goalie_stats_obj}
 
 # --- ReportLab Table Generation (adapted for NHL stats) ---
 
 # This function uses the ReportLab components you provided in your original code.
-def create_nhl_boxscore_tables(boxscore_stats: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Table]:
+def create_nhl_boxscore_tables(boxscore_stats: Dict[str, List[Union[PlayerSkater, PlayerGoalie]]]) -> Dict[str, Table]:
     """
     Creates ReportLab Table objects for skater and goalie stats.
     """
-    skater_stats: List[Dict[str, Any]] = boxscore_stats['skater_stats']
-    goalie_stats: List[Dict[str, Any]] = boxscore_stats['goalie_stats']
+    skater_stats: List[PlayerSkater] = boxscore_stats['skater_stats']
+    goalie_stats: List[PlayerGoalie] = boxscore_stats['goalie_stats']
 
     # --- Skater Table ---
     # G, A, P, SOG, PIM are common NHL stats
@@ -158,12 +153,12 @@ def create_nhl_boxscore_tables(boxscore_stats: Dict[str, List[Dict[str, Any]]]) 
 
     for player in skater_stats:
         row = [
-            player['name'],
-            str(player.get('G', 0)),
-            str(player.get('A', 0)),
-            str(player.get('P', 0)),
-            str(player.get('SOG', 0)),
-            str(player.get('PIM', 0))
+            player.name,
+            player.goals,
+            player.assists,
+            player.points,
+            player.shots_on_goal,
+            player.pim
         ]
         skater_data.append(row)
 
@@ -184,10 +179,10 @@ def create_nhl_boxscore_tables(boxscore_stats: Dict[str, List[Dict[str, Any]]]) 
 
     for player in goalie_stats:
         row = [
-            player['name'],
-            str(player.get('SA', 0)),
-            str(player.get('SV', 0)),
-            player.get('SV%', 'N/A')
+            player.name,
+            player.shots_against,
+            player.saves,
+            player.save_percentage
         ]
         goalie_data.append(row)
 

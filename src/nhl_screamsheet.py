@@ -34,46 +34,8 @@ bottom_margin = 36
 available_width = page_width - left_margin - right_margin
 available_height = page_height - top_margin - bottom_margin
 
-# from get_game_summary import GameSummaryGenerator
-# from get_box_score import get_box_score
-
-# from dotenv import load_dotenv
-
 FLYERS = 4
 FINAL_STATUS_CODE: str = 'OFF' # '3' typically means 'Final'
-# ASTROS = 117
-# ATHLETICS = 133
-# BLUEJAYS = 141
-# BRAVES = 144
-# BREWERS = 158
-# CARDINALS = 138
-# CUBS = 112
-# DIAMONDBACKS = 109
-# DODGERS = 119
-# GIANTS = 137
-# GUARDIANS = 114
-# MARINERS = 136
-# MARLINS = 146
-# METS = 121
-# NATIONALS = 120
-# ORIOLES = 110
-# PADRES = 135
-# PHILLIES = 143
-# PIRATES = 134
-# RANGERS = 140
-# RAYS = 139
-# REDSOX = 111
-# REDS = 113
-# ROCKIES = 115
-# ROYALS = 118
-# TIGERS = 116
-# TWINS = 142
-# WHITESOX = 145
-# YANKEES = 147
-
-
-# Optional: Load environment variables from a .env file for API keys
-# load_dotenv()
 
 styles = getSampleStyleSheet()
 
@@ -522,71 +484,13 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
     )
     story = []
 
-    # --- Header (Title and Subtitle) ---
-    # story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
-    # story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
-    # story.append(Spacer(1, 12))
-
-    # --- Prepare Game Scores for Two Columns ---
-
     print("make scores table")
     scores_table = get_scores_table(games, doc)
     print("make standings table")
     standings_table = create_standings_table(standings)
+    print("make box scores table")
     box_score_skaters = box_score["skater_table"]
     box_score_goalies = box_score["goalie_table"]
-    # -- add scores_table
-    # story.append(scores_table)
-    # story.append(Spacer(1, 24))
-
-    # --- Standings as a 2x3 Grid ---
-    # al_divisions = standings_df[standings_df['division'].str.contains('American League')]
-    # nl_divisions = standings_df[standings_df['division'].str.contains('National League')]
-    # divisions_order = ['East', 'Central', 'West']
-
-    # grid_data = [
-    #     ['', Paragraph("<b>American League</b>", CENTERED_STYLE), Paragraph("<b>National League</b>", CENTERED_STYLE)],
-    # ]
-    # for geography in divisions_order:
-    #     row_list = [Paragraph(f"<b>{geography}</b>", CENTERED_STYLE)]
-    #     al_group = al_divisions[al_divisions['division'].str.contains(geography)]
-    #     nl_group = nl_divisions[nl_divisions['division'].str.contains(geography)]
-        
-    #     for group in [al_group, nl_group]:
-    #         if not group.empty:
-    #             header = ["Team", "W", "L", "%"]
-    #             table_data = [header] + group[['team', 'wins', 'losses', 'pct']].values.tolist()
-    #             table_style = TableStyle([
-    #                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    #                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-    #                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-    #                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-    #                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-    #             ])
-    #             standings_table = Table(table_data, colWidths=[150, 30, 30, 30])
-    #             standings_table.setStyle(table_style)
-    #             row_list.append(standings_table)
-    #         else:
-    #             row_list.append('')
-    #     grid_data.append(row_list)
-        
-    # master_table_style = TableStyle([
-    #     # ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    #     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-    #     ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-    #     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    #     ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
-    #     # ('BACKGROUND', (1, 0), (-1, 0), colors.lightgrey),
-    #     # ('BACKGROUND', (0, 1), (0, -1), colors.lightgrey),
-    # ])
-    # final_standings_table = Table(grid_data, colWidths=[60, 250, 250])
-    # final_standings_table.setStyle(master_table_style)
-
-    # -- Add standings tables
-    # story.append(final_standings_table)
-
-    # --- NEW: Add a page break and the game summary ---
-    # story.append(PageBreak())
 
     # Create a heading for the summary
     summary_heading_style = ParagraphStyle(
@@ -596,20 +500,13 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
         fontSize=14,
         spaceAfter=12,
     )
-    # story.append(Paragraph("Game Summary", summary_heading_style))
-    
-    # Add the game summary text as a Paragraph
-    # summary_text_style = styles['Normal']
-    # summary_text_style.fontName = 'Helvetica'
+
     summary_text_style = ParagraphStyle(
         name="SummaryText",
         parent=styles['Normal'],
         fontName='Courier',
         fontSize=12,
     )
-    # story.append(Paragraph(game_summary_text, summary_text_style))
-
-    # boxscore_table = create_boxscore_tables(box_score)
 
     summary = [
         Paragraph("Game Summary", summary_heading_style),
@@ -792,7 +689,3 @@ def main(team_id = 4):
 if __name__ == "__main__":
 
     main(FLYERS)
-
-
-
-

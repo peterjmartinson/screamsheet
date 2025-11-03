@@ -36,6 +36,6 @@ FLYERS = 4
 
 if __name__ == "__main__":
 
-    mlb.main(BLUEJAYS)
+    # mlb.main(BLUEJAYS)
     nfl.main()
     nhl.main(FLYERS)

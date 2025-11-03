@@ -322,8 +322,8 @@ def create_standings_table(standings_df: pd.DataFrame):
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E0E0E0')),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8)
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER')
+                # ('FONTSIZE', (0, 0), (-1, -1), 8)
             ])
             
             standings_table = Table(table_data, colWidths=INNER_COL_WIDTHS)
@@ -618,7 +618,16 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
     box_content = [
         box_score_skaters,
         Spacer(1, 0.15 * inch),
-        box_score_goalies
+        box_score_goalies,
+        Spacer(1, 0.15 * inch),
+        Paragraph("G = Goals", summary_text_style),
+        Paragraph("A = Assists", summary_text_style),
+        Paragraph("P = Points", summary_text_style),
+        Paragraph("SOG = Shots on Goal", summary_text_style),
+        Paragraph("PIM = Minutes in the Penalty Box", summary_text_style),
+        Paragraph("SA = Shots Against", summary_text_style),
+        Paragraph("SV = Saves", summary_text_style),
+        Paragraph("SV% = Save Percentage", summary_text_style)
     ]
 
     box_column_table = Table(
@@ -758,10 +767,10 @@ def main(team_id = 4):
 
     # scores = get_scores_from_file("scores_20250818.json")
     # standings = get_standings_from_file("standings_20250818.csv")
-    game_pk = get_game_pk(team_id, yesterday)
+
     scores = get_game_scores_for_day(yesterday_str)
-    # print(scores)
     standings = get_nhl_standings()
+    game_pk = get_game_pk(team_id, yesterday)
     box_score = get_nhl_boxscore(team_id, game_pk)
 
     try:

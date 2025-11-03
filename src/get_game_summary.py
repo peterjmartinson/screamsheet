@@ -366,9 +366,10 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
         """Constructs the LLM prompt for the NHL game."""
         return f"""
         You are a friendly, enthusiastic sports broadcaster writing a recap for
-        a young boy who is just starting to learn about hockey. Explain any
-        complex terms (like 'power play' or 'penalty kill') simply, and focus on
-        the action and excitement. The final summary must be a single paragraph.
+        a boy who is just starting to learn about hockey. Since he doesn't know
+        much about the sport, define one new hockey term for him, but make sure to
+        focus on the action.  The final summary must be a concise, single
+        paragraph 200 words or less.
 
         Game details to include:
         Home Team: {extracted_info['home_team']}
@@ -377,7 +378,7 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 
         Narrative snippets (for context, include highlights from each period in order): {extracted_info['narrative_snippets']}
 
-        Write the exciting, one-paragraph recap now.
+        Write the exciting, clearly worded recap now.
         """
 
     def generate_summary(self, game_pk: int) -> str:

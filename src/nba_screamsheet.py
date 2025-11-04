@@ -1,3 +1,5 @@
+from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.static import teams
 from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -18,7 +20,7 @@ import pandas as pd
 import requests
 import os
 import json
-from get_game_summary import GameSummaryGeneratorNHL
+# from get_game_summary import GameSummaryGeneratorNBA
 from screamsheet_structures import GameScore
 from typing import Optional, Dict, Any, List
 from get_box_score_nhl import get_nhl_boxscore
@@ -113,53 +115,91 @@ def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
 
 def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
     """
-    Fetches NHL game scores for a given day using the nhl_api wrapper 
+    Fetches NBA game scores for a given day using the nhl_api wrapper 
     and returns them as a list of standardized GameScore objects.
     """
     if not game_date:
         now = datetime.now()
         yesterday = now - timedelta(days=1)
-        game_date = yesterday.strftime("%Y-%m-%d")
+        game_date = yesterday.strftime("%m/%d/%Y")
 
-    url = (
-        f"https://api-web.nhle.com/v1/schedule/{game_date}"
+    nba_teams = teams.get_teams()
+    tricode_to_name = {
+        team['abbreviation']: team['full_name'] 
+        for team in nba_teams
+    }
+
+    # --- 2. Retrieve Yesterday's NBA Data ---
+    gamefinder = leaguegamefinder.LeagueGameFinder(
+        date_from_nullable=game_date,
+        date_to_nullable=game_date
     )
+    # The data frame has two rows per game (one for each team)
+    raw_games_df = gamefinder.get_data_frames()[0]
 
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
+    # --- 3. Process and Format the Data ---
+    games = []
 
-    games: List[GameScore] = []
-    games_for_the_day = data.get('gameWeek', [{}])[0].get('games', [])
-
-    for game in games_for_the_day:
-        game_state = game['gameState']
+    if not raw_games_df.empty:
+        # Key columns needed for processing
+        df = raw_games_df[['GAME_ID', 'GAME_DATE', 'MATCHUP', 'TEAM_ABBREVIATION', 'WL', 'PTS']]
         
-        if game_state in ['FINAL', 'OFF', 'LIVE']:
-            # Use the same logic as before to extract data from the raw JSON
-            away_place_name = game['awayTeam']['placeName']['default']
-            home_place_name = game['homeTeam']['placeName']['default']
-            away_team_name = game['awayTeam']['commonName']['default']
-            home_team_name = game['homeTeam']['commonName']['default']
-            away_full_name = away_place_name + " " + away_team_name
-            home_full_name = home_place_name + " " + home_team_name
+        # Identify unique games based on GAME_ID
+        unique_game_ids = df['GAME_ID'].unique()
+        
+        for game_id in unique_game_ids:
+            # Get the two rows corresponding to this single game
+            game_data = df[df['GAME_ID'] == game_id].reset_index(drop=True)
             
-            away_score_raw = game['awayTeam'].get('score')
-            home_score_raw = game['homeTeam'].get('score')
-            away_score = int(away_score_raw) if away_score_raw is not None else 0
-            home_score = int(home_score_raw) if home_score_raw is not None else 0
+            # Ensure we have exactly two teams (safety check)
+            if len(game_data) != 2:
+                print(f"Skipping incomplete game data for GAME_ID: {game_id}")
+                continue
+                
+            # Determine the home and away teams using the MATCHUP format
+            # NBA Matchups are always 'AWAY_TEAM @ HOME_TEAM'
+            matchup_str = game_data.iloc[0]['MATCHUP']
             
-            game_info = GameScore(
-                gameDate=game.get('startTimeUTC'),
-                away_team=away_full_name,
-                home_team=home_full_name,
-                away_score=away_score,
-                home_score=home_score,
-                status=game_state
-            )
-            games.append(game_info)
-        # Future games (PRE, FUT) are skipped to focus on scores
+            if '@' in matchup_str:
+                # The 'home' team is the one whose abbreviation appears AFTER the '@'
+                away_tri, home_tri = matchup_str.split(' @ ')
+            else:
+                # Handle cases where the home team is first (e.g., if MATCHUP only shows one team's perspective)
+                # This is less common, but ensures robust parsing. We'll use the WL column logic below.
+                continue 
 
+            # Extract data for both teams in the game
+            team_1 = game_data.iloc[0]
+            team_2 = game_data.iloc[1]
+            
+            # Identify which row is Home and which is Away
+            if team_1['TEAM_ABBREVIATION'] == home_tri:
+                home_team_data = team_1
+                away_team_data = team_2
+            elif team_2['TEAM_ABBREVIATION'] == home_tri:
+                home_team_data = team_2
+                away_team_data = team_1
+            else:
+                # This handles unexpected Matchup formats or data inconsistencies
+                print(f"Could not reliably determine home/away for GAME_ID: {game_id}")
+                continue
+
+            # Build the dictionary in the exact format you requested
+            game_info = {
+                # Format the date nicely
+                "gameDate": home_team_data['GAME_DATE'],
+                
+                # Use the tricode_to_name mapping to get the full team names
+                "away_team": tricode_to_name.get(away_team_data['TEAM_ABBREVIATION'], away_team_data['TEAM_ABBREVIATION']),
+                "home_team": tricode_to_name.get(home_team_data['TEAM_ABBREVIATION'], home_team_data['TEAM_ABBREVIATION']),
+                
+                "away_score": int(away_team_data['PTS']),
+                "home_score": int(home_team_data['PTS']),
+                
+                # Use 'Final' for the status, as this data is only for completed games
+                "status": "Final"
+            }
+            games.append(game_info)
     return games
 
 def get_division(record) -> str:
@@ -426,10 +466,10 @@ def get_scores_table(games_list: List[GameScore], doc=None):
     scores_center = []
     scores_right = []
     for i, game in enumerate(games_list):
-        if game.away_score is not None and game.home_score is not None:
+        if game["away_score"] is not None and game["home_score"] is not None:
             table_data = [
-                [game.away_team, str(game.away_score)],
-                [f"@{game.home_team}", str(game.home_score)]
+                [game['away_team'], str(game['away_score'])],
+                [f"@{game['home_team']}", str(game['home_score'])]
             ]
             table_style = TableStyle([
                 ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
@@ -461,8 +501,8 @@ def get_scores_table(games_list: List[GameScore], doc=None):
     return scores_table
 
 
-# def generate_mlb_report(games, standings_df, game_summary_text="", box_score=None, filename="mlb_report.pdf"):
-def generate_nhl_report(games, standings, game_summary_text="", box_score=None, filename="nhl_report.pdf"):
+# def generate_nba_report(games, standings, game_summary_text="", box_score=None, filename="nhl_report.pdf"):
+def generate_nba_report(games, filename="nhl_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -472,7 +512,7 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
         filename (str): The name of the output PDF file.
     """
     # --- Adjust margins here ---
-    title = "NHL Scream Sheet"
+    title = "NBA Scream Sheet"
     margin = 36 # 0.5 inches in points
     doc = SimpleDocTemplate(
         filename,
@@ -486,69 +526,69 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
 
     print("make scores table")
     scores_table = get_scores_table(games, doc)
-    print("make standings table")
-    standings_table = create_standings_table(standings)
-    print("make box scores table")
-    box_score_skaters = box_score["skater_table"]
-    box_score_goalies = box_score["goalie_table"]
+    # print("make standings table")
+    # standings_table = create_standings_table(standings)
+    # print("make box scores table")
+    # box_score_skaters = box_score["skater_table"]
+    # box_score_goalies = box_score["goalie_table"]
 
     # Create a heading for the summary
-    summary_heading_style = ParagraphStyle(
-        name="SummaryHeading",
-        parent=styles['h3'],
-        fontName='Helvetica-Bold',
-        fontSize=14,
-        spaceAfter=12,
-    )
+    # summary_heading_style = ParagraphStyle(
+    #     name="SummaryHeading",
+    #     parent=styles['h3'],
+    #     fontName='Helvetica-Bold',
+    #     fontSize=14,
+    #     spaceAfter=12,
+    # )
 
-    summary_text_style = ParagraphStyle(
-        name="SummaryText",
-        parent=styles['Normal'],
-        fontName='Courier',
-        fontSize=12,
-    )
+    # summary_text_style = ParagraphStyle(
+    #     name="SummaryText",
+    #     parent=styles['Normal'],
+    #     fontName='Courier',
+    #     fontSize=12,
+    # )
 
-    summary = [
-        Paragraph("Game Summary", summary_heading_style),
-        Paragraph(game_summary_text, summary_text_style)
-    ]
-    box_content = [
-        box_score_skaters,
-        Spacer(1, 0.15 * inch),
-        box_score_goalies,
-        Spacer(1, 0.15 * inch),
-        Paragraph("G = Goals", summary_text_style),
-        Paragraph("A = Assists", summary_text_style),
-        Paragraph("P = Points", summary_text_style),
-        Paragraph("SOG = Shots on Goal", summary_text_style),
-        Paragraph("PIM = Minutes in the Penalty Box", summary_text_style),
-        Paragraph("SA = Shots Against", summary_text_style),
-        Paragraph("SV = Saves", summary_text_style),
-        Paragraph("SV% = Save Percentage", summary_text_style)
-    ]
+    # summary = [
+    #     Paragraph("Game Summary", summary_heading_style),
+    #     Paragraph(game_summary_text, summary_text_style)
+    # ]
+    # box_content = [
+    #     box_score_skaters,
+    #     Spacer(1, 0.15 * inch),
+    #     box_score_goalies,
+    #     Spacer(1, 0.15 * inch),
+    #     Paragraph("G = Goals", summary_text_style),
+    #     Paragraph("A = Assists", summary_text_style),
+    #     Paragraph("P = Points", summary_text_style),
+    #     Paragraph("SOG = Shots on Goal", summary_text_style),
+    #     Paragraph("PIM = Minutes in the Penalty Box", summary_text_style),
+    #     Paragraph("SA = Shots Against", summary_text_style),
+    #     Paragraph("SV = Saves", summary_text_style),
+    #     Paragraph("SV% = Save Percentage", summary_text_style)
+    # ]
 
-    box_column_table = Table(
-        [[flowable] for flowable in box_content],
-        colWidths=['*'],
-        hAlign='CENTER'
-    )
+    # box_column_table = Table(
+    #     [[flowable] for flowable in box_content],
+    #     colWidths=['*'],
+    #     hAlign='CENTER'
+    # )
 
-    yesterday_game_table = Table(
-        [
-            [summary, box_column_table]
-        ],
-        colWidths=[doc.width/2, doc.width/2], hAlign='LEFT'
-    )
+    # yesterday_game_table = Table(
+    #     [
+    #         [summary, box_column_table]
+    #     ],
+    #     colWidths=[doc.width/2, doc.width/2], hAlign='LEFT'
+    # )
 
     # --- Build the PDF ---
     story.append(Paragraph(title, TITLE_STYLE))
     story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
     story.append(scores_table)
-    story.append(Spacer(1, 24))
-    story.append(standings_table)
-    story.append(PageBreak())
-    story.append(yesterday_game_table)
+    # story.append(Spacer(1, 24))
+    # story.append(standings_table)
+    # story.append(PageBreak())
+    # story.append(yesterday_game_table)
     doc.build(story)
     print(f"PDF file '{filename}' has been created.")
 
@@ -658,7 +698,7 @@ def main(team_id = 4):
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
     yesterday = today - timedelta(days=1)
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    yesterday_str = yesterday.strftime("%m/%d/%Y")
 
     # print(f"height, width = ({available_height, available_width})")
 
@@ -666,26 +706,30 @@ def main(team_id = 4):
     # standings = get_standings_from_file("standings_20250818.csv")
 
     scores = get_game_scores_for_day(yesterday_str)
-    standings = get_nhl_standings()
-    game_pk = get_game_pk(team_id, yesterday)
-    box_score = get_nhl_boxscore(team_id, game_pk)
+    for s in scores:
+        print(s)
+    # standings = get_nhl_standings()
+    # game_pk = get_game_pk(team_id, yesterday)
+    # box_score = get_nhl_boxscore(team_id, game_pk)
 
-    try:
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-    except Exception:
-        gemini_api_key = None
-    game_summarizer = GameSummaryGeneratorNHL(gemini_api_key)
-    game_summary_text = game_summarizer.generate_summary(game_pk)
+    # try:
+    #     gemini_api_key = os.getenv("GEMINI_API_KEY")
+    # except Exception:
+    #     gemini_api_key = None
+    # game_summarizer = GameSummaryGeneratorNBA(gemini_api_key)
+    # game_summary_text = game_summarizer.generate_summary(game_pk)
 
-    filename = f"NHL_Scores_{today.strftime('%Y%m%d')}.pdf"
+    filename = f"NBA_Scores_{today.strftime('%Y%m%d')}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(runtime_dir, '..', 'Files')
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    generate_nhl_report(scores, standings, game_summary_text, box_score, output_file_path)
+    generate_nba_report(scores, output_file_path)
+    # generate_nba_report(scores, standings, game_summary_text, box_score, output_file_path)
 
 
 if __name__ == "__main__":
 
-    main(FLYERS)
+    main()
+

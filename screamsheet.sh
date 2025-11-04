@@ -4,3 +4,4 @@ LOG_FILE="/home/peter/Code/screamsheet/logfiles/screamsheet_log_$(date +\%Y\%m\%
 # lp -o sides=two-sided-long-edge /home/peter/Code/screamsheet/Files/MLB_Scores_$(date +\%Y\%m\%d).pdf >> "$LOG_FILE" 2>&1
 lp -o sides=two-sided-long-edge /home/peter/Code/screamsheet/Files/NFL_Scores_$(date +\%Y\%m\%d).pdf >> "$LOG_FILE" 2>&1
 lp -o sides=two-sided-long-edge /home/peter/Code/screamsheet/Files/NHL_Scores_$(date +\%Y\%m\%d).pdf >> "$LOG_FILE" 2>&1
+lp -o sides=two-sided-long-edge /home/peter/Code/screamsheet/Files/NBA_Scores_$(date +\%Y\%m\%d).pdf >> "$LOG_FILE" 2>&1

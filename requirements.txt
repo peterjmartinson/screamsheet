@@ -23,6 +23,7 @@ httpx==0.28.1
 idna==3.10
 iniconfig==2.1.0
 lorem-text==3.0
+nba_api==1.10.2
 nhl-api-py==3.0.2
 numpy==2.2.6
 packaging==25.0

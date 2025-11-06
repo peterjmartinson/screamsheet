@@ -392,7 +392,7 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 
         Write the professional and accessible recap now.
         """
-        return(prompt)
+        return prompt
 
     def generate_summary(self, game_pk: int) -> str:
         """
@@ -403,6 +403,47 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
         key_info = self._extract_key_info(raw_data)
         result = super()._generate_llm_summary(key_info)
         return result
+
+
+class GameSummaryGeneratorNBA(BaseGameSummaryGenerator):
+    """
+    A subclass for NBA games, handling player/team lookups and specific play parsing.
+    """
+
+    def __init__(self, gemini_api_key: Optional[str] = None) -> None:
+        super().__init__(gemini_api_key)
+
+    def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
+        """Constructs the LLM prompt for the NHL game."""
+        prompt = f"""
+        You are a professional news correspondent writing a concise game
+        summary of an NBA basketball match. The summary must be professional
+        yet extremely accessible, ensuring the language is easy enough for
+        someone with a reading comprehension level below the 5th grade or with
+        no prior knowledge of basketball.  The entire summary must be 200 words
+        or less and consist of a single, continuous paragraph of plain text (no
+        markdown, bolding, italics, or special formatting).
+
+        The summary must define only one important basketball term used in the
+        text. To ensure the reader learns new vocabulary, prioritize choosing a
+        term that is not 'score', 'foul', 'rebound', 'shot', or 'basket/point',
+        unless those terms are the only important ones available in the text.
+        Indicate the defined term within the main text by following it
+        immediately with an asterisk (e.g., term*). The definition must appear
+        on a separate line at the very end of the summary, prefixed by an
+        asterisk and explaining the term clearly for a novice (e.g., *In
+        basketball, [term] is...).
+
+        Game details to include:
+        Home Team: {extracted_info['home_team']}
+        Away Team: {extracted_info['away_team']}
+        Final Score: {extracted_info['home_team']} {extracted_info['home_score']} to {extracted_info['away_team']} {extracted_info['away_score']}
+
+        Narrative snippets (for context, include highlights from each period in order): {extracted_info['narrative_snippets']}
+
+        Write the professional and accessible recap now.
+        """
+        return prompt
 
 # Example Usage in your main script
 if __name__ == "__main__":

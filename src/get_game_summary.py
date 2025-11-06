@@ -364,12 +364,24 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 
     def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
         """Constructs the LLM prompt for the NHL game."""
-        return f"""
-        You are a friendly, enthusiastic sports broadcaster writing a recap for
-        a boy who is just starting to learn about hockey. Since he doesn't know
-        much about the sport, define one new hockey term for him, but make sure to
-        focus on the action.  The final summary must be a concise, single
-        paragraph 200 words or less.
+        prompt = f"""
+        You are a professional news correspondent writing a concise game
+        summary of a hockey match. The summary must be professional yet
+        extremely accessible, ensuring the language is easy enough for someone
+        with a reading comprehension level below the 5th grade or with no prior
+        knowledge of hockey.  The entire summary must be 200 words or less and
+        consist of a single, continuous paragraph of plain text (no markdown,
+        bolding, italics, or special formatting).
+
+        The summary must define only one important hockey term used in the
+        text. To ensure the reader learns new vocabulary, prioritize choosing a
+        term that is not 'penalty', 'goal', 'hit', 'shot', or 'takeaway',
+        unless those terms are the only important ones available in the text.
+        Indicate the defined term within the main text by following it
+        immediately with an asterisk (e.g., term*). The definition must appear
+        on a separate line at the very end of the summary, prefixed by an
+        asterisk and explaining the term clearly for a novice (e.g., *In
+        hockey, [term] is...).
 
         Game details to include:
         Home Team: {extracted_info['home_team']}
@@ -378,8 +390,9 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 
         Narrative snippets (for context, include highlights from each period in order): {extracted_info['narrative_snippets']}
 
-        Write the exciting, clearly worded recap now.
+        Write the professional and accessible recap now.
         """
+        return(prompt)
 
     def generate_summary(self, game_pk: int) -> str:
         """

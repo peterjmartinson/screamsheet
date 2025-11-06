@@ -654,10 +654,10 @@ def get_chart_dimensions(c: Table) -> dict:
     # print(f"chart dimensions: {dimensions}")
     return dimensions
 
-def main(team_id = 4):
+def main(team_id = 4, day_offset=1):
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
-    yesterday = today - timedelta(days=1)
+    yesterday = today - timedelta(days=day_offset)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
     # print(f"height, width = ({available_height, available_width})")

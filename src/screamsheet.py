@@ -2,6 +2,7 @@ import mlb_screamsheet as mlb
 import nfl_screamsheet as nfl
 import nhl_screamsheet as nhl
 import nba_screamsheet as nba
+import get_mlb_news as mlbnews
 
 ANGELS = 108
 ASTROS = 117
@@ -41,3 +42,4 @@ if __name__ == "__main__":
     nfl.main()
     nhl.main(FLYERS)
     nba.main()
+    mlbnews.main()

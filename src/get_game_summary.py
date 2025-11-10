@@ -152,8 +152,9 @@ class GameSummaryGeneratorMLB(BaseGameSummaryGenerator):
     def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
         """Constructs the LLM prompt for the MLB game."""
         return f"""
-        You are a professional sports journalist. Write a concise, engaging summary of the following baseball game. 
-        Focus on the final score and a few key highlights from each inning, in order.
+        You are a professional sports journalist. Write a concise, engaging
+        summary of the following baseball game.  Focus on the final score and a
+        few key highlights from each inning, in order.
 
         Game details:
         Home Team: {extracted_info['home_team']}
@@ -444,6 +445,53 @@ class GameSummaryGeneratorNBA(BaseGameSummaryGenerator):
         Write the professional and accessible recap now.
         """
         return prompt
+
+
+class NewsStorySummarizer(BaseGameSummaryGenerator):
+    """
+    A subclass to use the LLM to generate news summaries
+    """
+
+    # def __init__(self, gemini_api_key: Optional[str] = None) -> None:
+    #     super().__init__(gemini_api_key)
+
+    def get_accessible_summary(self, title, content):
+        """
+        Generates a professional, accessible summary of a news article using the Gemini API.
+        
+        This function uses the finalized prompt template tailored for accessibility and
+        selective term definition (avoiding common words like 'goal', 'foul', 'shot', etc.).
+        """
+        
+        # --- The Finalized NBA/General Sports Prompt ---
+        # We use a general prompt and pass in placeholders for generic content slots
+        # since this isn't a score recap, but a news summary.
+        prompt = f"""
+            You are a professional news correspondent writing a concise,
+            engaging summary of a sports news article.  Focus on getting as
+            much detail as possible into the summary, while retaining clarity
+            and readability.
+
+            The entire summary must be 300 words or less and consist of a
+            single, continuous paragraph of plain text (no markdown, bolding,
+            italics, or special formatting).
+
+            **Article Title:** {title}
+            **Article Content:** {content}
+            
+            Write the professional and accessible recap now.
+        """
+        
+        try:
+            response: Any = self.client.models.generate_content(
+                model=self._MODEL_NAME,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            print(f"Error generating summary with LLM: {e}")
+            return f"ERROR: Could not summarize article titled '{title}'."
+
 
 # Example Usage in your main script
 if __name__ == "__main__":

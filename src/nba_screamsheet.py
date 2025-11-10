@@ -135,7 +135,8 @@ def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
         date_to_nullable=game_date
     )
     # The data frame has two rows per game (one for each team)
-    raw_games_df = gamefinder.get_data_frames()[0]
+    df_list = gamefinder.get_data_frames()
+    raw_games_df = df_list[0]
 
     # --- 3. Process and Format the Data ---
     games = []
@@ -152,21 +153,25 @@ def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
             game_data = df[df['GAME_ID'] == game_id].reset_index(drop=True)
             
             # Ensure we have exactly two teams (safety check)
+            # Really, ensure there are two rows, the "@" row and the "vs." row
             if len(game_data) != 2:
                 print(f"Skipping incomplete game data for GAME_ID: {game_id}")
                 continue
                 
             # Determine the home and away teams using the MATCHUP format
-            # NBA Matchups are always 'AWAY_TEAM @ HOME_TEAM'
+            # NBA Matchups are always 'AWAY_TEAM @ HOME_TEAM' or 'HOME_TEAM vs. AWAY_TEAM'
             matchup_str = game_data.iloc[0]['MATCHUP']
             
             if '@' in matchup_str:
+                # "LAC @ PHX"
                 # The 'home' team is the one whose abbreviation appears AFTER the '@'
                 away_tri, home_tri = matchup_str.split(' @ ')
             else:
+                # "PHX vs. LAC"
+                # Now the home team is the one BEFORE the 'vs.'
                 # Handle cases where the home team is first (e.g., if MATCHUP only shows one team's perspective)
                 # This is less common, but ensures robust parsing. We'll use the WL column logic below.
-                continue 
+                home_tri, away_tri = matchup_str.split(' vs. ')
 
             # Extract data for both teams in the game
             team_1 = game_data.iloc[0]
@@ -706,8 +711,6 @@ def main(team_id = 4):
     # standings = get_standings_from_file("standings_20250818.csv")
 
     scores = get_game_scores_for_day(yesterday_str)
-    for s in scores:
-        print(s)
     # standings = get_nhl_standings()
     # game_pk = get_game_pk(team_id, yesterday)
     # box_score = get_nhl_boxscore(team_id, game_pk)

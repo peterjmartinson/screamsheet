@@ -17,7 +17,7 @@ from reportlab.platypus import (
 import feedparser
 import os
 from typing import List, Dict, Tuple
-from get_game_summary import NewsStorySummarizer
+from get_news_summary import NewsSummarizer
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -144,12 +144,14 @@ def generate_news_sections(news_summarizer) -> Dict[str, str]:
         
         # Use the article summary or description as the content to be summarized
         content_to_summarize = entry.get('summary', entry.get('description', title))
+        story = {'title': title, 'summary': content_to_summarize}
 
         # --- Call the Gemini API for the final text ---
-        summary_text = news_summarizer.get_accessible_summary(
-            title=title,
-            content=content_to_summarize
-        )
+        # summary_text = news_summarizer.get_accessible_summary(
+        #     title=title,
+        #     content=content_to_summarize
+        # )
+        summary_text = news_summarizer.generate_summary(llm_choice='grok', story=story)
         
         # The key is the page slot, the value is the final summarized text block
         final_output[slot] = {"title": title, "text": summary_text}
@@ -248,7 +250,10 @@ def main():
     except Exception as ex:
         print(f"No Gemini API Key found: {ex}")
         gemini_api_key = None
-    news_summarizer = NewsStorySummarizer(gemini_api_key)
+    news_summarizer = NewsSummarizer(
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "MOCK_GEMINI_KEY"),
+        grok_api_key=os.getenv("GROK_API_KEY", "MOCK_GROK_KEY")
+    )
     
     final_output = generate_news_sections(news_summarizer)
     generate_mlb_report(final_output, output_file_path)

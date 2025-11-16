@@ -13,12 +13,33 @@ jobs:
     if: github.event.pull_request.merged == true
 
     steps:
-      - name: Git Pull on Desktop
+      - name: Check if directory is in use
         run: |
-          cd /home/peter/Code/screamsheet
-          git pull origin master
+          if lsof +D /home/peter/Code/screamsheet; then
+            echo "Directory is currently in use! Aborting workflow."
+            exit 1
+          fi
+
+      - name: Remove old project directory
+        run: |
+          rm -rf /home/peter/Code/screamsheet
+
+      - name: Clone fresh from repo
+        run: |
+          git clone https://github.com/peterjmartinson/screamsheet.git /home/peter/Code/screamsheet
+
+      - name: Create new virtual environment
+        run: |
+          python3 -m venv /home/peter/Code/screamsheet/env
 
       - name: Install requirements
         run: |
-          cd /home/peter/Code/screamsheet
-          ./env/bin/python -m pip install -r requirements.txt
+          /home/peter/Code/screamsheet/env/bin/python -m pip install -r /home/peter/Code/screamsheet/requirements.txt
+
+      - name: Make screamsheet.sh executable
+        run: |
+          chmod +x /home/peter/Code/screamsheet/screamsheet.sh
+
+      - name: Run deployment script
+        run: |
+          /home/peter/Code/screamsheet/screamsheet.sh

@@ -44,11 +44,17 @@ jobs:
           
       # --- The remaining steps now use the copied files in the external path ---
 
-      - name: Create new virtual environment and Install requirements
-        run: |
-          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          python3 -m venv $PROJECT_DIR/env
-          $PROJECT_DIR/env/bin/python -m pip install -r $PROJECT_DIR/requirements.txt
+      # - name: Create new virtual environment and Install requirements
+      #   run: |
+      #     PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
+      #     python3 -m venv $PROJECT_DIR/env
+      #     $PROJECT_DIR/env/bin/python -m pip install -r $PROJECT_DIR/requirements.txt
+
+      - name: Create new virtual environment and Install requirements (using UV)
+        run: |
+          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
+          uv venv $PROJECT_DIR/env
+          uv pip install -r $PROJECT_DIR/requirements.txt
 
       # 4. Configure permissions
       - name: Make screamsheet.sh executable

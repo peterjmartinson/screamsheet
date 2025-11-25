@@ -10,36 +10,52 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    # Ensure the PR was merged
     if: github.event.pull_request.merged == true
 
     steps:
-      - name: Check if directory is in use
+      - name: Calculate new release directory
+        # Sets a variable for a unique, time-stamped directory
+        id: vars
         run: |
-          if lsof +D /home/peter/Code/screamsheet; then
-            echo "Directory is currently in use! Aborting workflow."
-            exit 1
-          fi
+          RELEASE_DIR=/home/peter/Code/screamsheet_releases/release_$(date +%Y%m%d%H%M%S)
+          echo "RELEASE_DIR=$RELEASE_DIR" >> $GITHUB_OUTPUT
 
-      - name: Remove old project directory
-        run: |
-          rm -rf /home/peter/Code/screamsheet
+      # --- Deployment Preparation: Use checkout for authentication ---
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Clones into the unique directory
+          path: ${{ steps.vars.outputs.RELEASE_DIR }}
 
-      - name: Clone fresh from repo
+      # --- Environment Setup (No more rm -rf) ---
+      - name: Create and Install Environment
         run: |
-          git clone https://github.com/peterjmartinson/screamsheet.git /home/peter/Code/screamsheet
+          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
+          # Create venv inside the new release directory
+          python3 -m venv $PROJECT_DIR/env
+          $PROJECT_DIR/env/bin/python -m pip install -r $PROJECT_DIR/requirements.txt
+          
+      # --- Final Configuration ---
+      - name: Configure and Test
+        run: |
+          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
+          chmod +x $PROJECT_DIR/screamsheet.sh
+          # OPTIONAL: Run basic smoke test before going live
+          # $PROJECT_DIR/env/bin/python $PROJECT_DIR/smoke_test.py
+          
+      # --- Atomic Switch (The critical step) ---
+      - name: Switch Live Symlink
+        run: |
+          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
+          LIVE_PATH=/home/peter/Code/screamsheet_live # This is what cron should run
+          
+          # Atomically updates the symlink
+          ln -snf $PROJECT_DIR $LIVE_PATH
 
-      - name: Create new virtual environment
+      # --- Cleanup (Optional but highly recommended) ---
+      - name: Cleanup Old Releases
         run: |
-          python3 -m venv /home/peter/Code/screamsheet/env
-
-      - name: Install requirements
-        run: |
-          /home/peter/Code/screamsheet/env/bin/python -m pip install -r /home/peter/Code/screamsheet/requirements.txt
-
-      - name: Make screamsheet.sh executable
-        run: |
-          chmod +x /home/peter/Code/screamsheet/screamsheet.sh
-
-      - name: Run deployment script
-        run: |
-          /home/peter/Code/screamsheet/screamsheet.sh
+          cd /home/peter/Code/screamsheet_releases
+          # Keep only the last 3 releases
+          ls -t | grep 'release_' | tail -n +4 | xargs rm -rf

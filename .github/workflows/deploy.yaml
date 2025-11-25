@@ -59,3 +59,7 @@ jobs:
           cd /home/peter/Code/screamsheet_releases
           # Keep only the last 3 releases
           ls -t | grep 'release_' | tail -n +4 | xargs rm -rf
+      
+      - name: Run deployment script
+        run: |
+          /home/peter/Code/screamsheet_live/screamsheet.sh

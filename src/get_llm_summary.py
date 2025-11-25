@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Optional, Dict, Union, Any, List, Callable
+from typing import Optional, Dict, Union, Any, List
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,8 +21,7 @@ PromptChainInput = Dict[str, Union[str, ExtractedInfo]]
 
 class BaseGameSummaryGenerator:
     """
-    Base class for generating summaries. Refactored to use a simpler, 
-    imperative composition structure instead of complex LCEL pipes.
+    Base class for generating summaries.
     """
 
     _DEFAULT_TEXT: str = 'howdy, folks.  test text here'
@@ -30,7 +29,7 @@ class BaseGameSummaryGenerator:
     _GROK_MODEL: str = 'grok-4'
     _GROK_BASE_URL: str = "https://api.x.ai/v1"
 
-    def __init__(self, 
+    def __init__(self,
                  gemini_api_key: Optional[str] = None,
                  grok_api_key: Optional[str] = None) -> None:
         """Initializes the generator with API keys for multiple LLMs."""
@@ -45,7 +44,8 @@ class BaseGameSummaryGenerator:
 
     def _initialize_gemini(self, api_key: Optional[str]) -> Optional[ChatGoogleGenerativeAI]:
         """Initializes the Gemini LLM object."""
-        if not api_key: return None
+        if not api_key:
+            return None
         return ChatGoogleGenerativeAI(
             model=self._DEFAULT_MODEL,
             temperature=0.3,
@@ -54,7 +54,8 @@ class BaseGameSummaryGenerator:
 
     def _initialize_grok(self, api_key: Optional[str]) -> Optional[ChatOpenAI]:
         """Initializes the Grok (via OpenAI-compatible API) LLM object."""
-        if not api_key: return None
+        if not api_key:
+            return None
         # Use ChatOpenAI for Grok since it uses an OpenAI-compatible endpoint
         return ChatOpenAI(
             model=self._GROK_MODEL,
@@ -64,9 +65,8 @@ class BaseGameSummaryGenerator:
             model_kwargs={"extra_headers": {"x-search-mode": "auto"}}
         )
 
-    # Note: This method now returns the LLM *instance*, not a Runnable.
     # The selection happens outside of the main chain definition.
-    def _select_llm_instance(self, llm_choice: str) -> Runnable:
+    def _select_llm_instance(self, llm_choice: str) -> Union[Runnable, None]:
         """Dynamically selects the correct LLM instance."""
         llm_choice = llm_choice.lower()
         if llm_choice == 'gemini' and self.llm_gemini:
@@ -76,9 +76,8 @@ class BaseGameSummaryGenerator:
             print("--- Using GROK for generation ---")
             return self.llm_grok
         
-        raise ValueError(f"LLM choice '{llm_choice}' is invalid or API key is missing.")
-
-    # --- REFACTORED CHAIN COMPOSITION ---
+        print("--- No LLM available for generation ---")
+        return None
 
     def _setup_prompt_chain(self) -> Runnable:
         """
@@ -89,11 +88,14 @@ class BaseGameSummaryGenerator:
         # We use RunnablePassthrough.assign to build the keys the template expects
         input_prep_chain = RunnablePassthrough.assign(
             game_data=RunnableLambda(
-                lambda x: json.dumps(x['extracted_info'], indent=2)
+                lambda x: (
+                    print(f"--- DEBUGGING: Raw x['data'] input: {x['data']}"), # <-- DEBUGGING LINE
+                    json.dumps(x['data'], indent=2)
+                )[-1] # The [-1] is used to return the last item (the json.dumps result)
             ),
             prompt_text=RunnableLambda(
                 # We need the full `self` instance here, so we wrap the call
-                lambda x: self._build_llm_prompt(x['extracted_info'])
+                lambda x: self._build_llm_prompt(x['data'])
             )
         )
 
@@ -101,41 +103,29 @@ class BaseGameSummaryGenerator:
         template = PromptTemplate.from_template(
             "Here is the raw data for a sports game:\n\n{game_data}\n\nNow, follow this instruction to summarize it: {prompt_text}"
         )
-        
+
         # 3. Composition: Combine the preparation and the template
         # The output of input_prep_chain (a dict) is passed into the template (which expects a dict)
         final_prompt_builder = input_prep_chain | template
 
         return final_prompt_builder
     
-    # ------------------------------------
-
-
     # --- ABSTRACT METHODS (Must be implemented by subclasses) ---
-    def _fetch_raw_game_data(self, **kwargs) -> Optional[Dict[str, Any]]:
-        """Fetches raw game data from the league API. Args depend on the league."""
-        raise NotImplementedError("Subclass must implement abstract method '_fetch_raw_game_data'")
-
-    def _extract_key_info(self, raw_data: Optional[Dict[str, Any]]) -> Union[ExtractedInfo, str]:
-        """Parses raw data and extracts essential game details for the LLM."""
-        raise NotImplementedError("Subclass must implement abstract method '_extract_key_info'")
-
-    def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
+    def _build_llm_prompt(self, data: Union[ExtractedInfo, str]) -> str:
         """
         Constructs the LLM prompt instruction (e.g., "Write a 3-paragraph summary...").
         """
         raise NotImplementedError("Subclass must implement abstract method '_build_llm_prompt'")
     # -----------------------------------------------------------
 
-
-    def _generate_llm_summary(self, extracted_info: Union[ExtractedInfo, str], llm_choice: str) -> str:
+    def _generate_llm_summary(self, data: Union[ExtractedInfo, str], llm_choice: str) -> str:
         """
         Executes the entire generation process using the chosen LLM.
         This method uses a simple imperative structure.
         """
-        if isinstance(extracted_info, str):
+        if isinstance(data, str):
             # If extraction failed, return the error message string
-            return extracted_info
+            return data
 
         try:
             # IMPERATIVE STEP 1: Get the required LLM instance
@@ -151,12 +141,15 @@ class BaseGameSummaryGenerator:
 
             # IMPERATIVE STEP 3: Structure the input for the prompt chain
             chain_input: PromptChainInput = {
-                "extracted_info": extracted_info,
-                # Note: 'llm_choice' is not needed by the chain anymore, but useful for tracing
-                "llm_choice": llm_choice 
+                "data": data,
+                "llm_choice": llm_choice
             }
                 
             # IMPERATIVE STEP 4: Invoke the full pipeline
+            if not llm_choice:
+                # If no LLM is available, just return dummy text
+                return self._DEFAULT_TEXT
+
             summary: str = full_pipeline.invoke(chain_input)
             return summary
             
@@ -167,66 +160,83 @@ class BaseGameSummaryGenerator:
             print(f"Error generating summary with LLM: {e}")
             return "Summary generation failed."
 
-
-    def generate_summary(self, llm_choice: str = 'gemini', **kwargs) -> str:
+    def generate_summary(
+        self,
+        llm_choice: str = 'gemini',
+        data: Union[ExtractedInfo, str] = {'data': 'dummy'},
+        **kwargs
+    ) -> str:
         """
         Public method to generate the full game summary.
         """
-        raw_data: Optional[Dict[str, Any]] = self._fetch_raw_game_data(**kwargs)
-        extracted_info: Union[ExtractedInfo, str] = self._extract_key_info(raw_data)
-        llm_summary = self._generate_llm_summary(extracted_info, llm_choice)
+        llm_summary = self._generate_llm_summary(data, llm_choice)
         return llm_summary
 
 class NewsSummarizer(BaseGameSummaryGenerator):
 
-    def _fetch_raw_game_data(self, story: Dict[str, str]) -> Optional[Dict[str, Any]]:
-        """
-        Fetches raw game data from the league API. Args depend on the league.
-        Assumes story = {'title': 'text', 'summary': 'text'}
-        """
-        return story
-
-    def _extract_key_info(self, raw_data: Optional[Dict[str, Any]]) -> Union[ExtractedInfo, str]:
-        """Parses raw data and extracts essential game details for the LLM."""
-        return raw_data
-
-    def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
+    def _build_llm_prompt(self, data: Union[ExtractedInfo, str]) -> str:
         """
         Constructs the LLM prompt instruction (e.g., "Write a 3-paragraph summary...").
         """
         prompt = """
-        You are a pro journalist who grew up in Philly. Write a tight, lively
-        summary of the news topic below. Hit the big story, toss in a couple
-        key highlights, and dig up the freshest dirt on X with real sources.
+        You are a professional journalist. Write a tight, lively summary of the
+        included news topic. Start clean, but get more profane towards the end.
+        Hit the big story, toss in a couple key highlights, and dig up the
+        freshest dirt on X with real sources.
 
-        These are the rules
-        - Keep it around 300 words.
+        These are the requirements
+        - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
         - Use plain text, no markdown or formatting marks.
-        - Use exactly one swear word, but make it count.
-        - Slip in one or two quick funnies.
+        - Use a few swear words.
+        - Use humor where you can.
         - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
-        - Let a little raw emotion out, but don’t drown the facts.
         """
         return prompt
 
-    def generate_summary(self, llm_choice: str = 'gemini', **kwargs) -> str:
-        """
-        Public method to generate the full game summary.
-        """
-        raw_data: Optional[Dict[str, Any]] = self._fetch_raw_game_data(**kwargs)
-        extracted_info: Union[ExtractedInfo, str] = self._extract_key_info(raw_data)
-        llm_summary = self._generate_llm_summary(extracted_info, llm_choice)
-        return llm_summary
+class NHLGameSummarizer(BaseGameSummaryGenerator):
 
+    def _build_llm_prompt(self, data: Union[ExtractedInfo, str]) -> str:
+        """
+        Constructs the LLM prompt instruction (e.g., "Write a 3-paragraph summary...").
+        """
+        prompt = f"""
+            You are a professional news correspondent writing a concise game
+            summary of a hockey match. The summary must be professional yet
+            extremely accessible, ensuring the language is easy enough for someone
+            with a reading comprehension level below the 5th grade or with no prior
+            knowledge of hockey.  The entire summary must be 200 words or less and
+            consist of a single, continuous paragraph of plain text (no markdown,
+            bolding, italics, or special formatting).
+
+            The summary must define only one important hockey term used in the
+            text. To ensure the reader learns new vocabulary, prioritize choosing a
+            term that is not 'penalty', 'goal', 'hit', 'shot', or 'takeaway',
+            unless those terms are the only important ones available in the text.
+            Indicate the defined term within the main text by following it
+            immediately with an asterisk (e.g., term*). The definition must appear
+            on a separate line at the very end of the summary, prefixed by an
+            asterisk and explaining the term clearly for a novice (e.g., *In
+            hockey, [term] is...).
+
+            Game details to include:
+            Home Team: {data['home_team']}
+            Away Team: {data['away_team']}
+            Final Score: {data['home_team']} {data['home_score']} to {data['away_team']} {data['away_score']}
+
+            Narrative snippets (for context, include highlights from each period in order): {data['narrative_snippets']}
+
+            Write the professional and accessible recap now.
+        """
+        return prompt
 
 # --- Main Execution ---
 if __name__ == "__main__":
     # NOTE: Set your actual API keys here for real LLM calls.
     # For this example, we will treat the LLM objects as if they exist
-    # (i.e., we are relying on the LLM client objects being set up, 
+    # (i.e., we are relying on the LLM client objects being set up,
     # even if they won't make a real API call without a key).
     
-    # Passing None for keys allows the initialization to proceed without failure, 
+    # Passing None for keys allows the initialization to proceed without failure,
     # but the select method will raise a ValueError if it expects an LLM to be available.
     story = {
         'title': 'Unanimous for 4th time, Ohtani owns 2nd-most MVPs in MLB history',

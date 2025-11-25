@@ -1,4 +1,4 @@
-from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.endpoints import leaguegamefinder, leaguestandings
 from nba_api.stats.static import teams
 from datetime import datetime, timedelta
 from reportlab.lib import colors
@@ -20,8 +20,14 @@ import pandas as pd
 import requests
 import os
 import json
-# from get_game_summary import GameSummaryGeneratorNBA
-from screamsheet_structures import GameScore
+try:
+    # from get_game_summary import GameSummaryGeneratorNBA
+    from screamsheet_structures import GameScore
+    from utilities import dump_json, dump_dataframe
+except Exception:
+    # from src.get_game_summary import GameSummaryGeneratorNBA
+    from src.screamsheet_structures import GameScore
+    from src.utilities import dump_json, dump_dataframe
 from typing import Optional, Dict, Any, List
 from get_box_score_nhl import get_nhl_boxscore
 from dotenv import load_dotenv
@@ -36,8 +42,7 @@ bottom_margin = 36
 available_width = page_width - left_margin - right_margin
 available_height = page_height - top_margin - bottom_margin
 
-FLYERS = 4
-FINAL_STATUS_CODE: str = 'OFF' # '3' typically means 'Final'
+DUMP = False
 
 styles = getSampleStyleSheet()
 
@@ -85,6 +90,8 @@ def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
         schedule_response = requests.get(schedule_url)
         schedule_response.raise_for_status()
         schedule_data = schedule_response.json()
+        if DUMP:
+            dump_json(schedule_response, "nba_get_game_pk")
         
         game_pk = None
         
@@ -137,6 +144,8 @@ def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
     # The data frame has two rows per game (one for each team)
     df_list = gamefinder.get_data_frames()
     raw_games_df = df_list[0]
+    if DUMP:
+        dump_dataframe(raw_games_df, "nba_get_game_scores_for_day")
 
     # --- 3. Process and Format the Data ---
     games = []
@@ -189,6 +198,10 @@ def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
                 print(f"Could not reliably determine home/away for GAME_ID: {game_id}")
                 continue
 
+            # Handle development leagues
+            if home_team_data['TEAM_ABBREVIATION'] not in tricode_to_name.keys():
+                continue
+
             # Build the dictionary in the exact format you requested
             game_info = {
                 # Format the date nicely
@@ -212,91 +225,86 @@ def get_division(record) -> str:
     url = base_url + record.get("division", {}).get("link", {})
     response = requests.get(url)
     data = response.json()
+    if DUMP:
+        dump_json(response, "nba_get_division")
     division = data["divisions"][0].get("name")
     return division
 
-def get_nhl_standings() -> pd.DataFrame:
+def get_nba_standings() -> pd.DataFrame:
     """
-    Fetches the current NHL standings using the dedicated 'now' endpoint.
-    Returns the standings as a pandas DataFrame.
+    Fetches current NBA standings via nba_api and returns a DataFrame.
     """
-    # The dedicated 'now' endpoint for current standings
-    url = "https://api-web.nhle.com/v1/standings/now"
-    
-    # Using requests.get(url) as requested
-    response = requests.get(url)
-    response.raise_for_status() # Raises an error if the request failed
+    # 1. Fetch Data
+    # '00' is the default LeagueID for the NBA
+    standings_api = leaguestandings.LeagueStandings(league_id='00', season_type='Regular Season')
+    standings_df = standings_api.get_data_frames()[0]
 
-    data = response.json()
+    # Optional: Dump raw data if you have your DUMP flag enabled
+    # if DUMP:
+    #     dump_dataframe(standings_df, "nba_raw_standings")
 
-    team_list: List[Dict[str, Any]] = []
-    
-    # Data is directly under the 'standings' key
-    for team_record in data.get("standings", []):
+    team_list = []
+
+    # 2. Process Data
+    for index, row in standings_df.iterrows():
         
-        # Extract the team name and abbreviation
-        name = team_record.get("teamName", {}).get("default")
-        abbrev = team_record.get("teamAbbrev", {}).get("default")
-        
-        # Use division and conference names for grouping/sorting
-        division = team_record.get("divisionName")
-        conference = team_record.get("conferenceName")
-        
-        # Core NHL Standings Metrics
-        wins = team_record.get("wins")
-        losses = team_record.get("losses")
-        otLosses = team_record.get("otLosses") # Critical for NHL points calculation
-        points = team_record.get("points")
-        pointPct = team_record.get("pointPctg") # Equivalent to MLB 'pct'
-        
-        # Rank is crucial for table display
-        divisionRank = team_record.get("divisionSequence") # 'divisionSequence' is the division rank
-        
+        # Calculate a clean team name (e.g., "Boston Celtics")
+        city = row['TeamCity']
+        name = row['TeamName']
+        full_name = f"{city} {name}"
+
+        # NBA Conference/Division Mapping
+        conference = row['Conference'] # 'East' or 'West'
+        division = row['Division']     # e.g., 'Atlantic', 'Pacific'
+
+        # Format Win Percentage (e.g., 0.750)
+        # The API usually returns this as a float, but sometimes needs rounding
+        win_pct = row['WinPCT']
+        win_pct_str = f"{win_pct:.3f}".lstrip('0') # .750 format
+
         team_obj = {
-            "conference": conference,
+            "conference": "Eastern" if conference == 'East' else "Western",
             "division": division,
-            "team": f"{name}", # Combine name and abbrev for cleaner display
-            "divisionRank": divisionRank,
-            "GP": team_record.get("gamesPlayed"),
-            "W": wins,
-            "L": losses,
-            "OTL": otLosses,
-            "P": points,
-            "PCT": pointPct,
-            "GF": team_record.get("goalFor"),
-            "GA": team_record.get("goalAgainst"),
-            "DIFF": team_record.get("goalDifferential"),
-            "STRK": team_record.get("streakCode") + str(team_record.get("streakCount"))
+            "team": full_name,
+            # Rank within the division is usually implicitly sorted by the API, 
+            # but we can rely on WinPCT for sorting if needed.
+            "W": row['WINS'],
+            "L": row['LOSSES'],
+            "PCT": win_pct_str,
+            "GB": row['ConferenceGamesBack'], # or 'DivisionGamesBack'
+            "STRK": row['CurrentStreak']
         }
         team_list.append(team_obj)
 
     standings = pd.DataFrame(team_list)
-    
-    # Sort the final output by Conference, Division, and then Rank
+
+    # 3. Sort: Conference -> Division -> Win % (Descending)
     return standings.sort_values(
-        by=['conference', 'division', 'divisionRank'], 
-        ascending=[True, True, True]
+        by=['conference', 'division', 'PCT'], 
+        ascending=[True, True, False]
     ).reset_index(drop=True)
 
 def create_standings_table(standings_df: pd.DataFrame):
     """
-    Creates a master reportlab Table object for NHL standings with a 
-    purely two-column layout: Eastern Conference vs Western Conference.
+    Creates a master reportlab Table for NBA standings.
+    Layout: 3 rows of side-by-side tables (East vs West).
     """
     # 1. Separate Data by Conference
     eastern_conf = standings_df[standings_df['conference'] == 'Eastern']
     western_conf = standings_df[standings_df['conference'] == 'Western']
 
-    # 2. Define the side-by-side layout (2 rows)
-    # Row 1: Atlantic (E) vs Central (W)
-    # Row 2: Metropolitan (E) vs Pacific (W)
+    # 2. Define the Layout (3 Rows)
+    # East Divisions: Atlantic, Central, Southeast
+    # West Divisions: Northwest, Pacific, Southwest
     division_layout = [
-        {'east': 'Atlantic', 'west': 'Central'},
-        {'east': 'Metropolitan', 'west': 'Pacific'},
+        {'east': 'Atlantic',  'west': 'Northwest'},
+        {'east': 'Central',   'west': 'Pacific'},
+        {'east': 'Southeast', 'west': 'Southwest'},
     ]
 
-    # 3. Initialize Master Table Data Header
-    # *** CHANGE: Removed the first empty string column ***
+    # 3. Initialize Master Grid
+    CENTERED_STYLE = ParagraphStyle(name="Centered", alignment=1, fontName="Helvetica-Bold")
+    
     grid_data = [
         [
             Paragraph("<b>EASTERN CONFERENCE</b>", CENTERED_STYLE), 
@@ -304,75 +312,64 @@ def create_standings_table(standings_df: pd.DataFrame):
         ],
     ]
     
-    # Define column widths for the inner tables (kept compact)
-    INNER_COL_WIDTHS = [130, 20, 20, 25, 25]  
+    # Adjusted Widths: More room for names, remove OTL column
+    # Total Width approx: 140 + 25 + 25 + 30 = 220 per side
+    INNER_COL_WIDTHS = [135, 25, 25, 35] 
     
-    # 4. Loop Twice to Build Two Side-by-Side Rows
+    # 4. Loop to Build Rows
     for row_info in division_layout:
-        east_div_name = row_info['east']
-        west_div_name = row_info['west']
-        
-        # *** CHANGE: row_list now only contains 2 elements (the two tables) ***
         row_list = []
         
-        # --- Build Eastern Table ---
-        east_group = eastern_conf[eastern_conf['division'] == east_div_name]
-        
-        if not east_group.empty:
-            # Header includes the Division name
-            INNER_HEADER = [f"{east_div_name} Division", "W", "L", "OTL", "P"]
-            table_data = [INNER_HEADER] + east_group[['team', 'W', 'L', 'OTL', 'P']].values.tolist()
+        # --- Helper to build one side ---
+        def build_division_table(conf_df, div_name):
+            group = conf_df[conf_df['division'] == div_name]
+            if group.empty:
+                return ''
             
-            # Apply table style
-            table_style = TableStyle([
+            # Header: Team | W | L | Pct
+            INNER_HEADER = [f"{div_name}", "W", "L", "Pct"]
+            
+            # Values: Name, W, L, PCT
+            table_vals = [INNER_HEADER] + group[['team', 'W', 'L', 'PCT']].values.tolist()
+            
+            t = Table(table_vals, colWidths=INNER_COL_WIDTHS)
+            
+            t_style = TableStyle([
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E0E0E0')),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER')
-                # ('FONTSIZE', (0, 0), (-1, -1), 8)
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E0E0E0')), # Header Grey
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),             # Header Font
+                # ('FONTSIZE', (0, 0), (-1, -1), 8),                           # Smaller font for stats
+                ('ALIGN', (0, 0), (0, -1), 'LEFT'),                          # Align Teams Left
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),                       # Align Stats Center
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ])
-            
-            standings_table = Table(table_data, colWidths=INNER_COL_WIDTHS)
-            standings_table.setStyle(table_style)
-            row_list.append(standings_table)
-        else:
-            row_list.append('')
-            
-        # --- Build Western Table ---
-        west_group = western_conf[western_conf['division'] == west_div_name]
-        
-        if not west_group.empty:
-            # Header includes the Division name
-            INNER_HEADER = [f"{west_div_name} Division", "W", "L", "OTL", "P"]
-            table_data = [INNER_HEADER] + west_group[['team', 'W', 'L', 'OTL', 'P']].values.tolist()
-            
-            # Re-apply the same table style
-            standings_table = Table(table_data, colWidths=INNER_COL_WIDTHS)
-            standings_table.setStyle(table_style)
-            row_list.append(standings_table)
-        else:
-            row_list.append('')
+            t.setStyle(t_style)
+            return t
 
-        # Add the completed row to the master grid
+        # Build Left (East)
+        row_list.append(build_division_table(eastern_conf, row_info['east']))
+        
+        # Build Right (West)
+        row_list.append(build_division_table(western_conf, row_info['west']))
+
         grid_data.append(row_list)
         
-    # 5. Create the Master Table
-    # *** CHANGE: Removed the first column width. Total width is 460 pts. ***
+    # 5. Create Master Table
+    # Two main columns, each roughly 230pts wide
     MASTER_COL_WIDTHS = [230, 230] 
     
     master_table_style = TableStyle([
-        # ('GRID', (0, 0), (-1, -1), 1, colors.black), # Optional: shows master table grid
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        # Alignment rule for the old left column is removed
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ])
     
-    final_standings_table = Table(grid_data, colWidths=MASTER_COL_WIDTHS)
-    final_standings_table.setStyle(master_table_style)
-    get_chart_dimensions(final_standings_table)
+    final_table = Table(grid_data, colWidths=MASTER_COL_WIDTHS)
+    final_table.setStyle(master_table_style)
     
-    return final_standings_table
+    return final_table
 
 def make_pdf(games, standings, filename):
     c = canvas.Canvas(filename, pagesize=letter)
@@ -479,8 +476,8 @@ def get_scores_table(games_list: List[GameScore], doc=None):
             table_style = TableStyle([
                 ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('LEFTPADDING', (0, 0), (0, -1), 0),
-                ('RIGHTPADDING', (0, 0), (0, -1), 0),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ])
             game_table = Table(table_data, colWidths=[80, 50])
             game_table.setStyle(table_style)
@@ -507,7 +504,7 @@ def get_scores_table(games_list: List[GameScore], doc=None):
 
 
 # def generate_nba_report(games, standings, game_summary_text="", box_score=None, filename="nhl_report.pdf"):
-def generate_nba_report(games, filename="nhl_report.pdf"):
+def generate_nba_report(games, standings, filename="nhl_report.pdf"):
     """
     Generates a PDF report with game scores in two top columns and a standings grid at the bottom.
 
@@ -531,8 +528,8 @@ def generate_nba_report(games, filename="nhl_report.pdf"):
 
     print("make scores table")
     scores_table = get_scores_table(games, doc)
-    # print("make standings table")
-    # standings_table = create_standings_table(standings)
+    print("make standings table")
+    standings_table = create_standings_table(standings)
     # print("make box scores table")
     # box_score_skaters = box_score["skater_table"]
     # box_score_goalies = box_score["goalie_table"]
@@ -590,8 +587,8 @@ def generate_nba_report(games, filename="nhl_report.pdf"):
     story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 12))
     story.append(scores_table)
-    # story.append(Spacer(1, 24))
-    # story.append(standings_table)
+    story.append(Spacer(1, 24))
+    story.append(standings_table)
     # story.append(PageBreak())
     # story.append(yesterday_game_table)
     doc.build(story)
@@ -711,7 +708,7 @@ def main(team_id = 4):
     # standings = get_standings_from_file("standings_20250818.csv")
 
     scores = get_game_scores_for_day(yesterday_str)
-    # standings = get_nhl_standings()
+    standings = get_nba_standings()
     # game_pk = get_game_pk(team_id, yesterday)
     # box_score = get_nhl_boxscore(team_id, game_pk)
 
@@ -728,11 +725,12 @@ def main(team_id = 4):
     os.makedirs(output_dir, exist_ok=True)
     output_file_path = os.path.join(output_dir, filename)
 
-    generate_nba_report(scores, output_file_path)
+    generate_nba_report(scores, standings, output_file_path)
     # generate_nba_report(scores, standings, game_summary_text, box_score, output_file_path)
 
 
 if __name__ == "__main__":
 
+    # DUMP = True
     main()
 

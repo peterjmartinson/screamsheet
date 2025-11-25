@@ -13,7 +13,12 @@ print(f"Fetching NBA scores for: {date_string}")
 # Create the tricode (abbreviation) to full name mapping
 nba_teams = teams.get_teams()
 tricode_to_name = {
-    team['abbreviation']: team['full_name'] 
+    team['abbreviation']: team['full_name']
+    for team in nba_teams
+}
+
+name_to_tricode = {
+    team['full_name']: team['abbreviation']
     for team in nba_teams
 }
 
@@ -50,11 +55,20 @@ if not raw_games_df.empty:
         
         if '@' in matchup_str:
             # The 'home' team is the one whose abbreviation appears AFTER the '@'
-            away_tri, home_tri = matchup_str.split(' @ ')
+            # away_tri, home_tri = matchup_str.split(' @ ')
+            away_team, home_team = matchup_str.split(' @ ')
         else:
             # Handle cases where the home team is first (e.g., if MATCHUP only shows one team's perspective)
             # This is less common, but ensures robust parsing. We'll use the WL column logic below.
             continue 
+
+        # sometimes we get the full team name - enforce tricodes
+        if len(home_team) == 3:
+            home_tri = home_team
+            away_tri = away_team
+        else:
+            home_tri = name_to_tricode.get(home_team)
+            away_tri = name_to_tricode.get(away_team)
 
         # Extract data for both teams in the game
         team_1 = game_data.iloc[0]

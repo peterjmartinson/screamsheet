@@ -18,10 +18,19 @@ import pandas as pd
 import requests
 import os
 import json
-from get_game_summary import GameSummaryGeneratorNHL
-from screamsheet_structures import GameScore
 from typing import Optional, Dict, Any, List
-from get_box_score_nhl import get_nhl_boxscore
+
+try:
+    from get_box_score_nhl import get_nhl_boxscore
+    from get_game_summary import GameSummaryGeneratorNHL
+    from screamsheet_structures import GameScore
+    from utilities import dump_json
+except Exception:
+    from src.get_box_score_nhl import get_nhl_boxscore
+    from src.get_game_summary import GameSummaryGeneratorNHL
+    from src.screamsheet_structures import GameScore
+    from src.utilities import dump_json
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -34,6 +43,7 @@ bottom_margin = 36
 available_width = page_width - left_margin - right_margin
 available_height = page_height - top_margin - bottom_margin
 
+DUMP = False
 FLYERS = 4
 FINAL_STATUS_CODE: str = 'OFF' # '3' typically means 'Final'
 
@@ -83,6 +93,8 @@ def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
         schedule_response = requests.get(schedule_url)
         schedule_response.raise_for_status()
         schedule_data = schedule_response.json()
+        if DUMP:
+            dump_json(schedule_response, "nhl_get_game_pk")
         
         game_pk = None
         
@@ -111,7 +123,7 @@ def get_game_pk(team_id: int, game_date: str) -> Optional[int]:
         print(f"Error fetching NHL data: {e}")
         return None
 
-def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
+def get_game_scores_for_day(game_date: str = None, dump: bool = False) -> List[GameScore]:
     """
     Fetches NHL game scores for a given day using the nhl_api wrapper 
     and returns them as a list of standardized GameScore objects.
@@ -128,6 +140,8 @@ def get_game_scores_for_day(game_date: str = None) -> List[GameScore]:
     response = requests.get(url)
     response.raise_for_status()
     data = response.json()
+    if DUMP:
+        dump_json(response, "nhl_game_scores")
 
     games: List[GameScore] = []
     games_for_the_day = data.get('gameWeek', [{}])[0].get('games', [])
@@ -167,6 +181,8 @@ def get_division(record) -> str:
     url = base_url + record.get("division", {}).get("link", {})
     response = requests.get(url)
     data = response.json()
+    if DUMP:
+        dump_json(response, "nhl_get_division")
     division = data["divisions"][0].get("name")
     return division
 
@@ -183,6 +199,9 @@ def get_nhl_standings() -> pd.DataFrame:
     response.raise_for_status() # Raises an error if the request failed
 
     data = response.json()
+
+    if DUMP:
+        dump_json(response, "nhl_get_nhl_standings")
 
     team_list: List[Dict[str, Any]] = []
     
@@ -688,4 +707,5 @@ def main(team_id = 4, day_offset=1):
 
 if __name__ == "__main__":
 
-    main(FLYERS)
+    DUMP = True
+    main(FLYERS, 2)

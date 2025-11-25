@@ -36,7 +36,6 @@ jobs:
           # Create the final directory
           mkdir -p $EXTERNAL_DIR
           
-          # Copy contents from the safe workspace ($GITHUB_WORKSPACE is the default path)
           echo "Copying contents from $GITHUB_WORKSPACE to $EXTERNAL_DIR"
           cp -r $GITHUB_WORKSPACE/. $EXTERNAL_DIR
 

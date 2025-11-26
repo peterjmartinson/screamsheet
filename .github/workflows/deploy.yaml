@@ -43,18 +43,25 @@ jobs:
 
       - name: Create new virtual environment and Install requirements (using UV)
         run: |
-          # Fix: Add uv path to PATH environment variable
+          # 1. Ensure UV is found
           export PATH="/home/peter/.local/bin:$PATH"
+
           PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          uv venv $PROJECT_DIR/env
-          uv pip install -r $PROJECT_DIR/requirements.txt
+          VENV_PATH=$PROJECT_DIR/env
+          PYTHON_EXEC="$VENV_PATH/bin/python"
+
+          # 2. Create the environment
+          uv venv $VENV_PATH
+
+          # 3. Install dependencies, explicitly telling uv where the environment's python is
+          uv pip install -r $PROJECT_DIR/requirements.txt --python "$PYTHON_EXEC"
 
       # 4. Configure permissions
       - name: Make screamsheet.sh executable
         run: |
           PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
           chmod +x $PROJECT_DIR/screamsheet.sh
-          
+
       # 5. ATOMIC SWITCH: Update the live symlink
       - name: Switch Live Symlink
         run: |
@@ -66,7 +73,7 @@ jobs:
       - name: Run deployment script
         run: |
           /home/peter/Code/screamsheet_live/screamsheet.sh
-          
+
       # 7. Cleanup
       - name: Cleanup Old Releases
         run: |

@@ -16,7 +16,7 @@ jobs:
       )
 
     steps:
-      # 1. Calculate the new unique release path (STAYS THE SAME)
+      # 1. Calculate the new unique release path
       - name: Calculate new release directory
         id: vars
         run: |
@@ -26,9 +26,8 @@ jobs:
       # 2. Checkout Code to the default, safe workspace ($GITHUB_WORKSPACE)
       - name: Checkout Code to Workspace
         uses: actions/checkout@v4
-        # REMOVED: the 'path' parameter that caused the error.
 
-      # 3. Create the external release directory and copy files into it (NEW STEP)
+      # 3. Create the external release directory and copy files into it
       - name: Copy Files to External Release Directory
         run: |
           # Use the calculated path from step 1
@@ -38,38 +37,47 @@ jobs:
           mkdir -p $EXTERNAL_DIR
           
           # Copy contents from the safe workspace ($GITHUB_WORKSPACE is the default path)
-          # Note: $GITHUB_WORKSPACE is provided automatically by the runner
           echo "Copying contents from $GITHUB_WORKSPACE to $EXTERNAL_DIR"
           cp -r $GITHUB_WORKSPACE/. $EXTERNAL_DIR
-          
-      # --- The remaining steps now use the copied files in the external path ---
 
-      - name: Create new virtual environment and Install requirements
+      - name: Create new virtual environment and Install requirements (using UV)
         run: |
+          # 1. Ensure UV is found
+          export PATH="/home/peter/.local/bin:$PATH"
+
           PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          python3 -m venv $PROJECT_DIR/env
-          $PROJECT_DIR/env/bin/python -m pip install -r $PROJECT_DIR/requirements.txt
+          VENV_PATH=$PROJECT_DIR/env
+          PYTHON_EXEC="$VENV_PATH/bin/python"
+
+          # 2. Create the environment
+          uv venv $VENV_PATH
+
+          # 3. Install dependencies using uv.lock (uv sync --frozen)
+          # 'uv sync' reads pyproject.toml and installs the exact versions found in uv.lock.
+          # The --frozen flag ensures the process fails if uv.lock is outdated.
+          uv sync --frozen --python "$PYTHON_EXEC" # <--- MODIFIED LINE
 
       # 4. Configure permissions
       - name: Make screamsheet.sh executable
         run: |
           PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
           chmod +x $PROJECT_DIR/screamsheet.sh
-          
+
       # 5. ATOMIC SWITCH: Update the live symlink
       - name: Switch Live Symlink
         run: |
           PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          LIVE_PATH=/home/peter/Code/screamsheet_live 
+          LIVE_PATH=/home/peter/Code/screamsheet_live
           ln -snf $PROJECT_DIR $LIVE_PATH
 
       # 6. Run deployment script
       - name: Run deployment script
         run: |
           /home/peter/Code/screamsheet_live/screamsheet.sh
-          
+
       # 7. Cleanup
       - name: Cleanup Old Releases
         run: |
           cd /home/peter/Code/screamsheet_releases
           ls -t | grep 'release_' | tail -n +4 | xargs rm -rf
+

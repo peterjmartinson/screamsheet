@@ -26,7 +26,6 @@ jobs:
       # 2. Checkout Code to the default, safe workspace ($GITHUB_WORKSPACE)
       - name: Checkout Code to Workspace
         uses: actions/checkout@v4
-        # The 'path' parameter is intentionally omitted here.
 
       # 3. Create the external release directory and copy files into it
       - name: Copy Files to External Release Directory
@@ -37,7 +36,6 @@ jobs:
           # Create the final directory
           mkdir -p $EXTERNAL_DIR
           
-          # Copy contents from the safe workspace ($GITHUB_WORKSPACE is the default path)
           echo "Copying contents from $GITHUB_WORKSPACE to $EXTERNAL_DIR"
           cp -r $GITHUB_WORKSPACE/. $EXTERNAL_DIR
 
@@ -53,8 +51,10 @@ jobs:
           # 2. Create the environment
           uv venv $VENV_PATH
 
-          # 3. Install dependencies, explicitly telling uv where the environment's python is
-          uv pip install -r $PROJECT_DIR/requirements.txt --python "$PYTHON_EXEC"
+          # 3. Install dependencies using uv.lock (uv sync --frozen)
+          # 'uv sync' reads pyproject.toml and installs the exact versions found in uv.lock.
+          # The --frozen flag ensures the process fails if uv.lock is outdated.
+          uv sync --frozen --python "$PYTHON_EXEC" # <--- MODIFIED LINE
 
       # 4. Configure permissions
       - name: Make screamsheet.sh executable
@@ -79,3 +79,4 @@ jobs:
         run: |
           cd /home/peter/Code/screamsheet_releases
           ls -t | grep 'release_' | tail -n +4 | xargs rm -rf
+

@@ -3,6 +3,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
+from get_weather import get_5_day_forecast
 import os
 import sys
 
@@ -131,7 +132,8 @@ def generate_test_screamsheet(filename="test_screamsheet_weather.pdf"):
         return
 
     # Build the weather flowable
-    weather_flowable = build_weather_flowable(FORECAST_DATA)
+    forecast_data = get_5_day_forecast()
+    weather_flowable = build_weather_flowable(forecast_data)
 
     # Add the weather flowable to the story
     story.append(weather_flowable)

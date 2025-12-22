@@ -1,10 +1,13 @@
 import requests
 from datetime import datetime
 from typing import List, Dict, Optional
+import os
+import sys
 
 # --- LOCAL ASSETS CONFIGURATION ---
 # Base path for your local weather icons
 # NOTE: This is the path relative to where your code will process the icon (e.g., in a template/HTML generator)
+LOCAL_ASSETS_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'weather')
 LOCAL_ASSETS_PATH = "/assets/weather"
 
 # Mapping NWS Keywords to LOCAL ICON FILENAMES
@@ -12,42 +15,42 @@ LOCAL_ASSETS_PATH = "/assets/weather"
 # We map the keywords found in the 'shortForecast' to the corresponding local SVG file.
 BW_ICON_MAP = {
     # Sunny / Clear / Cloudy
-    'SUNNY': 'wi-day-sunny.svg',            # 1. Sunny
-    'CLEAR': 'wi-night-clear.svg',          # 12. Night/Low Temp (Fallback for clear night)
-    'PARTLY SUNNY': 'wi-day-cloudy.svg',    # 2. Mostly Sunny
-    'MOSTLY SUNNY': 'wi-day-cloudy.svg',
-    'PARTLY CLOUDY': 'wi-cloudy.svg',       # 3. Partly Cloudy
-    'MOSTLY CLOUDY': 'wi-cloudy.svg',
-    'CLOUDY': 'wi-cloud.svg',               # 4. Overcast/Cloudy
+    'SUNNY': 'wi-day-sunny.png',            # 1. Sunny
+    'CLEAR': 'wi-night-clear.png',          # 12. Night/Low Temp (Fallback for clear night)
+    'PARTLY SUNNY': 'wi-day-cloudy.png',    # 2. Mostly Sunny
+    'MOSTLY SUNNY': 'wi-day-cloudy.png',
+    'PARTLY CLOUDY': 'wi-cloudy.png',       # 3. Partly Cloudy
+    'MOSTLY CLOUDY': 'wi-cloudy.png',
+    'CLOUDY': 'wi-cloud.png',               # 4. Overcast/Cloudy
 
     # Rain / Precipitation
-    'RAIN': 'wi-rain.svg',                  # 5. Rain
-    'SHOWERS': 'wi-rain.svg',
-    'LIGHT RAIN': 'wi-rain.svg',
-    'CHANCE RAIN': 'wi-rain.svg',
-    'RAIN LIKELY': 'wi-rain.svg',
-    'DRIZZLE': 'wi-rain.svg',
+    'RAIN': 'wi-rain.png',                  # 5. Rain
+    'SHOWERS': 'wi-rain.png',
+    'LIGHT RAIN': 'wi-rain.png',
+    'CHANCE RAIN': 'wi-rain.png',
+    'RAIN LIKELY': 'wi-rain.png',
+    'DRIZZLE': 'wi-rain.png',
 
     # Snow / Sleet
-    'SNOW': 'wi-snow.svg',                  # 7. Snow
-    'HEAVY SNOW': 'wi-snow.svg',
-    'LIGHT SNOW': 'wi-snow.svg',
-    'SLEET': 'wi-rain-mix.svg',             # 8. Mixed Precip
-    'RAIN/SNOW': 'wi-rain-mix.svg',
-    'WINTERY MIX': 'wi-rain-mix.svg',
+    'SNOW': 'wi-snow.png',                  # 7. Snow
+    'HEAVY SNOW': 'wi-snow.png',
+    'LIGHT SNOW': 'wi-snow.png',
+    'SLEET': 'wi-rain-mix.png',             # 8. Mixed Precip
+    'RAIN/SNOW': 'wi-rain-mix.png',
+    'WINTERY MIX': 'wi-rain-mix.png',
 
     # Thunderstorms
-    'THUNDERSTORM': 'wi-thunderstorm.svg',  # 6. Thunderstorm
-    'T-STORM': 'wi-thunderstorm.svg',
+    'THUNDERSTORM': 'wi-thunderstorm.png',  # 6. Thunderstorm
+    'T-STORM': 'wi-thunderstorm.png',
 
     # Other conditions
-    'FOG': 'wi-fog.svg',                    # 9. Fog
-    'HAZE': 'wi-fog.svg',
-    'WINDY': 'wi-strong-wind.svg',          # 10. Wind
-    'BLUSTERY': 'wi-strong-wind.svg',
+    'FOG': 'wi-fog.png',                    # 9. Fog
+    'HAZE': 'wi-fog.png',
+    'WINDY': 'wi-strong-wind.png',          # 10. Wind
+    'BLUSTERY': 'wi-strong-wind.png',
 
     # Default/Fallback
-    'DEFAULT': 'wi-na.svg' # wi-na.svg (Not Available) is a great general fallback icon
+    'DEFAULT': 'wi-na.png' # wi-na.png (Not Available) is a great general fallback icon
 }
 
 
@@ -69,21 +72,22 @@ def map_to_bw_icon(day_data: dict) -> dict:
     Substitutes the color NWS icon URL with a path to a local black-and-white
     SVG icon from the assets folder.
     """
-    description = day_data.get('shortForecast', '').upper()
+    description = day_data.get('description', '').upper()
 
     # 1. Determine the icon filename
     icon_filename = BW_ICON_MAP['DEFAULT']
 
     # Iterate through the map to find a matching keyword in the forecast description
     for key, filename in BW_ICON_MAP.items():
+        # print(f"is {key} in {description}?")
         if key != 'DEFAULT' and key in description:
             icon_filename = filename
             break
 
     # 2. Construct the full local file path
     # Example: /assets/weather/wi-day-sunny.svg
-    icon_path = f"{LOCAL_ASSETS_PATH}/{icon_filename}"
-
+    # icon_path = f"{LOCAL_ASSETS_PATH}/{icon_filename}"
+    icon_path = os.path.join(LOCAL_ASSETS_ROOT, icon_filename)
     # Update the icon URL key with the new local path
     day_data['icon_url'] = icon_path
 
@@ -100,7 +104,7 @@ def _fetch_forecast_data() -> Optional[Dict]:
         points_response = requests.get(points_url, headers=HEADERS)
         points_response.raise_for_status() # Raise HTTPError for bad responses
 
-        forecast_url = points_response.json().get('properties', {}).get('forecast')
+        forecast_url = points_response.json().get('forecast')
         if not forecast_url:
             print("Error: Could not find forecast URL from points API.")
             return None
@@ -109,7 +113,7 @@ def _fetch_forecast_data() -> Optional[Dict]:
         forecast_response = requests.get(forecast_url, headers=HEADERS)
         forecast_response.raise_for_status()
 
-        return forecast_response.json().get('properties', {}).get('periods')
+        return forecast_response.json().get('periods')
 
     except requests.exceptions.RequestException as e:
         print(f"Error fetching NWS data: {e}")

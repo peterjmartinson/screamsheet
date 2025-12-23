@@ -180,14 +180,13 @@ class NewsSummarizer(BaseGameSummaryGenerator):
         """
         prompt = """
         You are a professional journalist. Write a tight, lively summary of the
-        included news topic. Start clean, but get more profane towards the end.
+        included news topic. Start clean, but get more wild towards the end.
         Hit the big story, toss in a couple key highlights, and dig up the
-        freshest dirt on X with real sources.
+        freshest dirt with real sources.
 
         These are the requirements
         - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
         - Use plain text, no markdown or formatting marks.
-        - Use a few swear words.
         - Use humor where you can.
         - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
         """

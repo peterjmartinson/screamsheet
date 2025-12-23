@@ -14,6 +14,7 @@ import feedparser
 import os
 from typing import List, Dict
 from get_llm_summary import NewsSummarizer
+from print_weather import generate_weather_report
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -221,10 +222,14 @@ def generate_mlb_report(stories, filename="mlb_report.pdf"):
     table_2 = Table(row_2_data, colWidths=[col_width, col_width])
     table_2.setStyle(NEWS_COLUMN_STYLE)
 
+    weather = generate_weather_report()
+
     # --- Build the PDF ---
     story.append(Paragraph("MLB Scream Sheet", TITLE_STYLE))
     story.append(Paragraph(datetime.today().strftime("%A, %B %#d, %Y"), SUBTITLE_STYLE))
     story.append(Spacer(1, 20))
+    story.append(weather)
+    story.append(Spacer(1, 12))
     story.append(table_1)
     story.append(PageBreak())
     story.append(table_2)

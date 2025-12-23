@@ -114,6 +114,11 @@ def build_weather_flowable(forecast_data):
     return weather_table
 
 
+def generate_weather_report():
+    forecast_data = get_5_day_forecast()
+    weather_flowable = build_weather_flowable(forecast_data)
+    return weather_flowable
+
 def generate_test_screamsheet(filename="test_screamsheet_weather.pdf"):
     """
     Creates a sample 8.5x11 PDF to demonstrate the weather flowable.

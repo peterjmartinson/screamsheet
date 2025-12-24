@@ -16,67 +16,45 @@ jobs:
       )
 
     steps:
-      # 1. Calculate the new unique release path
-      - name: Calculate new release directory
-        id: vars
-        run: |
-          RELEASE_DIR=/home/peter/Code/screamsheet_releases/release_$(date +%Y%m%d%H%M%S)
-          echo "RELEASE_DIR=$RELEASE_DIR" >> $GITHUB_OUTPUT
-
-      # 2. Checkout Code to the default, safe workspace ($GITHUB_WORKSPACE)
       - name: Checkout Code to Workspace
         uses: actions/checkout@v4
 
-      # 3. Create the external release directory and copy files into it
-      - name: Copy Files to External Release Directory
+      - name: Deploy and Sync
+        id: deploy
         run: |
-          # Use the calculated path from step 1
-          EXTERNAL_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          
-          # Create the final directory
-          mkdir -p $EXTERNAL_DIR
-          
-          echo "Copying contents from $GITHUB_WORKSPACE to $EXTERNAL_DIR"
-          cp -r $GITHUB_WORKSPACE/. $EXTERNAL_DIR
-
-      - name: Create new virtual environment and Install requirements (using UV)
-        run: |
-          # 1. Ensure UV is found
+          set -e
+          # --- CONFIGURATION ---
+          RELEASES_BASE="/home/peter/Code/screamsheet_releases"
+          LIVE_PATH="/home/peter/Code/screamsheet_live"
           export PATH="/home/peter/.local/bin:$PATH"
+          export UV_NO_INTERACTIVE=1
 
-          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          VENV_PATH=$PROJECT_DIR/env
-          PYTHON_EXEC="$VENV_PATH/bin/python"
+          # 1. Calculate Release Directory
+          RELEASE_DIR="$RELEASES_BASE/release_$(date +%Y%m%d%H%M%S)"
+          echo "Deploying to: $RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR"
 
-          # 2. Create the environment
-          uv venv $VENV_PATH
+          # 2. Sync Files (Excluding local dev artifacts)
+          # We use $GITHUB_WORKSPACE which is where actions/checkout put the code
+          rsync -a --exclude='env' --exclude='.venv' --exclude='__pycache__' --exclude='.git' "$GITHUB_WORKSPACE/" "$RELEASE_DIR/"
 
-          # 3. Install dependencies using uv.lock (uv sync --frozen)
-          # 'uv sync' reads pyproject.toml and installs the exact versions found in uv.lock.
-          # The --frozen flag ensures the process fails if uv.lock is outdated.
-          uv sync --frozen --python "$PYTHON_EXEC" # <--- MODIFIED LINE
+          # 3. UV Sync
+          cd "$RELEASE_DIR"
+          uv sync --frozen
 
-      # 4. Configure permissions
-      - name: Make screamsheet.sh executable
-        run: |
-          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          chmod +x $PROJECT_DIR/screamsheet.sh
+          # 4. Set Permissions
+          chmod +x "$RELEASE_DIR/screamsheet.sh"
 
-      # 5. ATOMIC SWITCH: Update the live symlink
-      - name: Switch Live Symlink
-        run: |
-          PROJECT_DIR=${{ steps.vars.outputs.RELEASE_DIR }}
-          LIVE_PATH=/home/peter/Code/screamsheet_live
-          ln -snf $PROJECT_DIR $LIVE_PATH
+          # 5. Atomic Switch
+          ln -snf "$RELEASE_DIR" "$LIVE_PATH"
 
-      # 6. Run deployment script
-      - name: Run deployment script
-        run: |
-          /home/peter/Code/screamsheet_live/screamsheet.sh
+          # 6. Final Execution
+          echo "Executing screamsheet.sh via uv run..."
+          uv run ./screamsheet.sh
 
-      # 7. Cleanup
       - name: Cleanup Old Releases
         run: |
-          cd /home/peter/Code/screamsheet_releases
-          ls -t | grep 'release_' | tail -n +4 | xargs rm -rf
-
+          RELEASES_BASE="/home/peter/Code/screamsheet_releases"
+          cd "$RELEASES_BASE"
+          # Keep the 3 most recent release directories
+          ls -dt release_* 2>/dev/null | tail -n +4 | xargs -r rm -rf

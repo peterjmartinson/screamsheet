@@ -135,7 +135,54 @@ def get_current_nfl_week(season: int) -> dict | None:
         print("Could not determine the current week from the API response.")
         return None
 
-def get_nfl_weekly_scores(year, week_info, previous_week=False) -> list:
+
+def get_current_season() -> int:
+    """
+    Determine the current NFL season year (the year the season started).
+
+    Logic:
+    - For early-year dates (January/February) the season is usually the previous year
+      until the previous season's postseason (including the Super Bowl) is complete.
+    - We query ESPN's calendar for the previous year and compare the latest endDate
+      of that year's periods to now. If now is on-or-before that endDate, return
+      the previous year; otherwise return the current year.
+    - Falls back to a simple month-based rule if the API request fails.
+    """
+    now = datetime.now(timezone.utc)
+    this_year = now.year
+    prev_year = this_year - 1
+
+    url = f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={prev_year}&seasontype=2"
+    try:
+        resp = requests.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+        calendar = data.get("leagues", [])[0].get("calendar", [])
+
+        latest_end = None
+        for period in calendar:
+            end_date_str = period.get("endDate")
+            if not end_date_str:
+                continue
+            end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+            if latest_end is None or end_date > latest_end:
+                latest_end = end_date
+
+        if latest_end is not None:
+            if now <= latest_end:
+                return prev_year
+            else:
+                return this_year
+    except requests.exceptions.RequestException:
+        # Fall back to month-based heuristic if API fails
+        pass
+
+    # Heuristic fallback: Jan/Feb => previous season, Mar-Dec => current year
+    if now.month in (1, 2):
+        return prev_year
+    return this_year
+
+def get_nfl_weekly_scores(season_year, week_info, previous_week=False) -> list:
     """
     Fetches NFL game scores for a specific season and week from ESPN's unofficial API.
     """
@@ -149,7 +196,7 @@ def get_nfl_weekly_scores(year, week_info, previous_week=False) -> list:
             print("No NFL games yet this week, getting last week's games instead")
     url = (
         f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-        f"?dates={year}"
+        f"?dates={season_year}"
         f"&seasontype={season}"  # 2 is for regular season
         f"&week={week}"
     )
@@ -199,7 +246,7 @@ def get_nfl_weekly_scores(year, week_info, previous_week=False) -> list:
                 
     return games
 
-def get_nfl_data(year: int = 2025) -> pd.DataFrame:
+def get_nfl_data(season: int = 2025) -> pd.DataFrame:
     """
     Fetches NFL team data and conference standings from ESPN APIs, 
     and combines them into a single, clean DataFrame.
@@ -232,7 +279,7 @@ def get_nfl_data(year: int = 2025) -> pd.DataFrame:
     print(f"Successfully created a lookup for {len(team_name_lookup)} NFL teams.")
 
     # 2. Fetch conference standings using the previous logic
-    base_standings_url = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/types/2/groups/"
+    base_standings_url = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{season}/types/2/groups/"
     conferences = {7: "NFC", 8: "AFC"}
     all_standings = []
     
@@ -436,17 +483,17 @@ def generate_nfl_report(week_info, games, standings_df=None, game_summary_text="
 
 def main():
     today = datetime.now()
-    current_year = today.year
+    current_season = get_current_season()
     today_str = today.strftime("%Y%m%d")
     yesterday = today - timedelta(days=1)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
-    week_info = get_current_nfl_week(current_year)
+    week_info = get_current_nfl_week(current_season)
 
-    weekly_scores = get_nfl_weekly_scores(current_year, week_info)
+    weekly_scores = get_nfl_weekly_scores(current_season, week_info)
     if len(weekly_scores) == 0:
-        weekly_scores = get_nfl_weekly_scores(current_year, week_info, previous_week=True)
-    standings_df = get_nfl_data(current_year)
+        weekly_scores = get_nfl_weekly_scores(current_season, week_info, previous_week=True)
+    standings_df = get_nfl_data(current_season)
 
     filename = f"NFL_Scores_{today_str}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))

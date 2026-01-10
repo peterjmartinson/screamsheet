@@ -54,18 +54,18 @@ class StandingsSection(Section):
         elements.append(Spacer(1, 12))
         
         # Detect sport type and render accordingly
-        if 'division' in self.data.columns:
-            # MLB-style standings
-            elements.append(self._render_mlb_standings(self.data))
-        elif 'conference' in self.data.columns and 'GP' in self.data.columns:
-            # NHL-style standings
+        if 'conference' in self.data.columns and 'division' in self.data.columns and 'GP' in self.data.columns:
+            # NHL-style standings (has conference, division, and GP)
             elements.append(self._render_nhl_standings(self.data))
         elif 'conference' in self.data.columns and 'winPercent' in self.data.columns:
-            # NFL-style standings
+            # NFL-style standings (has conference and winPercent)
             elements.append(self._render_nfl_standings(self.data))
         elif 'conference' in self.data.columns:
-            # NBA-style standings
+            # NBA-style standings (has conference)
             elements.append(self._render_nba_standings(self.data))
+        elif 'division' in self.data.columns:
+            # MLB-style standings (has division)
+            elements.append(self._render_mlb_standings(self.data))
         else:
             # Generic standings
             elements.append(self._render_generic_standings(self.data))
@@ -219,8 +219,8 @@ class StandingsSection(Section):
     
     def _render_nba_standings(self, standings_df: pd.DataFrame) -> Table:
         """Render NBA standings by conference."""
-        eastern = standings_df[standings_df['conference'] == 'Eastern']
-        western = standings_df[standings_df['conference'] == 'Western']
+        eastern = standings_df[standings_df['conference'] == 'East']
+        western = standings_df[standings_df['conference'] == 'West']
         
         grid_data = [
             [Paragraph("<b>Eastern Conference</b>", self.centered_style),

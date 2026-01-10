@@ -1,0 +1,136 @@
+"""
+SCREAMSHEET ARCHITECTURE DIAGRAM
+=================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         USER INTERFACE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ScreamsheetFactory.create_mlb_screamsheet()                       │
+│  ScreamsheetFactory.create_nhl_screamsheet()                       │
+│  ScreamsheetFactory.create_nfl_screamsheet()                       │
+│  ScreamsheetFactory.create_nba_screamsheet()                       │
+│  ScreamsheetFactory.create_mlb_trade_rumors_screamsheet()          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      SCREAMSHEET CLASSES                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  BaseScreamsheet (abstract)                                        │
+│  ├─ SportsScreamsheet                                              │
+│  │  ├─ MLBScreamsheet                                              │
+│  │  ├─ NHLScreamsheet                                              │
+│  │  ├─ NFLScreamsheet                                              │
+│  │  └─ NBAScreamsheet                                              │
+│  └─ NewsScreamsheet                                                │
+│     └─ MLBTradeRumorsScreamsheet                                   │
+│                                                                     │
+│  Responsibilities:                                                  │
+│  - Orchestrate sections                                            │
+│  - Generate PDF                                                    │
+│  - Define structure                                                │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                    │                           │
+          ┌─────────┴──────────┐       ┌────────┴─────────┐
+          ▼                    ▼       ▼                  ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   DATA PROVIDERS │  │     SECTIONS     │  │    RENDERERS     │
+├──────────────────┤  ├──────────────────┤  ├──────────────────┤
+│                  │  │                  │  │                  │
+│ MLBDataProvider  │  │ GameScoresSection│  │ game_scores.py   │
+│ NHLDataProvider  │  │ StandingsSection │  │ standings.py     │
+│ NFLDataProvider  │  │ BoxScoreSection  │  │ box_score.py     │
+│ NBADataProvider  │  │ GameSummarySection│ │ game_summary.py  │
+│ MLBTradeRumors   │  │ WeatherSection   │  │ weather.py       │
+│   Provider       │  │ NewsArticles     │  │ news_articles.py │
+│                  │  │   Section        │  │                  │
+└──────────────────┘  └──────────────────┘  └──────────────────┘
+          │                    │                      │
+          ▼                    ▼                      ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        EXTERNAL SOURCES                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │ MLB Stats  │  │  NHL API   │  │  ESPN API  │  │ RSS Feeds  │  │
+│  │    API     │  │            │  │            │  │            │  │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘  │
+│                                                                     │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │  nba_api   │  │ Web Scrape │  │    LLM     │  │  Weather   │  │
+│  │  Package   │  │  (future)  │  │  Service   │  │    API     │  │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+DATA FLOW
+=========
+
+1. User creates screamsheet via Factory:
+   ScreamsheetFactory.create_mlb_screamsheet(...)
+
+2. Factory instantiates appropriate screamsheet class:
+   MLBScreamsheet → creates MLBDataProvider
+
+3. Screamsheet builds sections:
+   build_sections() → [GameScoresSection, StandingsSection, ...]
+
+4. Each section:
+   - Fetches data from provider: fetch_data()
+   - Renders to PDF elements: render()
+
+5. Screamsheet generates PDF:
+   generate() → assembles all sections into PDF
+
+6. PDF saved to file
+
+
+EXTENSIBILITY POINTS
+====================
+
+Add New Sport:
+1. Create XDataProvider(DataProvider)
+2. Create XScreamsheet(SportsScreamsheet)
+3. Add factory method (optional)
+4. Done!
+
+Add New News Source:
+1. Create XProvider
+2. Create XScreamsheet(NewsScreamsheet)
+3. Add factory method (optional)
+4. Done!
+
+Add Custom Section:
+1. Create XSection(Section)
+2. Add to build_sections()
+3. Done!
+
+
+DESIGN PATTERNS USED
+====================
+
+1. Factory Pattern: ScreamsheetFactory
+2. Template Method: BaseScreamsheet.generate()
+3. Strategy Pattern: DataProvider implementations
+4. Composite Pattern: Sections compose screamsheets
+5. Inheritance: Class hierarchy for reuse
+6. Separation of Concerns: Clear boundaries
+
+
+KEY PRINCIPLES
+==============
+
+✓ Single Responsibility: Each class has one job
+✓ Open/Closed: Open for extension, closed for modification
+✓ Liskov Substitution: Subclasses are substitutable
+✓ Interface Segregation: Small, focused interfaces
+✓ Dependency Inversion: Depend on abstractions
+✓ DRY: Don't Repeat Yourself
+✓ KISS: Keep It Simple, Stupid
+✓ Composition over Inheritance: Flexible section composition
+"""

@@ -55,12 +55,23 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
                 )
             )
         
-        # 2. News Articles Section
+        # 2. Front Page News Articles (first 2 articles)
         sections.append(
             NewsArticlesSection(
                 title="Latest News",
                 provider=self.provider,
-                max_articles=self.max_articles
+                max_articles=2,
+                start_index=0
+            )
+        )
+        
+        # 3. Back Page News Articles (next 2 articles)
+        sections.append(
+            NewsArticlesSection(
+                title="More News",
+                provider=self.provider,
+                max_articles=2,
+                start_index=2
             )
         )
         

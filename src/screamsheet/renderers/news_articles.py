@@ -1,11 +1,16 @@
 """News articles section renderer."""
 from typing import List, Any
+import os
+from dotenv import load_dotenv
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
 from ..base import Section
 from ..providers.mlb_trade_rumors_provider import MLBTradeRumorsProvider
+
+# Load environment variables
+load_dotenv()
 
 
 class NewsArticlesSection(Section):
@@ -15,10 +20,11 @@ class NewsArticlesSection(Section):
     Shows summarized news articles from a news provider.
     """
     
-    def __init__(self, title: str, provider: MLBTradeRumorsProvider, max_articles: int = 4):
+    def __init__(self, title: str, provider: MLBTradeRumorsProvider, max_articles: int = 4, start_index: int = 0):
         super().__init__(title)
         self.provider = provider
         self.max_articles = max_articles
+        self.start_index = start_index
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -51,16 +57,30 @@ class NewsArticlesSection(Section):
         
         # Generate summaries using LLM
         try:
+            # Import from the correct path (relative to workspace root)
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
             from src.get_llm_summary import NewsSummarizer
-            summarizer = NewsSummarizer()
+            
+            # Initialize with API keys from environment
+            summarizer = NewsSummarizer(
+                gemini_api_key=os.getenv('GEMINI_API_KEY'),
+                grok_api_key=os.getenv('GROK_API_KEY')
+            )
             self.data = self._generate_summaries(articles, summarizer)
         except Exception as e:
             print(f"Error generating article summaries: {e}")
+            import traceback
+            traceback.print_exc()
             self.data = articles  # Use original articles without summaries
     
     def _generate_summaries(self, articles: List[dict], summarizer) -> List[dict]:
         """Generate LLM summaries for articles."""
         summarized_articles = []
+        
+        # Check if summarizer has any available LLMs
+        has_llm = (summarizer.llm_gemini is not None or summarizer.llm_grok is not None)
         
         for article in articles:
             entry = article['entry']
@@ -68,23 +88,38 @@ class NewsArticlesSection(Section):
             link = entry.get('link', '')
             summary_text = entry.get('summary', '')
             
-            try:
-                # Generate summary using LLM
-                # Format data as string combining title and summary
-                article_data = f"Title: {title}\n\nSummary: {summary_text}\n\nLink: {link}"
-                llm_summary = summarizer.generate_summary(
-                    llm_choice='gemini',
-                    data=article_data
-                )
-                
-                summarized_articles.append({
-                    'slot': article['slot'],
-                    'title': title,
-                    'summary': llm_summary,
-                    'link': link
-                })
-            except Exception as e:
-                print(f"Error summarizing article '{title}': {e}")
+            if has_llm:
+                try:
+                    # Generate summary using LLM
+                    # Format data as dict with title and summary (as expected by NewsSummarizer)
+                    story_data = {
+                        'title': title,
+                        'summary': summary_text
+                    }
+                    llm_summary = summarizer.generate_summary(
+                        llm_choice='grok',  # Use grok as in the original implementation
+                        data=story_data
+                    )
+                    
+                    summarized_articles.append({
+                        'slot': article['slot'],
+                        'title': title,
+                        'summary': llm_summary,
+                        'link': link
+                    })
+                except Exception as e:
+                    print(f"Error summarizing article '{title}': {e}")
+                    import traceback
+                    traceback.print_exc()
+                    summarized_articles.append({
+                        'slot': article['slot'],
+                        'title': title,
+                        'summary': summary_text[:500] + '...',  # Truncated original
+                        'link': link
+                    })
+            else:
+                # No LLM available, use original summary
+                print(f"No LLM available for article '{title}', using original summary")
                 summarized_articles.append({
                     'slot': article['slot'],
                     'title': title,
@@ -108,16 +143,27 @@ class NewsArticlesSection(Section):
         elements.append(Paragraph(self.title, self.subtitle_style))
         elements.append(Spacer(1, 12))
         
+        # Slice articles for this section
+        articles_to_render = self.data[self.start_index:self.start_index + self.max_articles]
+        
         # Create two-column layout for articles
         left_column = []
         right_column = []
         
-        for i, article in enumerate(self.data):
+        for i, article in enumerate(articles_to_render):
+            # Split summary into paragraphs on double newlines
+            summary_paragraphs = [p for p in article['summary'].split('\n\n') if p.strip()]
+            
             article_elements = [
                 Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
-                Paragraph(article['summary'], self.article_text_style),
-                Spacer(1, 12)
             ]
+            
+            # Add each paragraph as a separate Paragraph element
+            for paragraph in summary_paragraphs:
+                article_elements.append(Paragraph(paragraph, self.article_text_style))
+                article_elements.append(Spacer(1, 6))  # Smaller spacer between paragraphs
+            
+            article_elements.append(Spacer(1, 12))  # Larger spacer between articles
             
             if i % 2 == 0:
                 left_column.extend(article_elements)

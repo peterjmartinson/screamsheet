@@ -21,13 +21,13 @@ def generate_all_sports():
     print("Generating sports screamsheets...")
     
     # MLB - Blue Jays
-    print("  - MLB (Blue Jays)...")
-    mlb = ScreamsheetFactory.create_mlb_screamsheet(
-        output_filename='Files/mlb_bluejays_modular.pdf',
-        team_id=ScreamsheetFactory.MLB_BLUEJAYS,
-        team_name='Toronto Blue Jays'
-    )
-    mlb.generate()
+    # print("  - MLB (Blue Jays)...")
+    # mlb = ScreamsheetFactory.create_mlb_screamsheet(
+    #     output_filename='Files/mlb_bluejays_modular.pdf',
+    #     team_id=ScreamsheetFactory.MLB_BLUEJAYS,
+    #     team_name='Toronto Blue Jays'
+    # )
+    # mlb.generate()
     
     # NHL - Flyers
     print("  - NHL (Flyers)...")

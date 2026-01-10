@@ -366,23 +366,32 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
     def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
         """Constructs the LLM prompt for the NHL game."""
         prompt = f"""
-        You are a professional news correspondent writing a concise game
-        summary of a hockey match. The summary must be professional yet
-        extremely accessible, ensuring the language is easy enough for someone
-        with a reading comprehension level below the 5th grade or with no prior
-        knowledge of hockey.  The entire summary must be 200 words or less and
-        consist of a single, continuous paragraph of plain text (no markdown,
-        bolding, italics, or special formatting).
+        You are a hilarious sports journalist writing a game recap for a clever
+        young hockey fan who loves the sport and wants to laugh while
+        learning about what happened. Your reader knows what goals, penalties,
+        and power plays are - don't waste words on basics.
 
-        The summary must define only one important hockey term used in the
-        text. To ensure the reader learns new vocabulary, prioritize choosing a
-        term that is not 'penalty', 'goal', 'hit', 'shot', or 'takeaway',
-        unless those terms are the only important ones available in the text.
-        Indicate the defined term within the main text by following it
-        immediately with an asterisk (e.g., term*). The definition must appear
-        on a separate line at the very end of the summary, prefixed by an
-        asterisk and explaining the term clearly for a novice (e.g., *In
-        hockey, [term] is...).
+        TONE: Funny, witty, and slightly snarky. Use vivid descriptions and
+        playful language. Roast bad plays gently (e.g., "that pass had all
+        the accuracy of a water balloon thrown backwards"). Celebrate awesome
+        moments with enthusiasm (e.g., "that snipe was absolutely FILTHY").
+        Include clever wordplay or jokes where appropriate. Make your young
+        reader chuckle - be edgy and cheeky but keep it clean (no swear words).
+
+        The entire summary must be 200 words or less in a single continuous
+        paragraph of plain text (no markdown, bolding, italics, or special
+        formatting). Make it entertaining above all else - this should feel
+        like reading a funny story, not a boring news report.
+
+        You must define exactly one obscure or technical hockey term by following
+        it with an asterisk (e.g., term*). Choose something interesting like
+        'zone exit', 'board battle', 'forechecking pressure', 'odd-man rush',
+        'high slot', 'cycle', 'cross-ice pass', or similar tactical/positional
+        concepts. Avoid defining basic terms like 'goal', 'penalty', 'hit',
+        'shot', 'save', or 'takeaway'. The definition should appear on a
+        separate line at the end, prefixed by an asterisk with a brief but
+        insightful explanation that a young boy would understand and find
+        interesting (e.g., *A zone exit is when...).
 
         Game details to include:
         Home Team: {extracted_info['home_team']}
@@ -391,7 +400,7 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
 
         Narrative snippets (for context, include highlights from each period in order): {extracted_info['narrative_snippets']}
 
-        Write the professional and accessible recap now.
+        Write the funny, entertaining recap now. Make that us laugh!
         """
         return prompt
 

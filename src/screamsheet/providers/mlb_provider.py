@@ -167,8 +167,10 @@ class MLBDataProvider(DataProvider):
         """
         # Import here to avoid circular dependency
         try:
+            import os
             from src.get_game_summary import GameSummaryGeneratorMLB
-            generator = GameSummaryGeneratorMLB()
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+            generator = GameSummaryGeneratorMLB(gemini_api_key)
             return generator.generate_summary(team_id, date)
         except Exception as e:
             print(f"Error getting MLB game summary: {e}")

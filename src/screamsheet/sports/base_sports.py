@@ -60,11 +60,8 @@ class SportsScreamsheet(BaseScreamsheet):
         pass
     
     def get_title(self) -> str:
-        """Get the title for this screamsheet."""
-        date_str = self.date.strftime("%B %d, %Y")
-        if self.team_name:
-            return f"{self.sport_name} Screamsheet - {self.team_name} - {date_str}"
-        return f"{self.sport_name} Screamsheet - {date_str}"
+        """Get the main title for this screamsheet."""
+        return f"{self.sport_name} Screamsheet"
     
     def build_sections(self) -> List[Section]:
         """Build all sections for the sports screamsheet."""

@@ -97,7 +97,21 @@ class NBADataProvider(DataProvider):
             if not standings_df.empty:
                 standings_df = standings_df[[
                     'Conference',
+                    'TeamCity',
                     'TeamName',
+                    'WINS',
+                    'LOSSES',
+                    'WinPCT',
+                    'ConferenceRecord',
+                    'DivisionRank'
+                ]].copy()
+                
+                # Combine city and team name for full team name
+                standings_df['FullTeamName'] = standings_df['TeamCity'] + ' ' + standings_df['TeamName']
+                
+                standings_df = standings_df[[
+                    'Conference',
+                    'FullTeamName',
                     'WINS',
                     'LOSSES',
                     'WinPCT',

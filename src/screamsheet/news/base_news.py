@@ -38,9 +38,16 @@ class NewsScreamsheet(BaseScreamsheet):
         self.include_weather = include_weather
     
     def get_title(self) -> str:
-        """Get the title for this screamsheet."""
-        date_str = self.date.strftime("%B %d, %Y")
-        return f"{self.news_source} - {date_str}"
+        """Get the main title for this screamsheet."""
+        # Extract league name from news source (e.g., "MLB Trade Rumors" -> "MLB")
+        # For generic sources, use the first word or full source name
+        words = self.news_source.split()
+        league = words[0] if words else self.news_source
+        return f"{league} Screamsheet"
+    
+    def get_subtitle(self) -> Optional[str]:
+        """Get the news source as subtitle."""
+        return self.news_source
     
     @abstractmethod
     def build_sections(self) -> List[Section]:

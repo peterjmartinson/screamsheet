@@ -87,8 +87,14 @@ class NFLDataProvider(DataProvider):
                 team_id = int(match.group(1))
                 team_name = team_name_lookup.get(team_id, f"Team {team_id}")
                 
-                # Get stats
-                stats = team_entry.get("stats", [])
+                # Get stats from records array (ESPN API structure)
+                records = team_entry.get("records", [])
+                if not records:
+                    continue
+                    
+                # Get overall record (first record entry)
+                overall_record = records[0]
+                stats = overall_record.get("stats", [])
                 stat_dict = {stat["name"]: stat["value"] for stat in stats}
                 
                 team_obj = {
@@ -137,29 +143,18 @@ class NFLDataProvider(DataProvider):
         this_year = now.year
         prev_year = this_year - 1
         
-        url = f"{self.base_url}/scoreboard?dates={prev_year}&seasontype=2"
-        try:
-            resp = requests.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-            calendar = data.get("leagues", [])[0].get("calendar", [])
-            
-            latest_end = None
-            for period in calendar:
-                end_date_str = period.get("endDate")
-                if not end_date_str:
-                    continue
-                end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
-                if latest_end is None or end_date > latest_end:
-                    latest_end = end_date
-            
-            if latest_end is not None:
-                return prev_year if now <= latest_end else this_year
-        except requests.exceptions.RequestException:
-            pass
-        
-        # Fallback: Jan/Feb => previous season
-        return prev_year if now.month in (1, 2) else this_year
+        # During January and February, use previous year's season (includes playoffs/Super Bowl)
+        # After mid-February, switch to new season
+        if now.month == 1:
+            return prev_year
+        elif now.month == 2 and now.day <= 15:
+            return prev_year
+        elif now.month >= 3 and now.month <= 8:
+            # Offseason - use upcoming season
+            return this_year
+        else:
+            # September onwards - current year's season
+            return this_year
     
     def _get_current_week(self) -> Optional[Dict]:
         """Get information about the current NFL week."""

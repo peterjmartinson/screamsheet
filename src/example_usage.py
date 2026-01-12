@@ -9,6 +9,10 @@ from datetime import datetime
 import sys
 import os
 
+# Load environment variables FIRST, before importing anything else
+from dotenv import load_dotenv
+load_dotenv()
+
 # Add src to path so we can import screamsheet
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 

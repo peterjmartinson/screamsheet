@@ -53,9 +53,7 @@ class GameSummarySection(Section):
         
         elements = []
         
-        # Add section title
-        elements.append(Paragraph(self.title, self.subtitle_style))
-        elements.append(Spacer(1, 12))
+        # Section title suppressed (document top-level title used instead)
         
         # Add summary text
         elements.append(Paragraph(self.data, self.summary_text_style))

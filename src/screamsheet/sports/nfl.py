@@ -36,3 +36,21 @@ class NFLScreamsheet(SportsScreamsheet):
     def create_provider(self) -> NFLDataProvider:
         """Create NFL data provider."""
         return NFLDataProvider()
+    
+    def get_date_string(self) -> str:
+        """Return the formatted date string with NFL week info."""
+        date_str = self.date.strftime("%B %d, %Y")
+        
+        # Add week information if available from provider
+        if hasattr(self.provider, 'current_week') and self.provider.current_week:
+            week_info = self.provider.current_week
+            season_name = week_info.get('SeasonName', '')
+            week_detail = week_info.get('WeekDetail', '')
+            
+            # Format: "Postseason, Wild Card (Jan 7-13)"
+            if season_name and week_detail:
+                return f"{date_str}\n{season_name}, {week_detail}"
+            elif season_name:
+                return f"{date_str}\n{season_name}"
+        
+        return date_str

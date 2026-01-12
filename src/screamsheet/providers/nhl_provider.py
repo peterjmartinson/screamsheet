@@ -146,7 +146,7 @@ class NHLDataProvider(DataProvider):
             from src.get_box_score_nhl import get_nhl_boxscore
             game_pk = self._get_game_pk(team_id, date)
             if game_pk:
-                return get_nhl_boxscore(game_pk)
+                return get_nhl_boxscore(team_id, game_pk)
             return None
         except Exception as e:
             print(f"Error getting NHL box score: {e}")
@@ -164,8 +164,10 @@ class NHLDataProvider(DataProvider):
             Game summary text or None if not available
         """
         try:
+            import os
             from src.get_game_summary import GameSummaryGeneratorNHL
-            generator = GameSummaryGeneratorNHL()
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+            generator = GameSummaryGeneratorNHL(gemini_api_key)
             game_pk = self._get_game_pk(team_id, date)
             if game_pk:
                 return generator.generate_summary(game_pk)

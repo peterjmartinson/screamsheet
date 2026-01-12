@@ -73,8 +73,21 @@ class BaseScreamsheet(ABC):
     
     @abstractmethod
     def get_title(self) -> str:
-        """Return the title for this screamsheet."""
+        """Return the main title for this screamsheet."""
         pass
+    
+    def get_subtitle(self) -> Optional[str]:
+        """
+        Return an optional subtitle for this screamsheet.
+        
+        Override this method to add a subtitle line (e.g., news source).
+        Returns None by default.
+        """
+        return None
+    
+    def get_date_string(self) -> str:
+        """Return the formatted date string."""
+        return self.date.strftime("%B %d, %Y")
     
     def generate(self) -> str:
         """
@@ -102,6 +115,17 @@ class BaseScreamsheet(ABC):
         # Add title
         title = Paragraph(self.get_title(), self.title_style)
         story.append(title)
+        
+        # Add subtitle if present (e.g., news source)
+        subtitle = self.get_subtitle()
+        if subtitle:
+            # Use italic style for subtitle
+            subtitle_para = Paragraph(f"<i>{subtitle}</i>", self.subtitle_style)
+            story.append(subtitle_para)
+        
+        # Add date
+        date_para = Paragraph(self.get_date_string(), self.subtitle_style)
+        story.append(date_para)
         story.append(Spacer(1, 12))
         
         # Add each section

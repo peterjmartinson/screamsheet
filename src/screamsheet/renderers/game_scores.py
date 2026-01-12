@@ -45,9 +45,7 @@ class GameScoresSection(Section):
         
         elements = []
         
-        # Add section title
-        elements.append(Paragraph(self.title, self.subtitle_style))
-        elements.append(Spacer(1, 12))
+        # Section title suppressed (document top-level title used instead)
         
         # Organize games into three columns
         scores_left = []

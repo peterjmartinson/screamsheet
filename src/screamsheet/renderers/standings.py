@@ -49,9 +49,7 @@ class StandingsSection(Section):
         
         elements = []
         
-        # Add section title
-        elements.append(Paragraph(self.title, self.subtitle_style))
-        elements.append(Spacer(1, 12))
+        # Section title suppressed (document top-level title used instead)
         
         # Detect sport type and render accordingly
         if 'conference' in self.data.columns and 'division' in self.data.columns and 'GP' in self.data.columns:
@@ -189,7 +187,17 @@ class StandingsSection(Section):
         for conf_data in [afc, nfc]:
             if not conf_data.empty:
                 header = ["Team", "W", "L", "T", "%"]
-                table_data = [header] + conf_data[['team', 'wins', 'losses', 'ties', 'winPercent']].values.tolist()
+                # Format data: convert wins/losses/ties to int, winPercent to 3 decimals
+                formatted_data = []
+                for _, row in conf_data.iterrows():
+                    formatted_data.append([
+                        row['team'],
+                        int(row['wins']),
+                        int(row['losses']),
+                        int(row['ties']),
+                        f"{row['winPercent']:.3f}"
+                    ])
+                table_data = [header] + formatted_data
                 
                 table_style = TableStyle([
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),

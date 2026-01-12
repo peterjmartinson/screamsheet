@@ -26,7 +26,7 @@ class BaseGameSummaryGenerator:
 
     _DEFAULT_TEXT: str = 'howdy, folks.  test text here'
     _DEFAULT_MODEL: str = 'gemini-2.5-flash'
-    _GROK_MODEL: str = 'grok-4'
+    _GROK_MODEL: str = 'grok-4-fast'
     _GROK_BASE_URL: str = "https://api.x.ai/v1"
 
     def __init__(self,
@@ -89,7 +89,7 @@ class BaseGameSummaryGenerator:
         input_prep_chain = RunnablePassthrough.assign(
             game_data=RunnableLambda(
                 lambda x: (
-                    print(f"--- DEBUGGING: Raw x['data'] input: {x['data']}"), # <-- DEBUGGING LINE
+                    # print(f"--- DEBUGGING: Raw x['data'] input: {x['data']}"), # <-- DEBUGGING LINE (commented out)
                     json.dumps(x['data'], indent=2)
                 )[-1] # The [-1] is used to return the last item (the json.dumps result)
             ),

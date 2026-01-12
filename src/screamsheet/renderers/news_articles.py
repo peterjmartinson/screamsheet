@@ -139,9 +139,7 @@ class NewsArticlesSection(Section):
         
         elements = []
         
-        # Add section title
-        elements.append(Paragraph(self.title, self.subtitle_style))
-        elements.append(Spacer(1, 12))
+        # Section title suppressed (document top-level title used instead)
         
         # Slice articles for this section
         articles_to_render = self.data[self.start_index:self.start_index + self.max_articles]

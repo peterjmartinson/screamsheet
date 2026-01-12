@@ -16,7 +16,7 @@ class BaseGameSummaryGenerator:
     and generating a human-readable summary using a Large Language Model.
     """
 
-    _DEFAULT_TEXT: str = lorem.paragraphs(1)
+    _DEFAULT_TEXT: str = "SUMMARY GENERATION SKIPPED: No API key available. Please configure GEMINI_API_KEY."
     _MODEL_NAME: str = 'gemini-2.5-flash'
 
     def __init__(self, gemini_api_key: Optional[str] = None) -> None:
@@ -47,12 +47,15 @@ class BaseGameSummaryGenerator:
         """Sends extracted data to the LLM and gets a summary (shared logic)."""
         if isinstance(extracted_info, str):
             # If extraction failed, return the error message string
+            print(f"[DEBUG _generate_llm_summary] extracted_info is string: {extracted_info}")
             return extracted_info
         
         # Extracted info is guaranteed to be a Dict here
         prompt: str = self._build_llm_prompt(extracted_info)
         
+        print(f"[DEBUG _generate_llm_summary] self._use_llm: {self._use_llm}")
         if not self._use_llm:
+            print(f"[DEBUG _generate_llm_summary] Returning default text (no LLM)")
             return self._DEFAULT_TEXT
             
         try:
@@ -60,8 +63,10 @@ class BaseGameSummaryGenerator:
                 model=self._MODEL_NAME,
                 contents=prompt
             )
+            print(f"[DEBUG _generate_llm_summary] LLM response received, length: {len(response.text)}")
             return response.text
         except Exception as e:
+            print(f"[DEBUG _generate_llm_summary] Error: {e}")
             print(f"Error generating summary with LLM: {e}")
             return "Summary generation failed."
 
@@ -184,6 +189,9 @@ class GameSummaryGeneratorNHL(BaseGameSummaryGenerator):
         super().__init__(gemini_api_key)
         self._player_map = self._load_map("nhl_players.json")
         self._team_map = self._load_map("nhl_teams.json")
+        print(f"[DEBUG GameSummaryGeneratorNHL.__init__] gemini_api_key param: {gemini_api_key is not None}")
+        print(f"[DEBUG GameSummaryGeneratorNHL.__init__] self._use_llm: {self._use_llm}")
+        print(f"[DEBUG GameSummaryGeneratorNHL.__init__] self.client: {self.client}")
 
     def _load_map(self, filename: str) -> Dict[str, Any]:
         """Safely loads a JSON file map from the 'documentation' directory."""

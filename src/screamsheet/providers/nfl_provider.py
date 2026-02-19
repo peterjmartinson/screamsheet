@@ -110,6 +110,58 @@ class NFLDataProvider(DataProvider):
                 all_standings.append(team_obj)
         
         standings = pd.DataFrame(all_standings)
+
+        # Offseason fallback: if the computed season has no standings yet (e.g. right after
+        # the Super Bowl), retry with the previous season's final standings.
+        if standings.empty:
+            prev_season = season - 1
+            print(f"NFL standings: no data for season {season}, retrying season {prev_season}...")
+            all_standings = []
+            prev_base_url = (
+                f"https://sports.core.api.espn.com/v2/sports/football/"
+                f"leagues/nfl/seasons/{prev_season}/types/2/groups/"
+            )
+            for group_id, conference_name in conferences.items():
+                url = f"{prev_base_url}{group_id}/standings/0"
+                try:
+                    response = requests.get(url)
+                    response.raise_for_status()
+                    data = response.json()
+                except requests.exceptions.RequestException as e:
+                    print(f"Error fetching standings for {conference_name} (season {prev_season}): {e}")
+                    continue
+
+                for team_entry in data.get("standings", []):
+                    team_ref = team_entry.get("team", {}).get("$ref", "")
+                    match = id_pattern.search(team_ref)
+                    if not match:
+                        continue
+                    team_id = int(match.group(1))
+                    team_name = team_name_lookup.get(team_id, f"Team {team_id}")
+                    records = team_entry.get("records", [])
+                    if not records:
+                        continue
+                    overall_record = records[0]
+                    stats = overall_record.get("stats", [])
+                    stat_dict = {stat["name"]: stat["value"] for stat in stats}
+                    all_standings.append({
+                        "conference": conference_name,
+                        "team": team_name,
+                        "wins": stat_dict.get("wins", 0),
+                        "losses": stat_dict.get("losses", 0),
+                        "ties": stat_dict.get("ties", 0),
+                        "winPercent": stat_dict.get("winPercent", 0.0),
+                        "pointDifferential": stat_dict.get("pointDifferential", 0),
+                        "divisionWinPercent": stat_dict.get("divisionWinPercent", 0.0),
+                    })
+
+            standings = pd.DataFrame(all_standings)
+
+        # Defensive guard: if columns are still missing, return unsorted rather than KeyError.
+        if standings.empty or 'conference' not in standings.columns or 'winPercent' not in standings.columns:
+            print("NFL standings: no standings data available; returning empty DataFrame.")
+            return standings.reset_index(drop=True)
+
         return standings.sort_values(
             by=['conference', 'winPercent'],
             ascending=[True, False]

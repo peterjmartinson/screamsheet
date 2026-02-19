@@ -64,13 +64,85 @@ def generate_news():
     
     print("Generating news screamsheet...")
     
-    news = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
-        output_filename='Files/mlb_trade_rumors_modular.pdf',
-        favorite_teams=['Phillies', 'Padres', 'Yankees'],
-        max_articles=4,
-        include_weather=True
-    )
-    news.generate()
+    print("\n  Choose news source:")
+    print("  1. MLB Trade Rumors")
+    print("  2. The Players' Tribune")
+    print("  3. FanGraphs Blogs")
+    print("  4. All news sources")
+    
+    news_choice = input("  Enter choice (1-3): ").strip()
+    
+    if news_choice == '1':
+        news = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
+            output_filename='Files/mlb_trade_rumors_modular.pdf',
+            favorite_teams=['Phillies', 'Padres', 'Yankees'],
+            max_articles=4,
+            include_weather=True
+        )
+        news.generate()
+        print("MLB Trade Rumors screamsheet generated!")
+    elif news_choice == '2':
+        news = ScreamsheetFactory.create_players_tribune_screamsheet(
+            output_filename='Files/players_tribune_modular.pdf',
+            max_articles=4,
+            include_weather=True
+        )
+        news.generate()
+        print("The Players' Tribune screamsheet generated!")
+    elif news_choice == '3':
+        news = ScreamsheetFactory.create_fangraphs_screamsheet(
+            output_filename='Files/fangraphs_modular.pdf',
+            max_articles=4,
+            include_weather=True
+        )
+        news.generate()
+        print("FanGraphs screamsheet generated!")
+    elif news_choice == '4':
+        print("  Generating MLB Trade Rumors...")
+        mlb_news = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
+            output_filename='Files/mlb_trade_rumors_modular.pdf',
+            favorite_teams=['Phillies', 'Padres', 'Yankees'],
+            max_articles=4,
+            include_weather=True
+        )
+        mlb_news.generate()
+        
+        print("  Generating The Players' Tribune...")
+        pt_news = ScreamsheetFactory.create_players_tribune_screamsheet(
+            output_filename='Files/players_tribune_modular.pdf',
+            max_articles=4,
+            include_weather=True
+        )
+        pt_news.generate()
+
+        print("  Generating FanGraphs...")
+        fg_news = ScreamsheetFactory.create_fangraphs_screamsheet(
+            output_filename='Files/fangraphs_modular.pdf',
+            max_articles=4,
+            include_weather=True
+        )
+        fg_news.generate()
+        print("All news screamsheets generated!")
+    elif news_choice == '3':
+        print("  Generating MLB Trade Rumors...")
+        mlb_news = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
+            output_filename='Files/mlb_trade_rumors_modular.pdf',
+            favorite_teams=['Phillies', 'Padres', 'Yankees'],
+            max_articles=4,
+            include_weather=True
+        )
+        mlb_news.generate()
+        
+        print("  Generating The Players' Tribune...")
+        pt_news = ScreamsheetFactory.create_players_tribune_screamsheet(
+            output_filename='Files/players_tribune_modular.pdf',
+            max_articles=4,
+            include_weather=True
+        )
+        pt_news.generate()
+        print("All news screamsheets generated!")
+    else:
+        print("Invalid choice. Skipping news generation...")
     
     print("News screamsheet generated!")
 

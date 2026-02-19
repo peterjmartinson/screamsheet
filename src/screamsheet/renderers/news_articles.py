@@ -54,7 +54,13 @@ class NewsArticlesSection(Section):
     def fetch_data(self):
         """Fetch articles from the provider."""
         articles = self.provider.get_articles()
-        
+
+        # Run provider-level sanitization to avoid sending garbage to LLMs
+        try:
+            articles = self.provider.sanitize_articles(articles)
+        except Exception as e:
+            print(f"Warning: error during article sanitization: {e}")
+
         # Generate summaries using LLM
         try:
             # Import from the correct path (relative to workspace root)
@@ -68,15 +74,58 @@ class NewsArticlesSection(Section):
                 gemini_api_key=os.getenv('GEMINI_API_KEY'),
                 grok_api_key=os.getenv('GROK_API_KEY')
             )
-            self.data = self._generate_summaries(articles, summarizer)
+
+            # Only summarize the slice of articles for this section to avoid
+            # duplicate LLM calls when multiple sections use the same provider.
+            articles_slice = articles[self.start_index:self.start_index + self.max_articles]
+
+            summarized_slice = self._generate_summaries(articles_slice, summarizer)
+
+            # Store section-local summarized data (render will use this list directly)
+            self.data = summarized_slice
         except Exception as e:
             print(f"Error generating article summaries: {e}")
             import traceback
             traceback.print_exc()
-            self.data = articles  # Use original articles without summaries
+            # Fall back: build minimal summarized-like entries from the sliced
+            # articles so rendering has a stable structure.
+            try:
+                articles_slice = articles[self.start_index:self.start_index + self.max_articles]
+                fallback = []
+                for article in articles_slice:
+                    entry = article.get('entry', {})
+                    title = entry.get('title', 'Untitled')
+                    summary_text = entry.get('summary', '') or entry.get('description', '') or ''
+                    link = entry.get('link', '')
+
+                    pub_date_str = None
+                    try:
+                        if entry.get('published_parsed'):
+                            from datetime import datetime
+                            import time
+                            pub_date = datetime.fromtimestamp(time.mktime(entry['published_parsed']))
+                            pub_date_str = pub_date.strftime('%B %d, %Y')
+                    except Exception:
+                        pub_date_str = None
+
+                    fallback.append({
+                        'slot': article.get('slot', 'Section'),
+                        'id': entry.get('id', link),
+                        'title': title,
+                        'summary': (summary_text[:500] + '...') if summary_text else '',
+                        'link': link,
+                        'pub_date': pub_date_str,
+                    })
+
+                self.data = fallback
+            except Exception:
+                self.data = []
     
     def _generate_summaries(self, articles: List[dict], summarizer) -> List[dict]:
         """Generate LLM summaries for articles."""
+        from datetime import datetime
+        import time
+        
         summarized_articles = []
         
         # Check if summarizer has any available LLMs
@@ -87,14 +136,26 @@ class NewsArticlesSection(Section):
             title = entry.get('title', 'Untitled')
             link = entry.get('link', '')
             summary_text = entry.get('summary', '')
+
+            # Extract and format publication date
+            pub_date_str = None
+            try:
+                if entry.get('published_parsed'):
+                    pub_date = datetime.fromtimestamp(time.mktime(entry['published_parsed']))
+                    pub_date_str = pub_date.strftime('%B %d, %Y')
+            except Exception as e:
+                print(f"Error parsing date for '{title}': {e}")
             
             if has_llm:
                 try:
                     # Generate summary using LLM
                     # Format data as dict with title and summary (as expected by NewsSummarizer)
+                    # Keep story data minimal and tied to this article
                     story_data = {
+                        'id': entry.get('id', entry.get('link', '')),
                         'title': title,
-                        'summary': summary_text
+                        'summary': summary_text,
+                        'link': link,
                     }
                     llm_summary = summarizer.generate_summary(
                         llm_choice='grok',  # Use grok as in the original implementation
@@ -103,9 +164,11 @@ class NewsArticlesSection(Section):
                     
                     summarized_articles.append({
                         'slot': article['slot'],
+                        'id': story_data.get('id'),
                         'title': title,
                         'summary': llm_summary,
-                        'link': link
+                        'link': link,
+                        'pub_date': pub_date_str,
                     })
                 except Exception as e:
                     print(f"Error summarizing article '{title}': {e}")
@@ -113,18 +176,22 @@ class NewsArticlesSection(Section):
                     traceback.print_exc()
                     summarized_articles.append({
                         'slot': article['slot'],
+                        'id': story_data.get('id'),
                         'title': title,
                         'summary': summary_text[:500] + '...',  # Truncated original
-                        'link': link
+                        'link': link,
+                        'pub_date': pub_date_str,
                     })
             else:
                 # No LLM available, use original summary
                 print(f"No LLM available for article '{title}', using original summary")
                 summarized_articles.append({
                     'slot': article['slot'],
+                    'id': entry.get('id', entry.get('link', '')),
                     'title': title,
                     'summary': summary_text[:500] + '...',  # Truncated original
-                    'link': link
+                    'link': link,
+                    'pub_date': pub_date_str,
                 })
         
         return summarized_articles
@@ -141,8 +208,8 @@ class NewsArticlesSection(Section):
         
         # Section title suppressed (document top-level title used instead)
         
-        # Slice articles for this section
-        articles_to_render = self.data[self.start_index:self.start_index + self.max_articles]
+        # `self.data` now contains only the articles for this section
+        articles_to_render = self.data
         
         # Create two-column layout for articles
         left_column = []
@@ -155,6 +222,18 @@ class NewsArticlesSection(Section):
             article_elements = [
                 Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
             ]
+            
+            # Add publication date if available
+            if article.get('pub_date'):
+                date_style = ParagraphStyle(
+                    name="ArticleDate",
+                    parent=self.styles['Normal'],
+                    fontName='Helvetica-Oblique',
+                    fontSize=9,
+                    textColor='#666666',
+                    spaceAfter=6,
+                )
+                article_elements.append(Paragraph(article['pub_date'], date_style))
             
             # Add each paragraph as a separate Paragraph element
             for paragraph in summary_paragraphs:

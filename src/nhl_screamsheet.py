@@ -45,7 +45,9 @@ available_height = page_height - top_margin - bottom_margin
 
 DUMP = False
 FLYERS = 4
+USA = 67
 FINAL_STATUS_CODE: str = 'OFF' # '3' typically means 'Final'
+FINAL_STATUS_CODE: str = 'FINAL' # '3' typically means 'Final'
 
 styles = getSampleStyleSheet()
 
@@ -739,4 +741,4 @@ def main(team_id = 4, day_offset=1):
 if __name__ == "__main__":
 
     DUMP = True
-    main(FLYERS, 2)
+    main(USA, 0)

@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet
 
 
 class ScreamsheetFactory:
@@ -181,4 +181,47 @@ class ScreamsheetFactory:
             max_articles=max_articles,
             include_weather=include_weather,
             date=date
+        )
+    
+    @staticmethod
+    def create_players_tribune_screamsheet(
+        output_filename: str,
+        max_articles: int = 4,
+        include_weather: bool = True,
+        date: Optional[datetime] = None
+    ) -> PlayersTribuneScreamsheet:
+        """
+        Create a Players' Tribune news screamsheet.
+        
+        Args:
+            output_filename: Path to save the PDF
+            max_articles: Maximum number of articles (default: 4)
+            include_weather: Include weather report (default: True)
+            date: Target date (defaults to today)
+            
+        Returns:
+            PlayersTribuneScreamsheet instance
+        """
+        return PlayersTribuneScreamsheet(
+            output_filename=output_filename,
+            max_articles=max_articles,
+            include_weather=include_weather,
+            date=date
+        )
+
+    @staticmethod
+    def create_fangraphs_screamsheet(
+        output_filename: str,
+        max_articles: int = 4,
+        include_weather: bool = True,
+        date: Optional[datetime] = None,
+    ) -> FanGraphsScreamsheet:
+        """
+        Create a FanGraphs Blogs news screamsheet.
+        """
+        return FanGraphsScreamsheet(
+            output_filename=output_filename,
+            max_articles=max_articles,
+            include_weather=include_weather,
+            date=date,
         )

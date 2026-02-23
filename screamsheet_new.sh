@@ -8,7 +8,7 @@ cd "$SCRIPT_DIR"
 # 2. Setup directories and logging
 mkdir -p ./Files ./logfiles
 DATE=$(date +%Y%m%d)
-LOG_FILE="./logging/screamsheet_new_log_${DATE}.txt"
+LOG_FILE="./logfiles/screamsheet_new_log_${DATE}.txt"
 
 echo "--- Execution Started: $(date) ---" >> "$LOG_FILE"
 

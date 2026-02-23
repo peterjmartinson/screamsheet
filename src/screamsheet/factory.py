@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, GrokMLBNewsScreamsheet
 
 
 class ScreamsheetFactory:
@@ -221,6 +221,38 @@ class ScreamsheetFactory:
         """
         return FanGraphsScreamsheet(
             output_filename=output_filename,
+            max_articles=max_articles,
+            include_weather=include_weather,
+            date=date,
+        )
+
+    @staticmethod
+    def create_grok_mlb_news_screamsheet(
+        output_filename: str,
+        favorite_teams: Optional[list] = None,
+        max_articles: int = 4,
+        include_weather: bool = True,
+        date: Optional[datetime] = None,
+    ) -> GrokMLBNewsScreamsheet:
+        """
+        Create a Grok MLB News screamsheet.
+
+        Grok searches live MLB news from the past 24 hours and writes
+        each article from scratch.  No RSS feed required.
+
+        Args:
+            output_filename: Path to save the PDF.
+            favorite_teams:  Teams to feature first (default: Phillies, Padres, Yankees).
+            max_articles:    Number of articles to generate (default: 4).
+            include_weather: Include weather report (default: True).
+            date:            Target date (defaults to today).
+
+        Returns:
+            GrokMLBNewsScreamsheet instance
+        """
+        return GrokMLBNewsScreamsheet(
+            output_filename=output_filename,
+            favorite_teams=favorite_teams,
             max_articles=max_articles,
             include_weather=include_weather,
             date=date,

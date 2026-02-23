@@ -115,6 +115,22 @@ PYEOF
 generate_sheet "MLB Trade Rumors" "$NEWS_PY"
 rm -f "$NEWS_PY"
 
+# --- Grok MLB News Screamsheet ---
+GROK_PY=$(mktemp /tmp/screamsheet_grok_XXXXXX.py)
+cat > "$GROK_PY" <<PYEOF
+from screamsheet import ScreamsheetFactory
+sheet = ScreamsheetFactory.create_grok_mlb_news_screamsheet(
+    output_filename='Files/MLB_Grok_News_${DATE}.pdf',
+    favorite_teams=['Phillies', 'Padres', 'Yankees'],
+    max_articles=4,
+    include_weather=False
+)
+sheet.generate()
+print("Grok MLB News screamsheet generated: Files/MLB_Grok_News_${DATE}.pdf")
+PYEOF
+generate_sheet "Grok MLB News" "$GROK_PY"
+rm -f "$GROK_PY"
+
 echo "[$(date +%T)] Generation phase complete. Starting print jobs..." >> "$LOG_FILE"
 
 # ---------------------------------------------------------------------------
@@ -124,5 +140,6 @@ print_sheet "MLB"              "./Files/MLB_Scores_${DATE}.pdf"
 print_sheet "NHL"              "./Files/NHL_Scores_${DATE}.pdf"
 print_sheet "NBA"              "./Files/NBA_Scores_${DATE}.pdf"
 print_sheet "MLB Trade Rumors" "./Files/MLB_Trade_Rumors_${DATE}.pdf"
+print_sheet "Grok MLB News"    "./Files/MLB_Grok_News_${DATE}.pdf"
 
 echo "--- Execution Finished: $(date) ---" >> "$LOG_FILE"

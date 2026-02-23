@@ -6,6 +6,7 @@ from .nba_provider import NBADataProvider
 from .mlb_trade_rumors_provider import MLBTradeRumorsProvider
 from .players_tribune_provider import PlayersTribuneProvider
 from .fangraphs_provider import FanGraphsProvider
+from .weather_provider import WeatherProvider
 
 __all__ = [
     'MLBDataProvider',
@@ -15,4 +16,5 @@ __all__ = [
     'MLBTradeRumorsProvider',
     'PlayersTribuneProvider',
     'FanGraphsProvider',
+    'WeatherProvider',
 ]

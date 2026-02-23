@@ -131,3 +131,134 @@ MLB Trade Rumors screamsheet generated: Files/MLB_Trade_Rumors_20260222.pdf
 ./screamsheet_new.sh: line 45: lp: command not found
 [19:59:05] ERROR: MLB Trade Rumors print failed (exit 127).
 --- Execution Finished: Sun Feb 22 19:59:05 EST 2026 ---
+--- Execution Started: Sun Feb 22 22:40:42 EST 2026 ---
+[22:40:42] Generating MLB...
+Error fetching MLB game data: 400 Client Error: Bad Request for url: https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=143&date=2026-02-21+22%3A40%3A43.559836
+[DEBUG _generate_llm_summary] extracted_info is string: No game data available.
+Error fetching MLB game data: 400 Client Error: Bad Request for url: https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=143&date=2026-02-21+22%3A40%3A43.559836
+[DEBUG _generate_llm_summary] extracted_info is string: No game data available.
+MLB screamsheet generated: Files/MLB_Scores_20260222.pdf
+[22:40:46] OK: MLB generated successfully.
+[22:40:46] Generating NHL...
+No completed game found for team ID 4 on 2026-02-21.
+Warning: Map file not found at /home/peter/Code/screamsheet/documentation/nhl_players.json
+Warning: Map file not found at /home/peter/Code/screamsheet/documentation/nhl_teams.json
+[DEBUG GameSummaryGeneratorNHL.__init__] gemini_api_key param: True
+[DEBUG GameSummaryGeneratorNHL.__init__] self._use_llm: True
+[DEBUG GameSummaryGeneratorNHL.__init__] self.client: <google.genai.client.Client object at 0x70ead8255330>
+No completed game found for team ID 4 on 2026-02-21.
+NHL screamsheet generated: Files/NHL_Scores_20260222.pdf
+[22:40:48] OK: NHL generated successfully.
+[22:40:48] Generating NBA...
+Error getting NBA standings: HTTPSConnectionPool(host='stats.nba.com', port=443): Read timed out. (read timeout=30)
+NBA screamsheet generated: Files/NBA_Scores_20260222.pdf
+[22:41:32] OK: NBA generated successfully.
+[22:41:32] Generating MLB Trade Rumors...
+2026-02-22 22:41:36,888 [INFO] screamsheet.llm: LLM prompt preview (trimmed 4000 chars):
+Here is the raw data for a sports game:
+
+{
+  "id": "https://www.mlbtraderumors.com/?p=886517",
+  "title": "Brewers Not Yet Settled On Late-Game Bullpen Roles",
+  "summary": "The bullpen was again a strength for the Brewers in 2025, and closer Trevor Megill led the way with 30 saves, a 2.49 ERA over 49 innings, and an All-Star nod. As well as Megill has pitched in the ninth-inning role over the last two seasons, however, manager Pat Murphy was non-committal on the topic\u2026",
+  "link": "https://www.mlbtraderumors.com/2026/02/brewers-not-yet-settled-on-late-game-bullpen-roles.html"
+}
+
+Now, follow this instruction to summarize it: 
+        You are a professional journalist. Write a tight, lively summary of the
+        included news topic. Start clean, but get more wild towards the end.
+        Hit the big story, toss in a couple key highlights, and dig up the
+        freshest dirt with real sources.
+
+        These are the requirements
+        - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
+        - Use plain text, no markdown or formatting marks.
+        - Use humor where you can.
+        - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
+        
+2026-02-22 22:41:40,267 [INFO] screamsheet.llm: LLM prompt preview (trimmed 4000 chars):
+Here is the raw data for a sports game:
+
+{
+  "id": "https://www.mlbtraderumors.com/?p=886509",
+  "title": "Torres, Flaherty Discuss Decision To Remain With Tigers",
+  "summary": "Both Gleyber Torres and Jack Flaherty could\u2019ve tested the free agent market this winter, but the two veterans instead chose to stay with the Tigers, so Detroit had two major pieces of their roster finalized by mid-November. Torres was slated for free agency but instead chose to accept the Tigers\u2019 one-year, $22.025MM qualifying offer, while\u2026",
+  "link": "https://www.mlbtraderumors.com/2026/02/torres-flaherty-discuss-decision-to-remain-with-tigers.html"
+}
+
+Now, follow this instruction to summarize it: 
+        You are a professional journalist. Write a tight, lively summary of the
+        included news topic. Start clean, but get more wild towards the end.
+        Hit the big story, toss in a couple key highlights, and dig up the
+        freshest dirt with real sources.
+
+        These are the requirements
+        - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
+        - Use plain text, no markdown or formatting marks.
+        - Use humor where you can.
+        - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
+        
+2026-02-22 22:41:44,078 [INFO] screamsheet.llm: LLM prompt preview (trimmed 4000 chars):
+Here is the raw data for a sports game:
+
+{
+  "id": "https://www.mlbtraderumors.com/?p=886504",
+  "title": "Red Sox Interested In Left-Handed Bullpen Depth",
+  "summary": "The Red Sox may not yet be completely done with their offseason, as Sean McAdam of MassLive reports that the club remains interested in improving their left-handed bullpen depth before the season begins. McAdam adds that Boston intends to have scouts monitoring players in other organizations during camp as they conduct their search. That the\u2026",
+  "link": "https://www.mlbtraderumors.com/2026/02/red-sox-interested-in-left-handed-bullpen-depth.html"
+}
+
+Now, follow this instruction to summarize it: 
+        You are a professional journalist. Write a tight, lively summary of the
+        included news topic. Start clean, but get more wild towards the end.
+        Hit the big story, toss in a couple key highlights, and dig up the
+        freshest dirt with real sources.
+
+        These are the requirements
+        - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
+        - Use plain text, no markdown or formatting marks.
+        - Use humor where you can.
+        - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
+        
+2026-02-22 22:41:47,195 [INFO] screamsheet.llm: LLM prompt preview (trimmed 4000 chars):
+Here is the raw data for a sports game:
+
+{
+  "id": "https://www.mlbtraderumors.com/?p=886500",
+  "title": "AL East Notes: Westburg, Yankees, Rays",
+  "summary": "Orioles third baseman Jordan Westburg has been no stranger to injuries over the first few years of his time in the majors, and his latest ailments are a partially-torn UCL and oblique soreness. The oblique issue appears to be fairly minor, but he\u2019s received a platelet-rich plasma injection in his elbow in hopes of rehabbing\u2026",
+  "link": "https://www.mlbtraderumors.com/2026/02/al-east-notes-westburg-yankees-rays.html"
+}
+
+Now, follow this instruction to summarize it: 
+        You are a professional journalist. Write a tight, lively summary of the
+        included news topic. Start clean, but get more wild towards the end.
+        Hit the big story, toss in a couple key highlights, and dig up the
+        freshest dirt with real sources.
+
+        These are the requirements
+        - Break summary up into logical paragraphs of one to three sentences, but limit word count to 300.
+        - Use plain text, no markdown or formatting marks.
+        - Use humor where you can.
+        - Use real words, no "'em", "youse", "snaggin'", or any other words designed to look like they sound.
+        
+--- Using GROK for generation ---
+--- Using GROK for generation ---
+--- Using GROK for generation ---
+--- Using GROK for generation ---
+MLB Trade Rumors screamsheet generated: Files/MLB_Trade_Rumors_20260222.pdf
+[22:41:51] OK: MLB Trade Rumors generated successfully.
+[22:41:51] Generation phase complete. Starting print jobs...
+[22:41:51] Printing MLB...
+./screamsheet_new.sh: line 45: lp: command not found
+[22:41:51] ERROR: MLB print failed (exit 127).
+[22:41:51] Printing NHL...
+./screamsheet_new.sh: line 45: lp: command not found
+[22:41:51] ERROR: NHL print failed (exit 127).
+[22:41:51] Printing NBA...
+./screamsheet_new.sh: line 45: lp: command not found
+[22:41:51] ERROR: NBA print failed (exit 127).
+[22:41:51] Printing MLB Trade Rumors...
+./screamsheet_new.sh: line 45: lp: command not found
+[22:41:51] ERROR: MLB Trade Rumors print failed (exit 127).
+--- Execution Finished: Sun Feb 22 22:41:51 EST 2026 ---

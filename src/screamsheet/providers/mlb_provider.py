@@ -147,7 +147,7 @@ class MLBDataProvider(DataProvider):
         """
         # Import here to avoid circular dependency
         try:
-            from src.get_box_score import get_box_score
+            from get_box_score import get_box_score
             game_date = date.strftime("%Y-%m-%d")
             return get_box_score(team_id, game_date)
         except Exception as e:
@@ -168,7 +168,7 @@ class MLBDataProvider(DataProvider):
         # Import here to avoid circular dependency
         try:
             import os
-            from src.get_game_summary import GameSummaryGeneratorMLB
+            from get_game_summary import GameSummaryGeneratorMLB
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             generator = GameSummaryGeneratorMLB(gemini_api_key)
             return generator.generate_summary(team_id, date)

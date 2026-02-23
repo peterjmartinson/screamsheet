@@ -61,10 +61,7 @@ class PlayersTribuneProvider(DataProvider):
             if title_looks_bad and description:
                 # Generate title using LLM
                 try:
-                    import sys
-                    from pathlib import Path
-                    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-                    from src.get_llm_summary import NewsSummarizer
+                    from get_llm_summary import NewsSummarizer
                     
                     # Initialize summarizer
                     summarizer = NewsSummarizer(

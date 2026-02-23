@@ -6,12 +6,8 @@ from typing import Any, Optional, List, Dict
 
 from ..base import DataProvider
 
-try:
-    from src.screamsheet_structures import GameScore
-    from src.utilities import dump_json
-except:
-    from ...screamsheet_structures import GameScore
-    from ...utilities import dump_json
+from screamsheet_structures import GameScore
+from utilities import dump_json
 
 
 class NHLDataProvider(DataProvider):
@@ -143,7 +139,7 @@ class NHLDataProvider(DataProvider):
             Box score data or None if not available
         """
         try:
-            from src.get_box_score_nhl import get_nhl_boxscore
+            from get_box_score_nhl import get_nhl_boxscore
             game_pk = self._get_game_pk(team_id, date)
             if game_pk:
                 return get_nhl_boxscore(team_id, game_pk)
@@ -165,7 +161,7 @@ class NHLDataProvider(DataProvider):
         """
         try:
             import os
-            from src.get_game_summary import GameSummaryGeneratorNHL
+            from get_game_summary import GameSummaryGeneratorNHL
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             generator = GameSummaryGeneratorNHL(gemini_api_key)
             game_pk = self._get_game_pk(team_id, date)

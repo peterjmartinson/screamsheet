@@ -162,6 +162,9 @@ def generate_news_sections(news_summarizer, dummy=False) -> Dict[str, str]:
 
     articles_to_summarize = fetch_and_filter_articles()
     
+    # Ensure we only process exactly 4 articles
+    print(f"[INFO] Processing {len(articles_to_summarize)} articles for summarization")
+    
     final_output = {}
     
     for item in articles_to_summarize:
@@ -169,12 +172,14 @@ def generate_news_sections(news_summarizer, dummy=False) -> Dict[str, str]:
         slot = item['slot']
         
         title = entry.get('title', 'No Title')
+        print(f"[INFO] Summarizing article: {title[:50]}...")
         
         # Use the article summary or description as the content to be summarized
         content_to_summarize = entry.get('summary', entry.get('description', title))
         story = {'title': title, 'summary': content_to_summarize}
 
         summary_text = news_summarizer.generate_summary(llm_choice='grok', data=story)
+        print(f"[INFO] Finished summarizing: {title[:50]}...")
         
         # The key is the page slot, the value is the final summarized text block
         final_output[slot] = {"title": title, "text": summary_text}

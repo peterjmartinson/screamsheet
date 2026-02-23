@@ -5,6 +5,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
+
+# Configure a module-level logger for LLM prompt/debug output
+logger = logging.getLogger('screamsheet.llm')
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 # --- LANGCHAIN IMPORTS ---
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -26,7 +37,7 @@ class BaseGameSummaryGenerator:
 
     _DEFAULT_TEXT: str = 'howdy, folks.  test text here'
     _DEFAULT_MODEL: str = 'gemini-2.5-flash'
-    _GROK_MODEL: str = 'grok-4'
+    _GROK_MODEL: str = 'grok-4-fast'
     _GROK_BASE_URL: str = "https://api.x.ai/v1"
 
     def __init__(self,
@@ -88,10 +99,7 @@ class BaseGameSummaryGenerator:
         # We use RunnablePassthrough.assign to build the keys the template expects
         input_prep_chain = RunnablePassthrough.assign(
             game_data=RunnableLambda(
-                lambda x: (
-                    print(f"--- DEBUGGING: Raw x['data'] input: {x['data']}"), # <-- DEBUGGING LINE
-                    json.dumps(x['data'], indent=2)
-                )[-1] # The [-1] is used to return the last item (the json.dumps result)
+                lambda x: json.dumps(x['data'], indent=2)
             ),
             prompt_text=RunnableLambda(
                 # We need the full `self` instance here, so we wrap the call
@@ -145,11 +153,30 @@ class BaseGameSummaryGenerator:
                 "llm_choice": llm_choice
             }
                 
-            # IMPERATIVE STEP 4: Invoke the full pipeline
+            # IMPERATIVE STEP 4: Render a preview of the prompt for logging
+            try:
+                prompt_builder = self._setup_prompt_chain()
+                try:
+                    prompt_preview = prompt_builder.invoke(chain_input)
+                    # LangChain returns a PromptValue object; convert to string
+                    if hasattr(prompt_preview, 'to_string'):
+                        prompt_preview = prompt_preview.to_string()
+                    else:
+                        prompt_preview = str(prompt_preview)
+                    # Log a trimmed preview so logs don't explode; full prompt available at DEBUG
+                    logger.info("LLM prompt preview (trimmed 4000 chars):\n%s", prompt_preview[:4000])
+                    logger.debug("Full LLM prompt length: %d", len(prompt_preview))
+                except Exception as e:
+                    logger.warning("Could not render LLM prompt preview: %s", e)
+            except Exception:
+                # If building the preview fails, continue to invocation path
+                pass
+
+            # If no LLM is available, just return dummy text
             if not llm_choice:
-                # If no LLM is available, just return dummy text
                 return self._DEFAULT_TEXT
 
+            # IMPERATIVE STEP 5: Invoke the full pipeline
             summary: str = full_pipeline.invoke(chain_input)
             return summary
             

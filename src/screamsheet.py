@@ -41,5 +41,5 @@ if __name__ == "__main__":
     # mlb.main(BLUEJAYS)
     nfl.main()
     nhl.main(FLYERS)
-    nba.main()
+    # nba.main()
     mlbnews.main()

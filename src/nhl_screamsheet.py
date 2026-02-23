@@ -45,7 +45,9 @@ available_height = page_height - top_margin - bottom_margin
 
 DUMP = False
 FLYERS = 4
+USA = 67
 FINAL_STATUS_CODE: str = 'OFF' # '3' typically means 'Final'
+FINAL_STATUS_CODE: str = 'FINAL' # '3' typically means 'Final'
 
 styles = getSampleStyleSheet()
 
@@ -527,10 +529,17 @@ def generate_nhl_report(games, standings, game_summary_text="", box_score=None, 
         fontSize=12,
     )
 
+    print(f"[DEBUG] game_summary_text type: {type(game_summary_text)}")
+    print(f"[DEBUG] game_summary_text length: {len(game_summary_text) if game_summary_text else 0}")
+    print(f"[DEBUG] game_summary_text preview: {game_summary_text[:150] if game_summary_text else 'EMPTY'}")
+    
     summary = [
         Paragraph("Game Summary", summary_heading_style),
-        Paragraph(game_summary_text, summary_text_style)
     ]
+    if game_summary_text and game_summary_text.strip():
+        summary.append(Paragraph(game_summary_text, summary_text_style))
+    else:
+        summary.append(Paragraph(f"[ERROR] No game summary generated. Text was: {repr(game_summary_text)}", summary_text_style))
     box_content = [
         box_score_skaters,
         Spacer(1, 0.15 * inch),
@@ -674,6 +683,9 @@ def get_chart_dimensions(c: Table) -> dict:
     return dimensions
 
 def main(team_id = 4, day_offset=1):
+    print("="*60)
+    print("[NHL SCREAMSHEET] Starting main function")
+    print("="*60)
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
     yesterday = today - timedelta(days=day_offset)
@@ -687,14 +699,35 @@ def main(team_id = 4, day_offset=1):
     scores = get_game_scores_for_day(yesterday_str)
     standings = get_nhl_standings()
     game_pk = get_game_pk(team_id, yesterday)
-    box_score = get_nhl_boxscore(team_id, game_pk)
+    print(f"[DEBUG] game_pk retrieved: {game_pk}")
+    
+    if game_pk is None:
+        print(f"[ERROR] Could not find a game for team {team_id} on {yesterday_str}")
+        game_summary_text = "No game found for this date."
+        box_score = {'skater_table': Table([['No data']]), 'goalie_table': Table([['No data']])}
+    else:
+        box_score = get_nhl_boxscore(team_id, game_pk)
+        print(f"[DEBUG] box_score retrieved")
 
-    try:
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-    except Exception:
-        gemini_api_key = None
-    game_summarizer = GameSummaryGeneratorNHL(gemini_api_key)
-    game_summary_text = game_summarizer.generate_summary(game_pk)
+        try:
+            gemini_api_key = os.getenv("GEMINI_API_KEY")
+        except Exception:
+            gemini_api_key = None
+        
+        print(f"[DEBUG] gemini_api_key is set: {gemini_api_key is not None}")
+        game_summarizer = GameSummaryGeneratorNHL(gemini_api_key)
+        print(f"[DEBUG] game_summarizer created, _use_llm={game_summarizer._use_llm}")
+        
+        try:
+            game_summary_text = game_summarizer.generate_summary(game_pk)
+            print(f"[DEBUG] game_summary_text generated successfully")
+            print(f"[DEBUG] game_summary_text length: {len(game_summary_text)}")
+            print(f"[DEBUG] game_summary_text preview: {game_summary_text[:100]}")
+        except Exception as e:
+            print(f"[ERROR] Failed to generate summary: {e}")
+            import traceback
+            traceback.print_exc()
+            game_summary_text = f"ERROR generating summary: {e}"
 
     filename = f"NHL_Scores_{today.strftime('%Y%m%d')}.pdf"
     runtime_dir = os.path.dirname(os.path.abspath(__file__))
@@ -708,4 +741,4 @@ def main(team_id = 4, day_offset=1):
 if __name__ == "__main__":
 
     DUMP = True
-    main(FLYERS, 2)
+    main(USA, 0)

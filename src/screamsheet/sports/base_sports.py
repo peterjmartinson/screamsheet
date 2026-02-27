@@ -95,15 +95,15 @@ class SportsScreamsheet(BaseScreamsheet):
                 )
             )
         
-        # 4. Game Summary Section (only if team is specified)
-        if self.team_id and self.team_name:
-            sections.append(
-                GameSummarySection(
-                    title=f"{self.team_name} Game Summary",
-                    provider=self.provider,
-                    team_id=self.team_id,
-                    date=self.date
-                )
-            )
+        # # 4. Game Summary Section (only if team is specified)
+        # if self.team_id and self.team_name:
+        #     sections.append(
+        #         GameSummarySection(
+        #             title=f"{self.team_name} Game Summary",
+        #             provider=self.provider,
+        #             team_id=self.team_id,
+        #             date=self.date
+        #         )
+        #     )
         
         return sections

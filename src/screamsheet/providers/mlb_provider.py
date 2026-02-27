@@ -171,7 +171,8 @@ class MLBDataProvider(DataProvider):
             from get_game_summary import GameSummaryGeneratorMLB
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             generator = GameSummaryGeneratorMLB(gemini_api_key)
-            return generator.generate_summary(team_id, date)
+            date_str = date.strftime("%Y-%m-%d")
+            return generator.generate_summary(team_id, date_str)
         except Exception as e:
             print(f"Error getting MLB game summary: {e}")
             return None

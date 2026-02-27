@@ -138,9 +138,13 @@ class BoxScoreSection(Section):
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ])
             
-            hitting_table = Table(hitting_data, colWidths=[120, 30, 30, 30, 30, 30, 30, 30])
+            hitting_table = Table(hitting_data, colWidths=[100, 24, 24, 24, 24, 24, 24, 24])
             hitting_table.setStyle(hitting_style)
             elements.append(hitting_table)
             elements.append(Spacer(1, 12))
@@ -171,9 +175,13 @@ class BoxScoreSection(Section):
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ])
             
-            pitching_table = Table(pitching_data, colWidths=[120, 30, 30, 30, 30, 30, 30, 30])
+            pitching_table = Table(pitching_data, colWidths=[100, 24, 24, 24, 24, 24, 24, 24])
             pitching_table.setStyle(pitching_style)
             elements.append(pitching_table)
         

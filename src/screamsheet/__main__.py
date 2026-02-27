@@ -29,6 +29,7 @@ Example usage:
     )
     sheet.generate()
 """
+from datetime import datetime
 from .factory import ScreamsheetFactory
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet
@@ -50,14 +51,16 @@ def main():
     Uncomment the sections you want to generate.
     """
     
+    today = datetime.now()
+    today_str = today.strftime("%Y%m%d")
     # Generate MLB screamsheet for Blue Jays
-    # mlb_sheet = ScreamsheetFactory.create_mlb_screamsheet(
-    #     output_filename='Files/mlb_bluejays.pdf',
-    #     team_id=ScreamsheetFactory.MLB_BLUEJAYS,
-    #     team_name='Toronto Blue Jays'
-    # )
-    # mlb_sheet.generate()
-    # print("Generated MLB screamsheet")
+    mlb_sheet = ScreamsheetFactory.create_mlb_screamsheet(
+        output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
+        team_id=ScreamsheetFactory.MLB_PHILLIES,
+        team_name='Philadelphia Phillies'
+    )
+    mlb_sheet.generate()
+    print("Generated MLB screamsheet")
     
     # Generate NHL screamsheet for Flyers
     # nhl_sheet = ScreamsheetFactory.create_nhl_screamsheet(
@@ -83,17 +86,14 @@ def main():
     # print("Generated NBA screamsheet")
     
     # Generate MLB Trade Rumors news screamsheet
-    # news_sheet = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
-    #     output_filename='Files/mlb_trade_rumors.pdf',
-    #     favorite_teams=['Phillies', 'Padres', 'Yankees'],
-    #     max_articles=4,
-    #     include_weather=True
-    # )
-    # news_sheet.generate()
-    # print("Generated MLB Trade Rumors screamsheet")
-    
-    print("Uncomment the sections in main() to generate screamsheets")
-
+    news_sheet = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
+        output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
+        favorite_teams=['Phillies', 'Padres', 'Yankees'],
+        max_articles=4,
+        include_weather=True
+    )
+    news_sheet.generate()
+    print("Generated MLB Trade Rumors screamsheet")
 
 if __name__ == "__main__":
     main()

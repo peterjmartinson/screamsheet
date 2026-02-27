@@ -45,7 +45,7 @@ class GameSummarySection(Section):
     
     def render(self) -> List[Any]:
         """Render the game summary section."""
-        if not self.data:
+        if self.data is None:
             self.fetch_data()
         
         if not self.data:

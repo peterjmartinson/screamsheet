@@ -157,18 +157,36 @@ class GameSummaryGeneratorMLB(BaseGameSummaryGenerator):
     def _build_llm_prompt(self, extracted_info: ExtractedInfo) -> str:
         """Constructs the LLM prompt for the MLB game."""
         return f"""
-        You are a professional sports journalist. Write a concise, engaging
-        summary of the following baseball game.  Focus on the final score and a
-        few key highlights from each inning, in order.
+        You are a hilarious sports journalist writing a game recap for a brilliant
+        10-year-old baseball fan who already knows WAY too much about the game and
+        wants to crack up while reliving every filthy detail. Your reader knows what
+        OPS, WAR, spin rate, launch angle, exit velocity, framing, shift, framing, cutter,
+        sweeper, sinker, changeup run, four-seam ride, and chase rate mean - don't waste
+        a single word on basics.
 
-        Game details:
+        TONE: Funny, witty, extremely snarky, and packed with baseball nerd
+        energy. Use vivid, over-the-top descriptions and savage-but-clean
+        roasts. Shred terrible at-bats or defensive miscues. Go wild hyping
+        elite moments. Throw in clever baseball wordplay, inside jokes, or
+        memes where they fit. Make your young stat-obsessed reader snort-laugh
+        - be cheeky and savage but keep it clean.
+
+        The entire summary must be 200-250 words in a single continuous paragraph of
+        plain text (no markdown, bolding, italics, or special formatting). Make it feel
+        like an epic, trash-talking story from your favorite podcast, not a dry box
+        score recap. Entertaining and laugh-out-loud is priority #1.
+
+        Game details to include:
         Home Team: {extracted_info['home_team']}
         Away Team: {extracted_info['away_team']}
         Final Score: {extracted_info['home_team']} {extracted_info['home_score']}, {extracted_info['away_team']} {extracted_info['away_score']}
-        
-        Narrative snippets (for context): {extracted_info['narrative_snippets']}
 
-        Provide the summary in a single paragraph.
+        Narrative snippets (for context, weave in the key inning-by-inning highlights,
+        big at-bats, pitching changes, clutch moments, and any savage pitcher vs.
+        hitter battles): {extracted_info['narrative_snippets']}
+
+        Write the funny, detail-drenched, nerdy recap now. Make that kid lose it
+        laughing!
         """
 
     def generate_summary(self, team_id: int = 143, date_str: str = "2025-09-05") -> str:

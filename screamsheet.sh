@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Make sure cron jobs can find uv and other user tools
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 # 1. Get the directory where THIS script actually lives.
 #    This resolves the symlink so we are always working inside the release folder.
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")

@@ -59,7 +59,7 @@ class MLBDataProvider(DataProvider):
                 games.append(game_info)
         return games
     
-    def get_standings(self, season: int = None) -> pd.DataFrame:
+    def get_standings(self, season: int = 2025) -> pd.DataFrame:
         """
         Get current MLB league standings.
         
@@ -168,11 +168,18 @@ class MLBDataProvider(DataProvider):
         # Import here to avoid circular dependency
         try:
             import os
-            from get_game_summary import GameSummaryGeneratorMLB
-            gemini_api_key = os.getenv("GEMINI_API_KEY")
-            generator = GameSummaryGeneratorMLB(gemini_api_key)
+            from .extractors import MLBGameExtractor
+            from ..llm.summary import MLBGameSummarizer
             date_str = date.strftime("%Y-%m-%d")
-            return generator.generate_summary(team_id, date_str)
+            extractor = MLBGameExtractor()
+            extracted = extractor.extract_key_info(extractor.fetch_raw_data(team_id, date_str))
+            if isinstance(extracted, str):
+                return extracted
+            summarizer = MLBGameSummarizer(
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                grok_api_key=os.getenv("GROK_API_KEY")
+            )
+            return summarizer.generate_summary(llm_choice='gemini', data=extracted)
         except Exception as e:
             print(f"Error getting MLB game summary: {e}")
             return None

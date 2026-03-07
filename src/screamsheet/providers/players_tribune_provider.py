@@ -61,7 +61,7 @@ class PlayersTribuneProvider(DataProvider):
             if title_looks_bad and description:
                 # Generate title using LLM
                 try:
-                    from get_llm_summary import NewsSummarizer
+                    from ..llm.summary import NewsSummarizer
                     
                     # Initialize summarizer
                     summarizer = NewsSummarizer(
@@ -71,8 +71,11 @@ class PlayersTribuneProvider(DataProvider):
                     
                     # Generate a title from the description
                     if summarizer.llm_gemini or summarizer.llm_grok:
-                        prompt = f"Generate a short, compelling title (max 8 words) for this article: {description[:200]}"
-                        title = summarizer._run_llm_query(prompt, 'gemini' if summarizer.llm_gemini else 'grok')
+                        llm_choice = 'gemini' if summarizer.llm_gemini else 'grok'
+                        title = summarizer.generate_summary(
+                            llm_choice=llm_choice,
+                            data={'summary': f"Generate a short, compelling title (max 8 words) for this article: {description[:200]}"}
+                        )
                         # Clean up the title (remove quotes if present)
                         title = title.strip('"\' ').strip()
                         entry['title'] = title

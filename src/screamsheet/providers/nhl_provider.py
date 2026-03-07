@@ -161,13 +161,20 @@ class NHLDataProvider(DataProvider):
         """
         try:
             import os
-            from get_game_summary import GameSummaryGeneratorNHL
-            gemini_api_key = os.getenv("GEMINI_API_KEY")
-            generator = GameSummaryGeneratorNHL(gemini_api_key)
+            from .extractors import NHLGameExtractor
+            from ..llm.summary import NHLGameSummarizer
             game_pk = self._get_game_pk(team_id, date)
-            if game_pk:
-                return generator.generate_summary(game_pk)
-            return None
+            if not game_pk:
+                return None
+            extractor = NHLGameExtractor()
+            extracted = extractor.extract_key_info(extractor.fetch_raw_data(game_pk))
+            if isinstance(extracted, str):
+                return extracted
+            summarizer = NHLGameSummarizer(
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                grok_api_key=os.getenv("GROK_API_KEY")
+            )
+            return summarizer.generate_summary(llm_choice='gemini', data=extracted)
         except Exception as e:
             print(f"Error getting NHL game summary: {e}")
             return None

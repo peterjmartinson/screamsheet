@@ -63,11 +63,7 @@ class NewsArticlesSection(Section):
 
         # Generate summaries using LLM
         try:
-            # Import from the correct path (relative to workspace root)
-            import sys
-            from pathlib import Path
-            sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-            from src.get_llm_summary import NewsSummarizer
+            from ..llm.summary import NewsSummarizer
             
             # Initialize with API keys from environment
             summarizer = NewsSummarizer(

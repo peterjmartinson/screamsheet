@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Make sure cron jobs can find uv and other user tools
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 # 1. Get the directory where THIS script actually lives.
 #    This resolves the symlink so we are always working inside the release folder.
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
@@ -37,6 +40,7 @@ print_sheet() {
 # 3. Generate screamsheets by running the module from the src directory.
 #    __main__.py produces:
 #      ../Files/MLB_gamescores_YYYYMMDD.pdf
+#      ../Files/NHL_gamescores_YYYYMMDD.pdf
 #      ../Files/MLB_trade_rumors_YYYYMMDD.pdf
 # ---------------------------------------------------------------------------
 echo "[$(date +%T)] Generating screamsheets..." >> "$LOG_FILE"
@@ -52,9 +56,10 @@ fi
 echo "[$(date +%T)] Generation phase complete. Starting print jobs..." >> "$LOG_FILE"
 
 # ---------------------------------------------------------------------------
-# 4. Print the two MLB PDFs duplex (long-edge binding).
+# 4. Print the PDFs duplex (long-edge binding).
 # ---------------------------------------------------------------------------
 print_sheet "MLB Game Scores"  "./Files/MLB_gamescores_${DATE}.pdf"
+print_sheet "NHL Game Scores"  "./Files/NHL_gamescores_${DATE}.pdf"
 print_sheet "MLB Trade Rumors" "./Files/MLB_trade_rumors_${DATE}.pdf"
 
 echo "--- Execution Finished: $(date) ---" >> "$LOG_FILE"

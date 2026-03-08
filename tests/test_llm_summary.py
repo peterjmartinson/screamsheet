@@ -89,7 +89,7 @@ class TestGenerateSummaryWithMockedChain:
         fake_chain.invoke.return_value = "The Flyers won in hilarious fashion."
         with patch.object(gen, "_setup_prompt_chain", return_value=MagicMock()):
             with patch(
-                "screamsheet.llm.summary.StrOutputParser",
+                "screamsheet.llm.base.StrOutputParser",
                 return_value=MagicMock(return_value=MagicMock()),
             ):
                 # Patch the full pipeline by replacing _generate_llm_summary
@@ -137,3 +137,41 @@ class TestBuildLLMPrompt:
         prompt = gen._build_llm_prompt({})
         assert isinstance(prompt, str)
         assert len(prompt) > 20
+
+
+# ---------------------------------------------------------------------------
+# LLMConfig
+# ---------------------------------------------------------------------------
+
+class TestLLMConfig:
+    def test_default_gemini_model(self):
+        from screamsheet.llm.config import DEFAULT_LLM_CONFIG
+        assert DEFAULT_LLM_CONFIG.gemini_model == "gemini-2.5-flash"
+
+    def test_default_grok_model(self):
+        from screamsheet.llm.config import DEFAULT_LLM_CONFIG
+        assert DEFAULT_LLM_CONFIG.grok_model == "grok-4-fast"
+
+    def test_default_temperatures(self):
+        from screamsheet.llm.config import DEFAULT_LLM_CONFIG
+        assert DEFAULT_LLM_CONFIG.gemini_temperature == 0.3
+        assert DEFAULT_LLM_CONFIG.grok_temperature == 0.3
+
+    def test_default_grok_base_url(self):
+        from screamsheet.llm.config import DEFAULT_LLM_CONFIG
+        assert DEFAULT_LLM_CONFIG.grok_base_url == "https://api.x.ai/v1"
+
+    def test_custom_config_overrides(self):
+        from screamsheet.llm.config import LLMConfig
+        cfg = LLMConfig(gemini_model="gemini-2.0-pro", gemini_temperature=0.7)
+        assert cfg.gemini_model == "gemini-2.0-pro"
+        assert cfg.gemini_temperature == 0.7
+        # Unset fields keep their defaults
+        assert cfg.grok_model == "grok-4-fast"
+
+    def test_base_generator_accepts_custom_config(self):
+        from screamsheet.llm.config import LLMConfig
+        from screamsheet.llm.summarizers import NHLGameSummarizer
+        cfg = LLMConfig(gemini_model="gemini-test")
+        gen = NHLGameSummarizer(config=cfg)
+        assert gen.config.gemini_model == "gemini-test"

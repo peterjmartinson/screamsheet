@@ -59,31 +59,21 @@ class MLBDataProvider(DataProvider):
                 games.append(game_info)
         return games
     
-    def get_standings(self, season: int = 2025) -> pd.DataFrame:
+    def get_standings(self, season: int = None) -> pd.DataFrame:
         """
         Get current MLB league standings.
-        
+
         Args:
-            season: The season year (defaults to current year)
-            
+            season: The season year (defaults to current year). During spring
+                    training the API returns all teams with 0-0 records, which
+                    is the correct thing to display.
+
         Returns:
             DataFrame with standings data
         """
         if season is None:
             season = datetime.now().year
-            # If we're in early year (Jan-Mar) and current season has no data,
-            # try previous year
-            if datetime.now().month <= 3:
-                # Try current year first
-                url = f"{self.base_url}/api/v1/standings?season={season}&leagueId=103,104"
-                response = requests.get(url)
-                if response.ok:
-                    data = response.json()
-                    if not data.get("records", []):
-                        # No data for current year, use previous year
-                        season = season - 1
-                        print(f"No MLB data for {season + 1}, using {season} season")
-        
+
         url = f"{self.base_url}/api/v1/standings?season={season}&leagueId=103,104"
         response = requests.get(url)
         response.raise_for_status()

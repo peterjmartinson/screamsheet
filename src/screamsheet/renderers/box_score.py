@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import List, Any, Optional
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus.flowables import KeepInFrame
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -90,9 +91,17 @@ class BoxScoreSection(Section):
                 # NHL box score (raw data - legacy format)
                 right_column.extend(self._render_nhl_boxscore(self.data))
         
+        # Wrap the summary in KeepInFrame so it never exceeds the page frame
+        # height (708pt on 'Later' pages with letter/36pt-margin layout).
+        # mode='truncate' clips quietly rather than raising a LayoutError.
+        summary_frame = KeepInFrame(
+            maxWidth=0, maxHeight=680,
+            content=left_column, mode='truncate'
+        )
+
         # Create two-column layout
         two_column_table = Table(
-            [[left_column, right_column]],
+            [[summary_frame, right_column]],
             colWidths=['50%', '50%'],
             rowHeights=[None]
         )

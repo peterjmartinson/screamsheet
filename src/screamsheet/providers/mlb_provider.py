@@ -59,31 +59,21 @@ class MLBDataProvider(DataProvider):
                 games.append(game_info)
         return games
     
-    def get_standings(self, season: int = 2025) -> pd.DataFrame:
+    def get_standings(self, season: int = None) -> pd.DataFrame:
         """
         Get current MLB league standings.
-        
+
         Args:
-            season: The season year (defaults to current year)
-            
+            season: The season year (defaults to current year). During spring
+                    training the API returns all teams with 0-0 records, which
+                    is the correct thing to display.
+
         Returns:
             DataFrame with standings data
         """
         if season is None:
             season = datetime.now().year
-            # If we're in early year (Jan-Mar) and current season has no data,
-            # try previous year
-            if datetime.now().month <= 3:
-                # Try current year first
-                url = f"{self.base_url}/api/v1/standings?season={season}&leagueId=103,104"
-                response = requests.get(url)
-                if response.ok:
-                    data = response.json()
-                    if not data.get("records", []):
-                        # No data for current year, use previous year
-                        season = season - 1
-                        print(f"No MLB data for {season + 1}, using {season} season")
-        
+
         url = f"{self.base_url}/api/v1/standings?season={season}&leagueId=103,104"
         response = requests.get(url)
         response.raise_for_status()
@@ -145,11 +135,72 @@ class MLBDataProvider(DataProvider):
         Returns:
             Box score data or None if not available
         """
-        # Import here to avoid circular dependency
         try:
-            from get_box_score import get_box_score
             game_date = date.strftime("%Y-%m-%d")
-            return get_box_score(team_id, game_date)
+
+            # Find the game PK for this team and date
+            schedule_url = f"{self.base_url}/api/v1/schedule"
+            params = {'sportId': 1, 'teamId': team_id, 'date': game_date}
+            schedule_response = requests.get(schedule_url, params=params)
+            schedule_response.raise_for_status()
+            schedule_data = schedule_response.json()
+
+            game_pk = None
+            if 'dates' in schedule_data and schedule_data['dates']:
+                for game in schedule_data['dates'][0]['games']:
+                    if game['status']['statusCode'] == 'F':
+                        if (game['teams']['away']['team']['id'] == team_id or
+                                game['teams']['home']['team']['id'] == team_id):
+                            game_pk = game['gamePk']
+                            break
+
+            if not game_pk:
+                print(f"No completed game found for team ID {team_id} on {game_date}.")
+                return None
+
+            # Fetch the detailed box score
+            boxscore_url = f"{self.base_url}/api/v1/game/{game_pk}/boxscore"
+            boxscore_response = requests.get(boxscore_url)
+            boxscore_response.raise_for_status()
+            boxscore_data = boxscore_response.json()
+
+            if not boxscore_data:
+                return {'batting_stats': [], 'pitching_stats': []}
+
+            # Parse batting and pitching stats for the target team
+            home_team_id = boxscore_data['teams']['home']['team']['id']
+            target_team = 'home' if home_team_id == team_id else 'away'
+            players = boxscore_data['teams'][target_team]['players']
+
+            batting_stats = []
+            pitching_stats = []
+
+            for player_data in players.values():
+                if player_data['stats'].get('batting'):
+                    stats = player_data['stats']['batting']
+                    batting_stats.append({
+                        'name': player_data['person']['fullName'],
+                        'AB': stats.get('atBats', 0),
+                        'R': stats.get('runs', 0),
+                        'H': stats.get('hits', 0),
+                        'HR': stats.get('homeRuns', 0),
+                        'RBI': stats.get('rbi', 0),
+                        'BB': stats.get('baseOnBalls', 0),
+                        'SO': stats.get('strikeOuts', 0),
+                    })
+                if player_data['stats'].get('pitching'):
+                    stats = player_data['stats']['pitching']
+                    pitching_stats.append({
+                        'name': player_data['person']['fullName'],
+                        'IP': stats.get('inningsPitched', '0.0'),
+                        'H': stats.get('hits', 0),
+                        'R': stats.get('runs', 0),
+                        'ER': stats.get('earnedRuns', 0),
+                        'BB': stats.get('baseOnBalls', 0),
+                        'SO': stats.get('strikeOuts', 0),
+                    })
+
+            return {'batting_stats': batting_stats, 'pitching_stats': pitching_stats}
         except Exception as e:
             print(f"Error getting MLB box score: {e}")
             return None

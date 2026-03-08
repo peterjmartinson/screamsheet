@@ -1,13 +1,12 @@
 """NHL data provider for fetching NHL game data."""
+import json
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional, List, Dict
 
 from ..base import DataProvider
-
-from screamsheet_structures import GameScore
-from utilities import dump_json
 
 
 class NHLDataProvider(DataProvider):
@@ -27,7 +26,17 @@ class NHLDataProvider(DataProvider):
         super().__init__(**config)
         self.base_url = "https://api-web.nhle.com/v1"
         self.dump = config.get('dump', False)
-    
+
+    def _dump_json(self, response, output_filename: str) -> None:
+        """Write a requests Response JSON body to a timestamped file in logfiles/."""
+        output_dir = Path(__file__).resolve().parent.parent.parent.parent / "logfiles"
+        output_dir.mkdir(exist_ok=True)
+        filedate = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filepath = output_dir / f"{output_filename}_{filedate}.json"
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(response.json(), f, indent=4)
+        print(f"{filepath} written")
+
     def get_game_scores(self, date: datetime) -> List[Dict]:
         """
         Get NHL game scores for a specific date.
@@ -46,7 +55,7 @@ class NHLDataProvider(DataProvider):
         data = response.json()
         
         if self.dump:
-            dump_json(response, "nhl_game_scores")
+            self._dump_json(response, "nhl_game_scores")
         
         games = []
         games_for_the_day = data.get('gameWeek', [{}])[0].get('games', [])
@@ -94,7 +103,7 @@ class NHLDataProvider(DataProvider):
         data = response.json()
         
         if self.dump:
-            dump_json(response, "nhl_standings")
+            self._dump_json(response, "nhl_standings")
         
         team_list: List[Dict[str, Any]] = []
         
@@ -139,7 +148,7 @@ class NHLDataProvider(DataProvider):
             Box score data or None if not available
         """
         try:
-            from get_box_score_nhl import get_nhl_boxscore
+            from .nhl_boxscore import get_nhl_boxscore
             game_pk = self._get_game_pk(team_id, date)
             if game_pk:
                 return get_nhl_boxscore(team_id, game_pk)
@@ -199,7 +208,7 @@ class NHLDataProvider(DataProvider):
             schedule_data = schedule_response.json()
             
             if self.dump:
-                dump_json(schedule_response, "nhl_get_game_pk")
+                self._dump_json(schedule_response, "nhl_get_game_pk")
             
             game_pk = None
             

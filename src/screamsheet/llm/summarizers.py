@@ -136,3 +136,32 @@ class NewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class PoliticalNewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a lively summary of a political news article.
+
+    Uses ``political_news.txt`` so the prompt can carry extra political
+    context instructions (party attribution, administration sourcing, etc.)
+    without affecting the generic ``NewsSummarizer`` used by MLB/FanGraphs.
+
+    Typical ``data`` shape
+    ----------------------
+    - ``{'title': str, 'summary': str, 'link': str, 'source': str, ...}``
+    """
+
+    _PROMPT_FILE = Path("political_news.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

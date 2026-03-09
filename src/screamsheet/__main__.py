@@ -33,6 +33,7 @@ from datetime import datetime
 from .factory import ScreamsheetFactory
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet
+from .political import PresidentialScreamsheet
 
 __all__ = [
     'ScreamsheetFactory',
@@ -41,6 +42,7 @@ __all__ = [
     'NFLScreamsheet',
     'NBAScreamsheet',
     'MLBTradeRumorsScreamsheet',
+    'PresidentialScreamsheet',
 ]
 
 
@@ -94,6 +96,14 @@ def main():
     )
     news_sheet.generate()
     print("Generated MLB Trade Rumors screamsheet")
+
+    # Generate Presidential Screamsheet
+    presidential_sheet = ScreamsheetFactory.create_presidential_screamsheet(
+        output_filename=f'Files/presidential_screamsheet_{today_str}.pdf',
+        max_articles=4,
+    )
+    presidential_sheet.generate()
+    print("Generated Presidential Screamsheet")
 
 if __name__ == "__main__":
     main()

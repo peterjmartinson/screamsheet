@@ -4,6 +4,7 @@ from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, GrokMLBNewsScreamsheet
+from .political import PresidentialScreamsheet
 
 
 class ScreamsheetFactory:
@@ -255,5 +256,31 @@ class ScreamsheetFactory:
             favorite_teams=favorite_teams,
             max_articles=max_articles,
             include_weather=include_weather,
+            date=date,
+        )
+
+    @staticmethod
+    def create_presidential_screamsheet(
+        output_filename: str,
+        max_articles: int = 4,
+        date: Optional[datetime] = None,
+    ) -> PresidentialScreamsheet:
+        """
+        Create a Presidential Screamsheet.
+
+        Fetches political news from 7 RSS feeds and the White House,
+        scores and deduplicates, and renders top stories to PDF.
+
+        Args:
+            output_filename: Path to save the PDF.
+            max_articles:    Number of top stories to include (default: 4).
+            date:            Target date (defaults to today).
+
+        Returns:
+            PresidentialScreamsheet instance
+        """
+        return PresidentialScreamsheet(
+            output_filename=output_filename,
+            max_articles=max_articles,
             date=date,
         )

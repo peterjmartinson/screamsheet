@@ -6,7 +6,7 @@ Public API — prefer importing from here rather than from sub-modules::
 """
 from .config import LLMConfig, DEFAULT_LLM_CONFIG
 from .base import BaseGameSummaryGenerator, ExtractedInfo, PromptChainInput
-from .summarizers import NHLGameSummarizer, MLBGameSummarizer, NewsSummarizer
+from .summarizers import NHLGameSummarizer, MLBGameSummarizer, NewsSummarizer, PoliticalNewsSummarizer
 
 __all__ = [
     "LLMConfig",
@@ -17,4 +17,5 @@ __all__ = [
     "NHLGameSummarizer",
     "MLBGameSummarizer",
     "NewsSummarizer",
+    "PoliticalNewsSummarizer",
 ]

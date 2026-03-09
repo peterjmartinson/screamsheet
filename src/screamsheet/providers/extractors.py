@@ -8,6 +8,8 @@ import json
 from typing import Optional, Dict, Any, Union, List
 from pathlib import Path
 
+from ..db import lookup_player as _db_lookup_player
+
 ExtractedInfo = Dict[str, Union[str, int]]
 
 
@@ -88,7 +90,6 @@ class NHLGameExtractor:
 
     def __init__(self) -> None:
         self._cwd = Path.cwd()
-        self._player_map = self._load_map("nhl_players.json")
         self._team_map = self._load_map("nhl_teams.json")
 
     # ------------------------------------------------------------------
@@ -114,21 +115,12 @@ class NHLGameExtractor:
     def _lookup_player(self, player_id: Optional[int]) -> str:
         if player_id is None:
             return "N/A"
-
-        for player in self._player_map:
-            if player.get("player_id") == player_id:
-                return f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
-
-        try:
-            url = f"https://api-web.nhle.com/v1/player/{player_id}/landing"
-            res = requests.get(url, timeout=3)
-            res.raise_for_status()
-            info = res.json()
-            first = info.get("firstName", {}).get("default", "Unknown")
-            last = info.get("lastName", {}).get("default", "Player")
-            return f"{first} {last}"
-        except (requests.exceptions.RequestException, KeyError, json.JSONDecodeError):
-            return "Unknown Player"
+        result = _db_lookup_player(player_id=player_id)
+        if result:
+            first = result.get("player_first_name", "")
+            last = result.get("player_last_name", "")
+            return f"{first} {last}".strip() or "Unknown Player"
+        return "Unknown Player"
 
     def _lookup_team(self, team_id: Optional[int]) -> str:
         if team_id is None:

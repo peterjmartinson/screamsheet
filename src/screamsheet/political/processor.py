@@ -44,11 +44,10 @@ KEYWORD_WEIGHTS: Dict[str, int] = {
     "white house":       8,
     "executive order":   7,
     "trump":            10,
-    "president":         5,
+    "president":         6,
     # Domestic policy hot-buttons
     "tariff":            6,
     "tariffs":           6,
-    "doge":              6,
     "immigration":       5,
     "border":            4,
     "inflation":         4,

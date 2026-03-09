@@ -19,11 +19,12 @@ class NewsArticlesSection(Section):
     Shows summarized news articles from a news provider.
     """
     
-    def __init__(self, title: str, provider: DataProvider, max_articles: int = 4, start_index: int = 0):
+    def __init__(self, title: str, provider: DataProvider, max_articles: int = 4, start_index: int = 0, summarizer_class=None):
         super().__init__(title)
         self.provider = provider
         self.max_articles = max_articles
         self.start_index = start_index
+        self._summarizer_class = summarizer_class  # None → default NewsSummarizer
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -63,9 +64,10 @@ class NewsArticlesSection(Section):
         # Generate summaries using LLM
         try:
             from ..llm.summary import NewsSummarizer
-            
+
+            summarizer_cls = self._summarizer_class or NewsSummarizer
             # Initialize with API keys from environment
-            summarizer = NewsSummarizer(
+            summarizer = summarizer_cls(
                 gemini_api_key=os.getenv('GEMINI_API_KEY'),
                 grok_api_key=os.getenv('GROK_API_KEY')
             )

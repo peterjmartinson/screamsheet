@@ -6,6 +6,7 @@ from ..base import Section
 from ..news.base_news import NewsScreamsheet
 from ..renderers import NewsArticlesSection
 from ..providers.political_news_provider import PoliticalNewsProvider
+from ..llm.summarizers import PoliticalNewsSummarizer
 
 
 class PresidentialScreamsheet(NewsScreamsheet):
@@ -58,12 +59,14 @@ class PresidentialScreamsheet(NewsScreamsheet):
                 provider=self.provider,
                 max_articles=2,
                 start_index=0,
+                summarizer_class=PoliticalNewsSummarizer,
             ),
             NewsArticlesSection(
                 title="More Stories",
                 provider=self.provider,
                 max_articles=2,
                 start_index=2,
+                summarizer_class=PoliticalNewsSummarizer,
             ),
         ]
 

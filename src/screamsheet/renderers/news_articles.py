@@ -6,8 +6,7 @@ from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
-from ..base import Section
-from ..providers.mlb_trade_rumors_provider import MLBTradeRumorsProvider
+from ..base import Section, DataProvider
 
 # Load environment variables
 load_dotenv()
@@ -20,7 +19,7 @@ class NewsArticlesSection(Section):
     Shows summarized news articles from a news provider.
     """
     
-    def __init__(self, title: str, provider: MLBTradeRumorsProvider, max_articles: int = 4, start_index: int = 0):
+    def __init__(self, title: str, provider: DataProvider, max_articles: int = 4, start_index: int = 0):
         super().__init__(title)
         self.provider = provider
         self.max_articles = max_articles
@@ -219,8 +218,13 @@ class NewsArticlesSection(Section):
                 Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
             ]
             
-            # Add publication date if available
+            # Add source / publication date byline if available
+            byline_parts = []
+            if article.get('source'):
+                byline_parts.append(article['source'])
             if article.get('pub_date'):
+                byline_parts.append(article['pub_date'])
+            if byline_parts:
                 date_style = ParagraphStyle(
                     name="ArticleDate",
                     parent=self.styles['Normal'],
@@ -229,7 +233,7 @@ class NewsArticlesSection(Section):
                     textColor='#666666',
                     spaceAfter=6,
                 )
-                article_elements.append(Paragraph(article['pub_date'], date_style))
+                article_elements.append(Paragraph(" — ".join(byline_parts), date_style))
             
             # Add each paragraph as a separate Paragraph element
             for paragraph in summary_paragraphs:

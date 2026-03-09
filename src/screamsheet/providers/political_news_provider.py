@@ -337,6 +337,106 @@ class WhiteHouseProvider(DataProvider):
         return datetime.now(timezone.utc) - dt <= timedelta(hours=48)
 
 
+# ---------------------------------------------------------------------------
+# PoliticalNewsProvider — adapter for NewsArticlesSection
+# ---------------------------------------------------------------------------
+
+class PoliticalNewsProvider(DataProvider):
+    """
+    Adapter that wires ``PoliticalRSSProvider`` + ``WhiteHouseProvider`` +
+    ``PoliticalNewsProcessor`` into the shape expected by
+    :class:`~screamsheet.renderers.news_articles.NewsArticlesSection`::
+
+        [{'slot': 'Section 1', 'entry': {title, summary, link, id, source,
+                                         published_parsed: time.struct_time}}]
+
+    Results are cached after the first call so two ``NewsArticlesSection``
+    instances sharing the same provider only fetch the network once.
+    """
+
+    def __init__(self, max_articles: int = 4, **config):
+        super().__init__(**config)
+        self.max_articles = max_articles
+        self._cache: Optional[List[Dict]] = None
+
+    # ------------------------------------------------------------------
+    # DataProvider stubs
+    # ------------------------------------------------------------------
+
+    def get_game_scores(self, date: datetime) -> list:
+        return []
+
+    def get_standings(self) -> None:
+        return None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def get_articles(self) -> List[Dict]:
+        """Fetch, process, and cache political news articles.
+
+        Returns a list of ``{'slot', 'entry'}`` dicts compatible with
+        :class:`~screamsheet.renderers.news_articles.NewsArticlesSection`.
+        The ``entry`` dict includes a ``published_parsed`` key containing a
+        ``time.struct_time`` (feedparser-compatible) derived from the
+        ``published`` datetime returned by the political providers.
+        """
+        if self._cache is not None:
+            return self._cache
+
+        try:
+            rss = PoliticalRSSProvider().get_articles()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("PoliticalNewsProvider: RSS fetch failed: %s", exc)
+            rss = []
+        try:
+            wh = WhiteHouseProvider().get_articles()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("PoliticalNewsProvider: White House fetch failed: %s", exc)
+            wh = []
+
+        # Import here to avoid any potential top-level circular import
+        # (processor.py has no top-level imports from providers/)
+        from ..political.processor import PoliticalNewsProcessor  # noqa: PLC0415
+
+        entries = PoliticalNewsProcessor().process(rss + wh)
+        top = entries[: self.max_articles]
+
+        result = []
+        for i, entry in enumerate(top):
+            published_parsed = None
+            try:
+                if entry.get("published"):
+                    published_parsed = entry["published"].timetuple()
+            except Exception:  # noqa: BLE001
+                pass
+
+            slot_entry = {
+                "title":            entry.get("title", ""),
+                "summary":          entry.get("summary", ""),
+                "link":             entry.get("link", ""),
+                "id":               entry.get("link", ""),
+                "source":           entry.get("source", ""),
+                "published_parsed": published_parsed,
+            }
+            result.append({"slot": f"Section {i + 1}", "entry": slot_entry})
+
+        self._cache = result
+        logger.info("PoliticalNewsProvider: %d articles cached", len(result))
+        return self._cache
+
+    def sanitize_articles(self, articles: List[Dict]) -> List[Dict]:
+        """Strip HTML from summary and title in each entry (Google News carries HTML)."""
+        for item in articles:
+            entry = item.get("entry")
+            if not entry:
+                continue
+            entry["summary"] = self._sanitize_text(entry.get("summary") or "")
+            entry["title"]   = self._sanitize_text(entry.get("title")   or "")
+        return articles
+
+
 if __name__ == "__main__":
     from collections import Counter
 

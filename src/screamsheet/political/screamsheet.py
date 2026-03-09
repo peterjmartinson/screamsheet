@@ -4,9 +4,8 @@ from typing import List, Optional
 
 from ..base import Section
 from ..news.base_news import NewsScreamsheet
-from .renderer import PresidentialSection
-from .processor import PoliticalNewsProcessor
-from ..providers.political_news_provider import PoliticalRSSProvider, WhiteHouseProvider
+from ..renderers import NewsArticlesSection
+from ..providers.political_news_provider import PoliticalNewsProvider
 
 
 class PresidentialScreamsheet(NewsScreamsheet):
@@ -44,6 +43,7 @@ class PresidentialScreamsheet(NewsScreamsheet):
             date=date,
         )
         self.max_articles = max_articles
+        self.provider = PoliticalNewsProvider(max_articles=self.max_articles)
 
     def get_title(self) -> str:
         return "Presidential Screamsheet"
@@ -52,32 +52,18 @@ class PresidentialScreamsheet(NewsScreamsheet):
         return None
 
     def build_sections(self) -> List[Section]:
-        # Fetch and process once; hand the same list to both sections so
-        # there is only one network round-trip (mirrors the shared-provider
-        # pattern used by MLBTradeRumorsScreamsheet).
-        try:
-            rss = PoliticalRSSProvider().get_articles()
-        except Exception:
-            rss = []
-        try:
-            wh = WhiteHouseProvider().get_articles()
-        except Exception:
-            wh = []
-
-        entries = PoliticalNewsProcessor().process(rss + wh)
-
         return [
-            PresidentialSection(
+            NewsArticlesSection(
                 title="Top Stories",
+                provider=self.provider,
                 max_articles=2,
                 start_index=0,
-                pre_fetched_entries=entries,
             ),
-            PresidentialSection(
+            NewsArticlesSection(
                 title="More Stories",
+                provider=self.provider,
                 max_articles=2,
                 start_index=2,
-                pre_fetched_entries=entries,
             ),
         ]
 

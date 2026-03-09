@@ -56,22 +56,22 @@ def main():
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     # Generate MLB screamsheet for Blue Jays
-    # mlb_sheet = ScreamsheetFactory.create_mlb_screamsheet(
-    #     output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
-    #     team_id=ScreamsheetFactory.MLB_PHILLIES,
-    #     team_name='Philadelphia Phillies'
-    # )
-    # mlb_sheet.generate()
-    # print("Generated MLB screamsheet")
+    mlb_sheet = ScreamsheetFactory.create_mlb_screamsheet(
+        output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
+        team_id=ScreamsheetFactory.MLB_PHILLIES,
+        team_name='Philadelphia Phillies'
+    )
+    mlb_sheet.generate()
+    print("Generated MLB screamsheet")
     
     # Generate NHL screamsheet for Flyers
-    # nhl_sheet = ScreamsheetFactory.create_nhl_screamsheet(
-    #     output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
-    #     team_id=ScreamsheetFactory.NHL_FLYERS,
-    #     team_name='Philadelphia Flyers'
-    # )
-    # nhl_sheet.generate()
-    # print("Generated NHL screamsheet")
+    nhl_sheet = ScreamsheetFactory.create_nhl_screamsheet(
+        output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
+        team_id=ScreamsheetFactory.NHL_FLYERS,
+        team_name='Philadelphia Flyers'
+    )
+    nhl_sheet.generate()
+    print("Generated NHL screamsheet")
     
     # Generate NFL screamsheet (no specific team - just scores and standings)
     # nfl_sheet = ScreamsheetFactory.create_nfl_screamsheet(
@@ -88,14 +88,14 @@ def main():
     # print("Generated NBA screamsheet")
     
     # Generate MLB Trade Rumors news screamsheet
-    # news_sheet = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
-    #     output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
-    #     favorite_teams=['Phillies', 'Padres', 'Yankees'],
-    #     max_articles=4,
-    #     include_weather=True
-    # )
-    # news_sheet.generate()
-    # print("Generated MLB Trade Rumors screamsheet")
+    news_sheet = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
+        output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
+        favorite_teams=['Phillies', 'Padres', 'Yankees'],
+        max_articles=4,
+        include_weather=True
+    )
+    news_sheet.generate()
+    print("Generated MLB Trade Rumors screamsheet")
 
     # Generate Presidential Screamsheet
     presidential_sheet = ScreamsheetFactory.create_presidential_screamsheet(

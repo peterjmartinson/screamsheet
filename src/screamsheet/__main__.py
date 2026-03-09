@@ -69,7 +69,7 @@ def main():
         team_name='Philadelphia Flyers'
     )
     nhl_sheet.generate()
-    print("Generated NHL screamsheet")
+   t print("Generated NHL screamsheet")
     
     # Generate NFL screamsheet (no specific team - just scores and standings)
     # nfl_sheet = ScreamsheetFactory.create_nfl_screamsheet(

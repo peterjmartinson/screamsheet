@@ -18,6 +18,7 @@ dependencies = [
     "annotated-types==0.7.0",
     "anyio==4.11.0",
     "attrs==25.4.0",
+    "beautifulsoup4>=4.12",
     "cachetools==5.5.2",
     "certifi==2025.8.3",
     "charset-normalizer==3.4.3",

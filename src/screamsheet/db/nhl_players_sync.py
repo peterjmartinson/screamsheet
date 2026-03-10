@@ -15,6 +15,7 @@ Windows (run manually or add to Task Scheduler):
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -108,6 +109,7 @@ def full_sync(db_path: Optional[Path] = None) -> int:
             total += count
         else:
             logger.warning("full_sync: no players returned for team %s", abbrev)
+        time.sleep(0.5)  # stay under the NHL API rate limit
 
     logger.info("full_sync: complete — %d total players upserted", total)
     return total

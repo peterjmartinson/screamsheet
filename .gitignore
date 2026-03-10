@@ -214,7 +214,7 @@ __marimo__/
 *.pdf
 *.PDF
 
-# SQLite databases (nhl_players.db lives at ~/database, outside the repo)
+# SQLite databases (nhl.db lives at ~/database, outside the repo)
 *.db
 *.sqlite3
 

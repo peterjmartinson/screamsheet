@@ -4,11 +4,10 @@ These classes own the data-fetching and transformation steps only — no LLM log
 Pass the returned ExtractedInfo dict to the appropriate summarizer in llm/summary.py.
 """
 import requests
-import json
 from typing import Optional, Dict, Any, Union, List
-from pathlib import Path
 
 from ..db import lookup_player as _db_lookup_player
+from ..db.nhl_teams_db import lookup_team_by_id as _db_lookup_team
 
 ExtractedInfo = Dict[str, Union[str, int]]
 
@@ -88,28 +87,8 @@ class NHLGameExtractor:
     repeated API lookups for every play in a game.
     """
 
-    def __init__(self) -> None:
-        self._cwd = Path.cwd()
-        self._team_map = self._load_map("nhl_teams.json")
-
     # ------------------------------------------------------------------
-    # Map loading
-    # ------------------------------------------------------------------
-
-    def _load_map(self, filename: str) -> Any:
-        file_path = self._cwd / "documentation" / filename
-        try:
-            with open(file_path, "r") as f:
-                return json.load(f)
-        except FileNotFoundError:
-            print(f"Warning: Map file not found at {file_path}")
-            return {}
-        except json.JSONDecodeError:
-            print(f"Warning: Error decoding JSON from {file_path}")
-            return {}
-
-    # ------------------------------------------------------------------
-    # Name lookups (map-first, API fallback)
+    # Name lookups (DB-backed)
     # ------------------------------------------------------------------
 
     def _lookup_player(self, player_id: Optional[int]) -> str:
@@ -125,9 +104,11 @@ class NHLGameExtractor:
     def _lookup_team(self, team_id: Optional[int]) -> str:
         if team_id is None:
             return "N/A Team"
-        for team in self._team_map.get("data", []):
-            if team.get("id") == team_id:
-                return team.get("fullName", "Unknown Team")
+        result = _db_lookup_team(team_id=team_id)
+        if result:
+            city = result.get("city", "")
+            name = result.get("team_full_name", "")
+            return f"{city} {name}".strip() or "Unknown Team"
         return "Unknown Team"
 
     # ------------------------------------------------------------------

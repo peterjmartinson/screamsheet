@@ -1,4 +1,4 @@
-"""SQLite cache for NHL player data.
+"""SQLite cache for NHL player data (stored in nhl.db).
 
 Table schema:
     players (
@@ -26,14 +26,15 @@ Name collisions:
 
 import json
 import logging
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
 from sqlalchemy import Column, Integer, String, Text, create_engine, text
-from sqlalchemy.orm import DeclarativeBase, Session
+from sqlalchemy.orm import Session
+
+from ._nhl_db_shared import _Base, get_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +44,6 @@ _NHL_PLAYER_API = "https://api-web.nhle.com/v1/player/{player_id}/landing"
 # ---------------------------------------------------------------------------
 # ORM model
 # ---------------------------------------------------------------------------
-
-class _Base(DeclarativeBase):
-    pass
 
 
 class _Player(_Base):
@@ -59,21 +57,6 @@ class _Player(_Base):
     team              = Column(String(100))
     update_date       = Column(String(25))
     raw_json          = Column(Text)
-
-
-# ---------------------------------------------------------------------------
-# DB path
-# ---------------------------------------------------------------------------
-
-def get_db_path() -> Path:
-    """Return the platform-appropriate path for the NHL players database.
-
-    Linux / macOS:  ~/database/nhl_players.db
-    Windows:        C:\\database\\nhl_players.db
-    """
-    if sys.platform.startswith("win"):
-        return Path("C:/database/nhl_players.db")
-    return Path.home() / "database" / "nhl_players.db"
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +76,7 @@ def init_db(db_path: Optional[Path] = None):
     path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{path}", echo=False)
     _Base.metadata.create_all(engine)
-    logger.info("NHL players DB initialised at %s", path)
+    logger.info("NHL DB initialised at %s", path)
     return engine
 
 

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from screamsheet.providers.extractors import MLBGameExtractor
+from screamsheet.providers.extractors import MLBGameExtractor, NHLGameExtractor
 
 
 # ---------------------------------------------------------------------------
@@ -87,3 +87,96 @@ class TestMLBGameExtractorExtractKeyInfo:
     def test_returns_string_for_malformed_data(self):
         result = MLBGameExtractor.extract_key_info({"bad": "data"})
         assert isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# NHLGameExtractor._lookup_player  (uses DB cache via _db_lookup_player)
+# ---------------------------------------------------------------------------
+
+class TestNHLGameExtractorLookupPlayer:
+    def test_returns_na_for_none_player_id(self):
+        extractor = NHLGameExtractor()
+        assert extractor._lookup_player(None) == "N/A"
+
+    def test_formats_name_from_cache_hit(self):
+        cached = {
+            "player_id": 8478402,
+            "player_first_name": "Connor",
+            "player_last_name": "McDavid",
+            "position": "C",
+            "team": "EDM",
+            "update_date": "2026-03-09T00:00:00+00:00",
+            "raw_json": "{}",
+        }
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_player", return_value=cached):
+            result = extractor._lookup_player(8478402)
+        assert result == "Connor McDavid"
+
+    def test_returns_unknown_player_on_cache_miss(self):
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_player", return_value=None):
+            result = extractor._lookup_player(9999999)
+        assert result == "Unknown Player"
+
+    def test_no_direct_http_call_on_cache_hit(self):
+        """Verifies the extractor itself no longer makes raw requests.get calls."""
+        cached = {
+            "player_id": 8478402,
+            "player_first_name": "Connor",
+            "player_last_name": "McDavid",
+            "position": "C",
+            "team": "EDM",
+            "update_date": "2026-03-09T00:00:00+00:00",
+            "raw_json": "{}",
+        }
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_player", return_value=cached):
+            with patch("requests.get") as mock_get:
+                extractor._lookup_player(8478402)
+        mock_get.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# NHLGameExtractor._lookup_team  (uses DB cache via _db_lookup_team)
+# ---------------------------------------------------------------------------
+
+class TestNHLGameExtractorLookupTeam:
+    def test_returns_na_team_for_none_team_id(self):
+        extractor = NHLGameExtractor()
+        assert extractor._lookup_team(None) == "N/A Team"
+
+    def test_formats_city_and_name_from_cache_hit(self):
+        cached = {
+            "team_id":        4,
+            "team":           "PHI",
+            "team_full_name": "Flyers",
+            "city":           "Philadelphia",
+            "update_date":    "2026-03-09T00:00:00+00:00",
+            "raw_json":       "{}",
+        }
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_team", return_value=cached):
+            result = extractor._lookup_team(4)
+        assert result == "Philadelphia Flyers"
+
+    def test_returns_unknown_team_on_cache_miss(self):
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_team", return_value=None):
+            result = extractor._lookup_team(9999)
+        assert result == "Unknown Team"
+
+    def test_no_direct_http_call_on_cache_hit(self):
+        cached = {
+            "team_id":        22,
+            "team":           "EDM",
+            "team_full_name": "Oilers",
+            "city":           "Edmonton",
+            "update_date":    "2026-03-09T00:00:00+00:00",
+            "raw_json":       "{}",
+        }
+        extractor = NHLGameExtractor()
+        with patch("screamsheet.providers.extractors._db_lookup_team", return_value=cached):
+            with patch("requests.get") as mock_get:
+                extractor._lookup_team(22)
+        mock_get.assert_not_called()

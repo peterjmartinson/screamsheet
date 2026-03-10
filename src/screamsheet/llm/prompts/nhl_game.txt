@@ -22,7 +22,7 @@ Pack the recap with substance. Where the narrative snippets support it, include:
 - Brief note on which team controlled play, if evident
 
 FORMAT:
-One continuous paragraph of plain text, 150-200 words. No markdown, no bullet
+One continuous paragraph of plain text, 200-300 words. No markdown, no bullet
 points, no bolding, no special formatting.
 
 Game details:

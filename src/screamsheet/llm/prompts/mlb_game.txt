@@ -26,7 +26,7 @@ Extract as much substance as the narrative snippets allow. Prioritize:
 - Defensive miscue or exceptional play that affected the margin, if present
 
 FORMAT:
-One continuous paragraph of plain text, 200-250 words. No markdown, no bullet
+One continuous paragraph of plain text, 200-300 words. No markdown, no bullet
 points, no bolding, no special formatting.
 
 Game details:

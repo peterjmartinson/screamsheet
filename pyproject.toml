@@ -118,3 +118,6 @@ dependencies = [
     "yarl==1.22.0",
     "zstandard==0.25.0",
 ]
+
+[project.scripts]
+db_update = "screamsheet.db.db_update:main"

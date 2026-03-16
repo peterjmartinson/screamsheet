@@ -32,6 +32,7 @@ def _build_sheets(today_str: str) -> list:
                 output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
                 team_id=ScreamsheetFactory.MLB_PHILLIES,
                 team_name='Philadelphia Phillies',
+                date=datetime.strptime(today_str, "%Y%m%d"),
             ),
         ),
         (
@@ -41,6 +42,7 @@ def _build_sheets(today_str: str) -> list:
                 favorite_teams=['Phillies', 'Padres', 'Yankees'],
                 max_articles=4,
                 include_weather=True,
+                date=datetime.strptime(today_str, "%Y%m%d"),
             ),
         ),
         (
@@ -57,6 +59,7 @@ def _build_sheets(today_str: str) -> list:
             lambda: ScreamsheetFactory.create_presidential_screamsheet(
                 output_filename=f'Files/presidential_screamsheet_{today_str}.pdf',
                 max_articles=4,
+                date=datetime.strptime(today_str, "%Y%m%d"),
             ),
         ),
     ]

@@ -9,7 +9,7 @@ import argparse
 from datetime import datetime
 from .factory import ScreamsheetFactory
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     'NFLScreamsheet',
     'NBAScreamsheet',
     'MLBTradeRumorsScreamsheet',
+    'MLBNewsScreamsheet',
     'PresidentialScreamsheet',
 ]
 
@@ -41,6 +42,15 @@ def _build_sheets(today_str: str) -> list:
                 output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
                 favorite_teams=['Phillies', 'Padres', 'Yankees'],
                 max_articles=4,
+                include_weather=True,
+                date=datetime.strptime(today_str, "%Y%m%d"),
+            ),
+        ),
+        (
+            "MLB News",
+            lambda: ScreamsheetFactory.create_mlb_news_screamsheet(
+                output_filename=f'Files/MLB_NEWS_{today_str}.pdf',
+                favorite_teams=['Phillies', 'Padres', 'Yankees'],
                 include_weather=True,
                 date=datetime.strptime(today_str, "%Y%m%d"),
             ),

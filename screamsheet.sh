@@ -42,6 +42,7 @@ print_sheet() {
 #      ../Files/MLB_gamescores_YYYYMMDD.pdf
 #      ../Files/NHL_gamescores_YYYYMMDD.pdf
 #      ../Files/MLB_trade_rumors_YYYYMMDD.pdf
+#      ../Files/MLB_NEWS_YYYYMMDD.pdf
 #      ../Files/presidential_screamsheet_YYYYMMDD.pdf
 # ---------------------------------------------------------------------------
 echo "[$(date +%T)] Generating screamsheets..." >> "$LOG_FILE"
@@ -62,6 +63,7 @@ echo "[$(date +%T)] Generation phase complete. Starting print jobs..." >> "$LOG_
 print_sheet "MLB Game Scores"          "./Files/MLB_gamescores_${DATE}.pdf"
 print_sheet "NHL Game Scores"          "./Files/NHL_gamescores_${DATE}.pdf"
 print_sheet "MLB Trade Rumors"         "./Files/MLB_trade_rumors_${DATE}.pdf"
+print_sheet "MLB News"                 "./Files/MLB_NEWS_${DATE}.pdf"
 print_sheet "Presidential Screamsheet" "./Files/presidential_screamsheet_${DATE}.pdf"
 
 echo "--- Execution Finished: $(date) ---" >> "$LOG_FILE"

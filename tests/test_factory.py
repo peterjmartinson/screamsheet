@@ -10,6 +10,7 @@ from screamsheet.sports.nhl import NHLScreamsheet
 from screamsheet.sports.nfl import NFLScreamsheet
 from screamsheet.sports.nba import NBAScreamsheet
 from screamsheet.news.mlb_trade_rumors import MLBTradeRumorsScreamsheet
+from screamsheet.news.mlb_news import MLBNewsScreamsheet
 from screamsheet.news.players_tribune import PlayersTribuneScreamsheet
 from screamsheet.news.fangraphs import FanGraphsScreamsheet
 
@@ -106,3 +107,21 @@ class TestCreateFanGraphsScreamsheet:
     def test_returns_fg_instance(self):
         s = ScreamsheetFactory.create_fangraphs_screamsheet("out.pdf")
         assert isinstance(s, FanGraphsScreamsheet)
+
+
+class TestCreateMLBNewsScreamsheet:
+    def test_returns_mlb_news_instance(self):
+        s = ScreamsheetFactory.create_mlb_news_screamsheet("out.pdf")
+        assert isinstance(s, MLBNewsScreamsheet)
+
+    def test_favorite_teams_passed(self):
+        s = ScreamsheetFactory.create_mlb_news_screamsheet(
+            "out.pdf", favorite_teams=["Phillies"]
+        )
+        assert s.favorite_teams == ["Phillies"]
+
+    def test_include_weather_passed(self):
+        s = ScreamsheetFactory.create_mlb_news_screamsheet(
+            "out.pdf", include_weather=False
+        )
+        assert s.include_weather is False

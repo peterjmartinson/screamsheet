@@ -1,6 +1,29 @@
 # screamsheet
 One page news, suitable for printout in the morning!
 
+## Available Screamsheets
+
+| Sheet | Output file | Description |
+|---|---|---|
+| MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, and box score for the Philadelphia Phillies |
+| MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from [MLB Trade Rumors](https://www.mlbtraderumors.com/), prioritising Phillies, Padres, Yankees |
+| **MLB News** | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com team RSS feeds (Phillies → Padres → Yankees priority; configurable) |
+| NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, and box score for the Philadelphia Flyers |
+| Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political news stories from 7 RSS feeds + White House |
+
+### Customising MLB News team priority
+
+Open [src/screamsheet/__main__.py](src/screamsheet/__main__.py) and edit the `favorite_teams` list for the `"MLB News"` entry, or call the factory directly:
+
+```python
+ScreamsheetFactory.create_mlb_news_screamsheet(
+    output_filename="Files/MLB_NEWS_20260319.pdf",
+    favorite_teams=["Dodgers", "Phillies"],   # your preferred order
+)
+```
+
+Any team listed in `MLBNewsRssProvider.TEAM_FEEDS` is supported.  To add a new team, add its name and MLB.com RSS URL to that dictionary in [src/screamsheet/providers/mlb_news_rss_provider.py](src/screamsheet/providers/mlb_news_rss_provider.py).
+
 ## Running the system
 
 ```bash

@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, GrokMLBNewsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, GrokMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 
 
@@ -184,6 +184,32 @@ class ScreamsheetFactory:
             date=date
         )
     
+    @staticmethod
+    def create_mlb_news_screamsheet(
+        output_filename: str,
+        favorite_teams: Optional[list] = None,
+        include_weather: bool = True,
+        date: Optional[datetime] = None,
+    ) -> MLBNewsScreamsheet:
+        """
+        Create an MLB News screamsheet sourced from MLB.com team RSS feeds.
+
+        Args:
+            output_filename: Path to save the PDF.
+            favorite_teams:  Teams to feature first (default: Phillies, Padres, Yankees).
+            include_weather: Include weather report (default: True).
+            date:            Target date (defaults to today).
+
+        Returns:
+            MLBNewsScreamsheet instance
+        """
+        return MLBNewsScreamsheet(
+            output_filename=output_filename,
+            favorite_teams=favorite_teams,
+            include_weather=include_weather,
+            date=date,
+        )
+
     @staticmethod
     def create_players_tribune_screamsheet(
         output_filename: str,

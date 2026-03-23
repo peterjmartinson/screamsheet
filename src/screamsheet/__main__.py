@@ -6,7 +6,7 @@ Usage:
     uv run python -m screamsheet --single   # pick one interactively and run it
 """
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from .factory import ScreamsheetFactory
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
@@ -26,6 +26,8 @@ __all__ = [
 
 def _build_sheets(today_str: str) -> list:
     """Return the ordered list of (label, callable) pairs for every active screamsheet."""
+    today = datetime.strptime(today_str, "%Y%m%d")
+    game_date = today - timedelta(days=1)
     return [
         (
             "MLB  — Philadelphia Phillies",
@@ -33,7 +35,8 @@ def _build_sheets(today_str: str) -> list:
                 output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
                 team_id=ScreamsheetFactory.MLB_PHILLIES,
                 team_name='Philadelphia Phillies',
-                date=datetime.strptime(today_str, "%Y%m%d"),
+                date=game_date,
+                display_date=today,
             ),
         ),
         (
@@ -43,7 +46,7 @@ def _build_sheets(today_str: str) -> list:
                 favorite_teams=['Phillies', 'Padres', 'Yankees'],
                 max_articles=4,
                 include_weather=True,
-                date=datetime.strptime(today_str, "%Y%m%d"),
+                date=today,
             ),
         ),
         (
@@ -52,7 +55,7 @@ def _build_sheets(today_str: str) -> list:
                 output_filename=f'Files/MLB_NEWS_{today_str}.pdf',
                 favorite_teams=['Phillies', 'Padres', 'Yankees'],
                 include_weather=True,
-                date=datetime.strptime(today_str, "%Y%m%d"),
+                date=today,
             ),
         ),
         (
@@ -61,7 +64,8 @@ def _build_sheets(today_str: str) -> list:
                 output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
                 team_id=ScreamsheetFactory.NHL_FLYERS,
                 team_name='Philadelphia Flyers',
-                date=datetime.strptime(today_str, "%Y%m%d"),
+                date=game_date,
+                display_date=today,
             ),
         ),
         (
@@ -69,7 +73,7 @@ def _build_sheets(today_str: str) -> list:
             lambda: ScreamsheetFactory.create_presidential_screamsheet(
                 output_filename=f'Files/presidential_screamsheet_{today_str}.pdf',
                 max_articles=4,
-                date=datetime.strptime(today_str, "%Y%m%d"),
+                date=today,
             ),
         ),
     ]

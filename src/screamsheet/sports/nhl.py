@@ -14,7 +14,8 @@ class NHLScreamsheet(SportsScreamsheet):
         output_filename: str,
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None
     ):
         """
         Initialize NHL screamsheet.
@@ -23,14 +24,16 @@ class NHLScreamsheet(SportsScreamsheet):
             output_filename: Path to save the PDF
             team_id: NHL team ID (e.g., 4 for Flyers)
             team_name: Team name (e.g., "Philadelphia Flyers")
-            date: Target date (defaults to yesterday)
+            date: Target date for game data lookups (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
         """
         super().__init__(
             sport_name="NHL",
             output_filename=output_filename,
             team_id=team_id,
             team_name=team_name,
-            date=date
+            date=date,
+            display_date=display_date
         )
     
     def create_provider(self) -> NHLDataProvider:

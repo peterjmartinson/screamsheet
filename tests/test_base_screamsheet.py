@@ -69,3 +69,29 @@ class TestBaseScreamshetHelpers:
 
     def test_get_date_string(self):
         assert self.s.get_date_string() == "March 15, 2025"
+
+
+# ---------------------------------------------------------------------------
+# display_date
+# ---------------------------------------------------------------------------
+
+class TestBaseScreamshetDisplayDate:
+    def test_display_date_defaults_to_game_date(self):
+        """When no display_date is given, get_date_string() reflects self.date."""
+        d = datetime(2026, 3, 21)
+        s = _ConcreteScreamsheet("output.pdf", date=d)
+        assert s.get_date_string() == "March 21, 2026"
+
+    def test_display_date_overrides_date_string(self):
+        """When display_date differs from date, get_date_string() returns display_date."""
+        game_date = datetime(2026, 3, 21)
+        run_date = datetime(2026, 3, 22)
+        s = _ConcreteScreamsheet("output.pdf", date=game_date, display_date=run_date)
+        assert s.get_date_string() == "March 22, 2026"
+
+    def test_display_date_does_not_affect_self_date(self):
+        """display_date never changes the game-lookup date stored in self.date."""
+        game_date = datetime(2026, 3, 21)
+        run_date = datetime(2026, 3, 22)
+        s = _ConcreteScreamsheet("output.pdf", date=game_date, display_date=run_date)
+        assert s.date == game_date

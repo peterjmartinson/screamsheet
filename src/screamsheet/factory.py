@@ -56,7 +56,8 @@ class ScreamsheetFactory:
         output_filename: str,
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None
     ) -> MLBScreamsheet:
         """
         Create an MLB screamsheet.
@@ -65,7 +66,8 @@ class ScreamsheetFactory:
             output_filename: Path to save the PDF
             team_id: MLB team ID (optional, e.g., 143 for Phillies)
             team_name: Team name (optional, e.g., "Philadelphia Phillies")
-            date: Target date (defaults to yesterday)
+            date: Target date for game data lookups (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
             
         Returns:
             MLBScreamsheet instance
@@ -74,7 +76,8 @@ class ScreamsheetFactory:
             output_filename=output_filename,
             team_id=team_id,
             team_name=team_name,
-            date=date
+            date=date,
+            display_date=display_date
         )
     
     @staticmethod
@@ -82,7 +85,8 @@ class ScreamsheetFactory:
         output_filename: str,
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None
     ) -> NHLScreamsheet:
         """
         Create an NHL screamsheet.
@@ -91,7 +95,8 @@ class ScreamsheetFactory:
             output_filename: Path to save the PDF
             team_id: NHL team ID (optional, e.g., 4 for Flyers)
             team_name: Team name (optional, e.g., "Philadelphia Flyers")
-            date: Target date (defaults to yesterday)
+            date: Target date for game data lookups (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
             
         Returns:
             NHLScreamsheet instance
@@ -100,7 +105,8 @@ class ScreamsheetFactory:
             output_filename=output_filename,
             team_id=team_id,
             team_name=team_name,
-            date=date
+            date=date,
+            display_date=display_date
         )
     
     @staticmethod

@@ -102,3 +102,35 @@ class TestNHLScreamsheet:
     def test_team_id_stored(self):
         s = NHLScreamsheet("out.pdf", team_id=4)
         assert s.team_id == 4
+
+
+# ---------------------------------------------------------------------------
+# display_date — sections always use game date, not display date
+# ---------------------------------------------------------------------------
+
+class TestSportsScreamseetDisplayDate:
+    def test_game_scores_section_uses_game_date_not_display_date(self):
+        """GameScoresSection receives self.date (yesterday) even when display_date is set."""
+        game_date = datetime(2026, 3, 21)
+        run_date = datetime(2026, 3, 22)
+        s = NHLScreamsheet("out.pdf", date=game_date, display_date=run_date)
+        sections = s.build_sections()
+        gs = next(sec for sec in sections if isinstance(sec, GameScoresSection))
+        assert gs.date == game_date
+
+    def test_box_score_section_uses_game_date_not_display_date(self):
+        """BoxScoreSection receives self.date (yesterday) even when display_date is set."""
+        game_date = datetime(2026, 3, 21)
+        run_date = datetime(2026, 3, 22)
+        s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies",
+                           date=game_date, display_date=run_date)
+        sections = s.build_sections()
+        bs = next(sec for sec in sections if isinstance(sec, BoxScoreSection))
+        assert bs.date == game_date
+
+    def test_subtitle_shows_display_date_not_game_date(self):
+        """get_date_string() returns display_date when set, not game date."""
+        game_date = datetime(2026, 3, 21)
+        run_date = datetime(2026, 3, 22)
+        s = NHLScreamsheet("out.pdf", date=game_date, display_date=run_date)
+        assert s.get_date_string() == "March 22, 2026"

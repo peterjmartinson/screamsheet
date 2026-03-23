@@ -31,7 +31,8 @@ class SportsScreamsheet(BaseScreamsheet):
         output_filename: str,
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None
     ):
         """
         Initialize the sports screamsheet.
@@ -41,9 +42,10 @@ class SportsScreamsheet(BaseScreamsheet):
             output_filename: Path to save the PDF
             team_id: ID of the team to feature (optional)
             team_name: Name of the team to feature (optional)
-            date: Target date (defaults to yesterday)
+            date: Target date for game data lookups (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
         """
-        super().__init__(output_filename, date)
+        super().__init__(output_filename, date, display_date)
         self.sport_name = sport_name
         self.team_id = team_id
         self.team_name = team_name

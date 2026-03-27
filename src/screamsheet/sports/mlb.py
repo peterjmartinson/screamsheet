@@ -1,5 +1,5 @@
 """MLB screamsheet implementation."""
-from typing import Optional
+from typing import List, Optional, Tuple
 from datetime import datetime
 
 from .base_sports import SportsScreamsheet
@@ -15,17 +15,19 @@ class MLBScreamsheet(SportsScreamsheet):
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
-        display_date: Optional[datetime] = None
+        display_date: Optional[datetime] = None,
+        favorite_teams: Optional[List[Tuple[int, str]]] = None,
     ):
         """
         Initialize MLB screamsheet.
         
         Args:
             output_filename: Path to save the PDF
-            team_id: MLB team ID (e.g., 143 for Phillies)
-            team_name: Team name (e.g., "Philadelphia Phillies")
+            team_id: MLB team ID (deprecated — use favorite_teams)
+            team_name: Team name (deprecated — use favorite_teams)
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
+            favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
         """
         super().__init__(
             sport_name="MLB",
@@ -33,7 +35,8 @@ class MLBScreamsheet(SportsScreamsheet):
             team_id=team_id,
             team_name=team_name,
             date=date,
-            display_date=display_date
+            display_date=display_date,
+            favorite_teams=favorite_teams,
         )
     
     def create_provider(self) -> MLBDataProvider:

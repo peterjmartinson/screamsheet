@@ -178,3 +178,17 @@ class TestNHLDumpJson:
             with patch.object(provider, "_dump_json") as mock_dump:
                 provider.get_game_scores(sample_date)
         mock_dump.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# has_game
+# ---------------------------------------------------------------------------
+
+class TestNHLHasGame:
+    def test_returns_true_when_game_exists(self, provider, sample_date):
+        with patch.object(provider, "_get_game_pk", return_value=2025020001):
+            assert provider.has_game(team_id=4, date=sample_date) is True
+
+    def test_returns_false_when_no_game(self, provider, sample_date):
+        with patch.object(provider, "_get_game_pk", return_value=None):
+            assert provider.has_game(team_id=4, date=sample_date) is False

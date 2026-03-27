@@ -8,6 +8,7 @@ Usage:
 import argparse
 from datetime import datetime, timedelta
 from .factory import ScreamsheetFactory
+from .config import load_config
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
 from .political import PresidentialScreamsheet
@@ -28,13 +29,18 @@ def _build_sheets(today_str: str) -> list:
     """Return the ordered list of (label, callable) pairs for every active screamsheet."""
     today = datetime.strptime(today_str, "%Y%m%d")
     game_date = today - timedelta(days=1)
+
+    cfg = load_config()
+    mlb_teams = [(t.id, t.name) for t in cfg.mlb.favorite_teams]
+    nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
+    mlb_news_names = cfg.mlb.news_names
+
     return [
         (
-            "MLB  — Philadelphia Phillies",
+            "MLB  — " + (cfg.mlb.favorite_teams[0].name if cfg.mlb.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_mlb_screamsheet(
                 output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
-                team_id=ScreamsheetFactory.MLB_PHILLIES,
-                team_name='Philadelphia Phillies',
+                favorite_teams=mlb_teams,
                 date=game_date,
                 display_date=today,
             ),
@@ -43,7 +49,7 @@ def _build_sheets(today_str: str) -> list:
             "MLB Trade Rumors",
             lambda: ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
                 output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
-                favorite_teams=['Phillies', 'Padres', 'Yankees'],
+                favorite_teams=mlb_news_names,
                 max_articles=4,
                 include_weather=True,
                 date=today,
@@ -53,17 +59,16 @@ def _build_sheets(today_str: str) -> list:
             "MLB News",
             lambda: ScreamsheetFactory.create_mlb_news_screamsheet(
                 output_filename=f'Files/MLB_NEWS_{today_str}.pdf',
-                favorite_teams=['Phillies', 'Padres', 'Yankees'],
+                favorite_teams=mlb_news_names,
                 include_weather=True,
                 date=today,
             ),
         ),
         (
-            "NHL  — Philadelphia Flyers",
+            "NHL  — " + (cfg.nhl.favorite_teams[0].name if cfg.nhl.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_nhl_screamsheet(
                 output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
-                team_id=ScreamsheetFactory.NHL_FLYERS,
-                team_name='Philadelphia Flyers',
+                favorite_teams=nhl_teams,
                 date=game_date,
                 display_date=today,
             ),

@@ -1,0 +1,42 @@
+# Screamsheet user preferences — EXAMPLE FILE
+# Copy this to config.yaml and fill in your own teams.
+# Teams are listed in priority order. On days when the first team didn't play,
+# the next team in the list is checked, and so on.
+#
+# NHL team IDs: https://api-web.nhle.com/v1/standings/now  (look for "id" in each team record)
+# MLB team IDs: https://statsapi.mlb.com/api/v1/teams?sportId=1
+# NBA team IDs: use nba_api  (e.g. nba_api.stats.static.teams.get_teams())
+# NFL team IDs: confirm via your NFL data provider
+
+nhl:
+  favorite_teams:
+    - id: 4
+      name: "Philadelphia Flyers"
+    - id: 7
+      name: "Buffalo Sabres"
+    - id: 12
+      name: "Carolina Hurricanes"
+
+mlb:
+  favorite_teams:
+    - id: 143
+      name: "Philadelphia Phillies"
+    - id: 135
+      name: "San Diego Padres"
+    - id: 147
+      name: "New York Yankees"
+  # Short names used by the news and trade-rumors sheets to filter articles.
+  news_names:
+    - "Phillies"
+    - "Padres"
+    - "Yankees"
+
+nba:
+  favorite_teams:
+    - id: 1610612755
+      name: "Philadelphia 76ers"
+
+nfl:
+  favorite_teams:
+    - id: 4
+      name: "Philadelphia Eagles"

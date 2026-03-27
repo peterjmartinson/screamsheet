@@ -118,3 +118,21 @@ class TestMLBGetStandings:
             result = provider.get_standings(season=2025)
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+
+
+# ---------------------------------------------------------------------------
+# has_game
+# ---------------------------------------------------------------------------
+
+class TestMLBHasGame:
+    def test_returns_true_when_game_exists(self, provider, sample_date):
+        with patch.object(provider, "_get_game_pk", return_value=745528):
+            assert provider.has_game(team_id=143, date=sample_date) is True
+
+    def test_returns_false_when_no_game(self, provider, sample_date):
+        with patch.object(provider, "_get_game_pk", return_value=None):
+            assert provider.has_game(team_id=143, date=sample_date) is False
+
+    def test_returns_false_on_exception(self, provider, sample_date):
+        with patch.object(provider, "_get_game_pk", side_effect=Exception("network error")):
+            assert provider.has_game(team_id=143, date=sample_date) is False

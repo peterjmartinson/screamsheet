@@ -37,8 +37,8 @@ class BoxScoreSection(Section):
         self.summary_style = ParagraphStyle(
             name="SummaryText",
             parent=self.styles['Normal'],
-            fontName='Courier',
-            fontSize=10,
+            fontName='Helvetica',
+            fontSize=11,
             spaceAfter=6,
             alignment=TA_LEFT
         )

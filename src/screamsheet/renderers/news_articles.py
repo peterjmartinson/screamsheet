@@ -48,7 +48,7 @@ class NewsArticlesSection(Section):
             name="ArticleText",
             parent=self.styles['Normal'],
             fontName='Helvetica',
-            fontSize=10,
+            fontSize=11,
         )
     
     def fetch_data(self):

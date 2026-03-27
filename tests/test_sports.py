@@ -47,7 +47,8 @@ class TestSportsScreamseetBuildSections:
 
     def test_box_score_added_when_team_set(self):
         s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies")
-        sections = s.build_sections()
+        with patch.object(s.provider, "has_game", return_value=True):
+            sections = s.build_sections()
         types = [type(sec) for sec in sections]
         assert BoxScoreSection in types
 
@@ -58,7 +59,8 @@ class TestSportsScreamseetBuildSections:
 
     def test_section_count_with_team(self):
         s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies")
-        sections = s.build_sections()
+        with patch.object(s.provider, "has_game", return_value=True):
+            sections = s.build_sections()
         assert len(sections) == 3
 
 
@@ -127,6 +129,99 @@ class TestSportsScreamseetDisplayDate:
         sections = s.build_sections()
         bs = next(sec for sec in sections if isinstance(sec, BoxScoreSection))
         assert bs.date == game_date
+
+
+# ---------------------------------------------------------------------------
+# favorite_teams priority list — _resolve_featured_team
+# ---------------------------------------------------------------------------
+
+class TestResolveFeaturedTeam:
+    def test_first_team_featured_when_it_has_game(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", return_value=True):
+            result = s._resolve_featured_team()
+        assert result == (4, "Philadelphia Flyers")
+
+    def test_second_team_featured_when_first_has_no_game(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", side_effect=[False, True]):
+            result = s._resolve_featured_team()
+        assert result == (7, "Buffalo Sabres")
+
+    def test_returns_none_when_no_team_has_game(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", return_value=False):
+            result = s._resolve_featured_team()
+        assert result is None
+
+    def test_returns_none_when_list_is_empty(self):
+        s = NHLScreamsheet("out.pdf", favorite_teams=[])
+        result = s._resolve_featured_team()
+        assert result is None
+
+    def test_returns_none_when_no_teams_set(self):
+        s = NHLScreamsheet("out.pdf")
+        result = s._resolve_featured_team()
+        assert result is None
+
+
+class TestFavoriteTeamsBuildSections:
+    def test_box_score_added_for_first_team_with_game(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", return_value=True):
+            sections = s.build_sections()
+        types = [type(sec) for sec in sections]
+        assert BoxScoreSection in types
+
+    def test_box_score_uses_resolved_team_id(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", side_effect=[False, True]):
+            sections = s.build_sections()
+        bs = next(sec for sec in sections if isinstance(sec, BoxScoreSection))
+        assert bs.team_id == 7
+
+    def test_no_box_score_when_no_team_has_game(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        with patch.object(s.provider, "has_game", return_value=False):
+            sections = s.build_sections()
+        types = [type(sec) for sec in sections]
+        assert BoxScoreSection not in types
+
+
+class TestBackwardCompatSingleTeam:
+    def test_team_id_and_name_still_work(self):
+        """Old-style team_id + team_name args must still produce a BoxScoreSection."""
+        s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies")
+        with patch.object(s.provider, "has_game", return_value=True):
+            sections = s.build_sections()
+        types = [type(sec) for sec in sections]
+        assert BoxScoreSection in types
+
+    def test_team_id_stored_on_sheet(self):
+        s = NHLScreamsheet("out.pdf", team_id=4, team_name="Philadelphia Flyers")
+        assert s.team_id == 4
+
+    def test_team_name_stored_on_sheet(self):
+        s = NHLScreamsheet("out.pdf", team_id=4, team_name="Philadelphia Flyers")
+        assert s.team_name == "Philadelphia Flyers"
 
     def test_subtitle_shows_display_date_not_game_date(self):
         """get_date_string() returns display_date when set, not game date."""

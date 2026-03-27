@@ -78,6 +78,23 @@ class DataProvider(ABC):
         """
         return None
 
+    def has_game(self, team_id: int, date: datetime) -> bool:
+        """Return True if the team played a completed game on the given date.
+
+        The default implementation always returns True, which preserves
+        existing behaviour for providers that have not yet implemented
+        box-score / game-PK lookups (e.g. NBA, NFL).  Concrete providers
+        that support box scores should override this method.
+
+        Args:
+            team_id: The team ID to check.
+            date: The date to check.
+
+        Returns:
+            True if a completed game exists for this team on this date.
+        """
+        return True
+
     # --- News provider helpers -------------------------------------------
     def _sanitize_text(self, text: str) -> str:
         """Clean up article text: strip HTML, decode entities, remove control chars.

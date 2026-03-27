@@ -188,6 +188,10 @@ class NHLDataProvider(DataProvider):
             print(f"Error getting NHL game summary: {e}")
             return None
     
+    def has_game(self, team_id: int, date: datetime) -> bool:
+        """Return True if the team played a completed game on the given date."""
+        return self._get_game_pk(team_id, date) is not None
+
     def _get_game_pk(self, team_id: int, date: datetime) -> Optional[int]:
         """
         Get the game PK for a specific team and date.

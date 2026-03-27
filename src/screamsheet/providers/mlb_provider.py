@@ -124,6 +124,30 @@ class MLBDataProvider(DataProvider):
             print(f"Warning: Error getting division name: {e}")
             return "Unknown Division"
     
+    def _get_game_pk(self, team_id: int, date: datetime) -> Optional[int]:
+        """Return the gamePk for a completed game on date, or None."""
+        game_date = date.strftime("%Y-%m-%d")
+        schedule_url = f"{self.base_url}/api/v1/schedule"
+        params = {'sportId': 1, 'teamId': team_id, 'date': game_date}
+        schedule_response = requests.get(schedule_url, params=params)
+        schedule_response.raise_for_status()
+        schedule_data = schedule_response.json()
+
+        if 'dates' in schedule_data and schedule_data['dates']:
+            for game in schedule_data['dates'][0]['games']:
+                if game['status']['statusCode'] == 'F':
+                    if (game['teams']['away']['team']['id'] == team_id or
+                            game['teams']['home']['team']['id'] == team_id):
+                        return game['gamePk']
+        return None
+
+    def has_game(self, team_id: int, date: datetime) -> bool:
+        """Return True if the team played a completed game on the given date."""
+        try:
+            return self._get_game_pk(team_id, date) is not None
+        except Exception:
+            return False
+
     def get_box_score(self, team_id: int, date: datetime) -> Optional[Any]:
         """
         Get box score for a specific team and date.
@@ -138,21 +162,7 @@ class MLBDataProvider(DataProvider):
         try:
             game_date = date.strftime("%Y-%m-%d")
 
-            # Find the game PK for this team and date
-            schedule_url = f"{self.base_url}/api/v1/schedule"
-            params = {'sportId': 1, 'teamId': team_id, 'date': game_date}
-            schedule_response = requests.get(schedule_url, params=params)
-            schedule_response.raise_for_status()
-            schedule_data = schedule_response.json()
-
-            game_pk = None
-            if 'dates' in schedule_data and schedule_data['dates']:
-                for game in schedule_data['dates'][0]['games']:
-                    if game['status']['statusCode'] == 'F':
-                        if (game['teams']['away']['team']['id'] == team_id or
-                                game['teams']['home']['team']['id'] == team_id):
-                            game_pk = game['gamePk']
-                            break
+            game_pk = self._get_game_pk(team_id, date)
 
             if not game_pk:
                 print(f"No completed game found for team ID {team_id} on {game_date}.")

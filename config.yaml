@@ -1,0 +1,37 @@
+# Screamsheet user preferences
+# Teams are listed in priority order. On days when the first team didn't play,
+# the next team in the list is checked, and so on.
+
+nhl:
+  favorite_teams:
+    - id: 4
+      name: "Philadelphia Flyers"
+    - id: 54
+      name: "Vegas Golden Knights"
+    - id: 5
+      name: "Pittsburgh Penguins"
+
+mlb:
+  favorite_teams:
+    - id: 143
+      name: "Philadelphia Phillies"
+    - id: 135
+      name: "San Diego Padres"
+    - id: 147
+      name: "New York Yankees"
+  # Short names used by the news and trade-rumors sheets to filter articles.
+  # These must match the names used in article headlines/tags on those sites.
+  news_names:
+    - "Phillies"
+    - "Padres"
+    - "Yankees"
+
+nba:
+  favorite_teams:
+    - id: 1610612755
+      name: "Philadelphia 76ers"
+
+nfl:
+  favorite_teams:
+    - id: 4
+      name: "Philadelphia Eagles"

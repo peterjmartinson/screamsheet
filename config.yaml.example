@@ -40,3 +40,16 @@ nfl:
   favorite_teams:
     - id: 4
       name: "Philadelphia Eagles"
+
+# Weather locations for each screamsheet type.
+# Uses the National Weather Service API (US locations only).
+# Find lat/lon for your city at https://www.latlong.net/
+weather:
+  presidential:
+    lat: 38.8951
+    lon: -77.0364
+    location_name: "Washington, DC"
+  mlb_news:
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"

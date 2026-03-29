@@ -36,12 +36,32 @@ class MLBConfig(SportConfig):
 
 
 @dataclass
+class WeatherLocationConfig:
+    """Lat/lon and display name for a weather location."""
+    lat: float
+    lon: float
+    location_name: str
+
+
+@dataclass
+class WeatherConfig:
+    """Weather location config for each screamsheet type."""
+    presidential: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(38.8951, -77.0364, "Washington, DC")
+    )
+    mlb_news: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
     mlb: MLBConfig = field(default_factory=MLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
+    weather: WeatherConfig = field(default_factory=WeatherConfig)
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -53,6 +73,30 @@ def _parse_mlb(raw: dict) -> MLBConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
     return MLBConfig(favorite_teams=teams, news_names=news_names)
+
+
+def _parse_weather_location(
+    raw: dict,
+    default_lat: float,
+    default_lon: float,
+    default_name: str,
+) -> WeatherLocationConfig:
+    return WeatherLocationConfig(
+        lat=float(raw.get("lat", default_lat)),
+        lon=float(raw.get("lon", default_lon)),
+        location_name=str(raw.get("location_name", default_name)),
+    )
+
+
+def _parse_weather(raw: dict) -> WeatherConfig:
+    return WeatherConfig(
+        presidential=_parse_weather_location(
+            raw.get("presidential", {}), 38.8951, -77.0364, "Washington, DC"
+        ),
+        mlb_news=_parse_weather_location(
+            raw.get("mlb_news", {}), 40.02, -75.34, "Bryn Mawr, PA"
+        ),
+    )
 
 
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
@@ -85,4 +129,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         mlb=_parse_mlb(raw.get("mlb", {})),
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
+        weather=_parse_weather(raw.get("weather", {})),
     )

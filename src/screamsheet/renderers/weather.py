@@ -51,6 +51,11 @@ class WeatherSection(Section):
             'WDesc', parent=base['Normal'],
             fontSize=7, alignment=1,
         )
+        self._location_style = ParagraphStyle(
+            'WLocation', parent=base['Normal'],
+            fontName='Helvetica', fontSize=9,
+            alignment=TA_CENTER, spaceAfter=4,
+        )
 
     # ------------------------------------------------------------------
     # Section protocol
@@ -72,7 +77,8 @@ class WeatherSection(Section):
         if not self.data:
             return []
 
-        return [self._build_flowable(self.data)]
+        location_para = Paragraph(self.provider.location_name, self._location_style)
+        return [location_para, self._build_flowable(self.data)]
 
     # ------------------------------------------------------------------
     # Flowable builder (ported from src/print_weather.py)

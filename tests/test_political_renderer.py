@@ -155,29 +155,29 @@ class TestPresidentialScreamsheet:
         assert sheet.get_subtitle() is None
 
     def test_build_sections_returns_two_sections(self):
-        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=False)
         sections = sheet.build_sections()
         assert len(sections) == 2
 
     def test_build_sections_are_news_articles_sections(self):
-        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=False)
         sections = sheet.build_sections()
         assert all(isinstance(s, NewsArticlesSection) for s in sections)
 
     def test_sections_share_same_provider(self):
         """Both NewsArticlesSection instances must share one provider (one fetch)."""
-        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=False)
         sections = sheet.build_sections()
         assert sections[0].provider is sections[1].provider
 
     def test_sections_have_correct_start_indices(self):
-        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=False)
         sections = sheet.build_sections()
         assert sections[0].start_index == 0
         assert sections[1].start_index == 2
 
     def test_max_articles_per_section_is_two(self):
-        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=False)
         sections = sheet.build_sections()
         assert all(s.max_articles == 2 for s in sections)
 
@@ -185,6 +185,32 @@ class TestPresidentialScreamsheet:
         from screamsheet.providers.political_news_provider import PoliticalNewsProvider
         sheet = PresidentialScreamsheet(output_filename="out.pdf")
         assert isinstance(sheet.provider, PoliticalNewsProvider)
+
+    def test_include_weather_defaults_to_true(self):
+        sheet = PresidentialScreamsheet(output_filename="out.pdf")
+        assert sheet.include_weather is True
+
+    def test_build_sections_with_weather_returns_three_sections(self):
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=True)
+        sections = sheet.build_sections()
+        assert len(sections) == 3
+
+    def test_build_sections_first_section_is_weather(self):
+        from screamsheet.renderers.weather import WeatherSection
+        sheet = PresidentialScreamsheet(output_filename="out.pdf", include_weather=True)
+        sections = sheet.build_sections()
+        assert isinstance(sections[0], WeatherSection)
+
+    def test_weather_section_uses_provided_location_name(self):
+        from screamsheet.renderers.weather import WeatherSection
+        sheet = PresidentialScreamsheet(
+            output_filename="out.pdf",
+            include_weather=True,
+            weather_location_name="Washington, DC",
+        )
+        sections = sheet.build_sections()
+        assert isinstance(sections[0], WeatherSection)
+        assert sections[0].provider.location_name == "Washington, DC"
 
     def test_generate_produces_pdf(self, tmp_path):
         out = tmp_path / "presidential.pdf"

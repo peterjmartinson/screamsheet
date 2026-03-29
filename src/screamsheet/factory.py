@@ -179,6 +179,9 @@ class ScreamsheetFactory:
         favorite_teams: Optional[list] = None,
         max_articles: int = 4,
         include_weather: bool = True,
+        weather_lat: float = 40.02,
+        weather_lon: float = -75.34,
+        weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None
     ) -> MLBTradeRumorsScreamsheet:
         """
@@ -189,6 +192,9 @@ class ScreamsheetFactory:
             favorite_teams: List of favorite team names (optional)
             max_articles: Maximum number of articles (default: 4)
             include_weather: Include weather report (default: True)
+            weather_lat: Latitude for weather location
+            weather_lon: Longitude for weather location
+            weather_location_name: Display name for weather location
             date: Target date (defaults to today)
             
         Returns:
@@ -199,6 +205,9 @@ class ScreamsheetFactory:
             favorite_teams=favorite_teams,
             max_articles=max_articles,
             include_weather=include_weather,
+            weather_lat=weather_lat,
+            weather_lon=weather_lon,
+            weather_location_name=weather_location_name,
             date=date
         )
     
@@ -207,6 +216,9 @@ class ScreamsheetFactory:
         output_filename: str,
         favorite_teams: Optional[list] = None,
         include_weather: bool = True,
+        weather_lat: float = 40.02,
+        weather_lon: float = -75.34,
+        weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
     ) -> MLBNewsScreamsheet:
         """
@@ -216,6 +228,9 @@ class ScreamsheetFactory:
             output_filename: Path to save the PDF.
             favorite_teams:  Teams to feature first (default: Phillies, Padres, Yankees).
             include_weather: Include weather report (default: True).
+            weather_lat: Latitude for weather location.
+            weather_lon: Longitude for weather location.
+            weather_location_name: Display name for weather location.
             date:            Target date (defaults to today).
 
         Returns:
@@ -225,6 +240,9 @@ class ScreamsheetFactory:
             output_filename=output_filename,
             favorite_teams=favorite_teams,
             include_weather=include_weather,
+            weather_lat=weather_lat,
+            weather_lon=weather_lon,
+            weather_location_name=weather_location_name,
             date=date,
         )
 
@@ -307,6 +325,10 @@ class ScreamsheetFactory:
     def create_presidential_screamsheet(
         output_filename: str,
         max_articles: int = 4,
+        include_weather: bool = True,
+        weather_lat: float = 38.8951,
+        weather_lon: float = -77.0364,
+        weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
     ) -> PresidentialScreamsheet:
         """
@@ -318,6 +340,10 @@ class ScreamsheetFactory:
         Args:
             output_filename: Path to save the PDF.
             max_articles:    Number of top stories to include (default: 4).
+            include_weather: Include weather report at top (default: True).
+            weather_lat:     Latitude for weather location.
+            weather_lon:     Longitude for weather location.
+            weather_location_name: Display name for weather location.
             date:            Target date (defaults to today).
 
         Returns:
@@ -326,5 +352,9 @@ class ScreamsheetFactory:
         return PresidentialScreamsheet(
             output_filename=output_filename,
             max_articles=max_articles,
+            include_weather=include_weather,
+            weather_lat=weather_lat,
+            weather_lon=weather_lon,
+            weather_location_name=weather_location_name,
             date=date,
         )

@@ -35,3 +35,13 @@ nfl:
   favorite_teams:
     - id: 4
       name: "Philadelphia Eagles"
+
+weather:
+  presidential:
+    lat: 38.8951
+    lon: -77.0364
+    location_name: "Washington, DC"
+  mlb_news:
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"

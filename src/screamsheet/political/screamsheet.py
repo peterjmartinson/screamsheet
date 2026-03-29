@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from ..base import Section
 from ..news.base_news import NewsScreamsheet
-from ..renderers import NewsArticlesSection
+from ..renderers import NewsArticlesSection, WeatherSection
 from ..providers.political_news_provider import PoliticalNewsProvider
 from ..llm.summarizers import PoliticalNewsSummarizer
 
@@ -35,15 +35,22 @@ class PresidentialScreamsheet(NewsScreamsheet):
         self,
         output_filename: str,
         max_articles: int = 4,
+        include_weather: bool = True,
+        weather_lat: float = 38.8951,
+        weather_lon: float = -77.0364,
+        weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
     ):
         super().__init__(
             news_source="Presidential Screamsheet",
             output_filename=output_filename,
-            include_weather=False,
+            include_weather=include_weather,
             date=date,
         )
         self.max_articles = max_articles
+        self.weather_lat = weather_lat
+        self.weather_lon = weather_lon
+        self.weather_location_name = weather_location_name
         self.provider = PoliticalNewsProvider(max_articles=self.max_articles)
 
     def get_title(self) -> str:
@@ -53,22 +60,38 @@ class PresidentialScreamsheet(NewsScreamsheet):
         return None
 
     def build_sections(self) -> List[Section]:
-        return [
+        sections: List[Section] = []
+
+        if self.include_weather:
+            sections.append(
+                WeatherSection(
+                    title="Weather Report",
+                    date=self.date,
+                    lat=self.weather_lat,
+                    lon=self.weather_lon,
+                    location_name=self.weather_location_name,
+                )
+            )
+
+        sections.append(
             NewsArticlesSection(
                 title="Top Stories",
                 provider=self.provider,
                 max_articles=2,
                 start_index=0,
                 summarizer_class=PoliticalNewsSummarizer,
-            ),
+            )
+        )
+        sections.append(
             NewsArticlesSection(
                 title="More Stories",
                 provider=self.provider,
                 max_articles=2,
                 start_index=2,
                 summarizer_class=PoliticalNewsSummarizer,
-            ),
-        ]
+            )
+        )
+        return sections
 
 
 # ---------------------------------------------------------------------------

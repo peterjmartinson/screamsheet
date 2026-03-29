@@ -38,9 +38,9 @@ nfl:
 
 weather:
   presidential:
-    lat: 38.8951
-    lon: -77.0364
-    location_name: "Washington, DC"
+    lat: 34.8697
+    lon: -111.7610
+    location_name: "Sedona, AZ"
   mlb_news:
     lat: 40.02
     lon: -75.34

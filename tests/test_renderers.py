@@ -206,3 +206,21 @@ class TestWeatherSection:
         with patch("screamsheet.renderers.weather.Image", MagicMock()):
             result = sec.render()
         assert len(result) > 0
+
+    def test_render_first_element_is_location_paragraph(self, forecast_data, sample_date):
+        from reportlab.platypus import Paragraph
+        sec = WeatherSection("Weather", date=sample_date, location_name="Washington, DC")
+        sec.data = forecast_data
+        with patch("screamsheet.renderers.weather.Image", MagicMock()):
+            result = sec.render()
+        assert isinstance(result[0], Paragraph)
+        assert "Washington, DC" in result[0].text
+
+    def test_render_location_paragraph_precedes_table(self, forecast_data, sample_date):
+        from reportlab.platypus import Paragraph, Table
+        sec = WeatherSection("Weather", date=sample_date, location_name="Bryn Mawr, PA")
+        sec.data = forecast_data
+        with patch("screamsheet.renderers.weather.Image", MagicMock()):
+            result = sec.render()
+        assert isinstance(result[0], Paragraph)
+        assert isinstance(result[1], Table)

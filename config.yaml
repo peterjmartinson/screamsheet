@@ -45,3 +45,6 @@ weather:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+
+output:
+  directory: "/home/peter/PRINT"

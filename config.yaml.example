@@ -53,3 +53,11 @@ weather:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+
+# Output directory for generated PDFs.
+# After writing to Files/, each PDF is also copied to this directory.
+# Point this at the directory your delivery system watches (e.g. dispatch's PRINT inbox).
+# The directory must already exist; screamsheet will raise an error if it is missing.
+# Omit this section (or set directory to "Files/") to skip the copy step.
+output:
+  directory: "/home/peter/PRINT"

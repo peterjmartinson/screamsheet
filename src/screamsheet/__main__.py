@@ -6,7 +6,9 @@ Usage:
     uv run python -m screamsheet --single   # pick one interactively and run it
 """
 import argparse
+import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 from .factory import ScreamsheetFactory
 from .config import load_config
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
@@ -93,13 +95,26 @@ def _build_sheets(today_str: str) -> list:
     ]
 
 
-def _run_sheet(label: str, factory_fn) -> None:
+def _copy_to_output(pdf_path: str, output_dir: str) -> None:
+    """Copy pdf_path into output_dir. No-op when output_dir is the default 'Files/'."""
+    if output_dir == "Files/":
+        return
+    dest = Path(output_dir)
+    if not dest.is_dir():
+        raise FileNotFoundError(
+            f"Output directory does not exist: {output_dir}"
+        )
+    shutil.copy2(pdf_path, dest / Path(pdf_path).name)
+
+
+def _run_sheet(label: str, factory_fn, output_dir: str = "Files/") -> None:
     sheet = factory_fn()
-    sheet.generate()
+    pdf_path = sheet.generate()
+    _copy_to_output(pdf_path, output_dir)
     print(f"Generated: {label}")
 
 
-def _pick_and_run(sheets: list) -> None:
+def _pick_and_run(sheets: list, output_dir: str = "Files/") -> None:
     """Present an interactive menu, prompt for a selection, and run that one sheet."""
     print("\nAvailable screamsheets:")
     for i, (label, _) in enumerate(sheets, start=1):
@@ -115,7 +130,7 @@ def _pick_and_run(sheets: list) -> None:
 
     label, factory_fn = sheets[choice]
     print()
-    _run_sheet(label, factory_fn)
+    _run_sheet(label, factory_fn, output_dir=output_dir)
 
 
 def main():
@@ -131,13 +146,19 @@ def main():
     args = parser.parse_args()
 
     today_str = datetime.now().strftime("%Y%m%d")
+    cfg = load_config()
+    output_dir = cfg.output.directory
+    if output_dir != "Files/" and not Path(output_dir).is_dir():
+        raise FileNotFoundError(
+            f"Configured output.directory does not exist: {output_dir}"
+        )
     sheets = _build_sheets(today_str)
 
     if args.single:
-        _pick_and_run(sheets)
+        _pick_and_run(sheets, output_dir=output_dir)
     else:
         for label, factory_fn in sheets:
-            _run_sheet(label, factory_fn)
+            _run_sheet(label, factory_fn, output_dir=output_dir)
 
 
 if __name__ == "__main__":

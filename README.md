@@ -27,8 +27,42 @@ Any team listed in `MLBNewsRssProvider.TEAM_FEEDS` is supported.  To add a new t
 ## Running the system
 
 ```bash
-uv run screamsheet        # generate all sheets and send to printer
+uv run screamsheet        # generate all sheets
 ```
+
+---
+
+## Output directory — integrating with dispatch
+
+By default, generated PDFs are written to `Files/` inside the project.  To also
+copy each PDF to an external directory (e.g. a dispatch inbox) after generation,
+add an `output` section to `config.yaml`:
+
+```yaml
+output:
+  directory: "/home/peter/PRINT"
+```
+
+**Rules:**
+- If `output.directory` is omitted, or set to `"Files/"`, no copy is made.
+- The directory **must already exist**; screamsheet raises `FileNotFoundError`
+  if it is missing at startup.
+- Each PDF is copied (not moved) — the original in `Files/` is preserved as a
+  local archive.
+
+### Wiring to dispatch
+
+Point `output.directory` at dispatch's `incoming/PRINT/` folder:
+
+```yaml
+# screamsheet/config.yaml
+output:
+  directory: "/home/peter/Code/dispatch/incoming/PRINT"
+```
+
+Then run dispatch's print watcher separately (see `dispatch/run_print_watcher.sh`).
+It polls the directory, submits each PDF to `lp`, and moves processed files to
+`PRINT/PRINTED/` — no changes to screamsheet needed.
 
 ---
 

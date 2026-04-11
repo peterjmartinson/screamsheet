@@ -55,6 +55,12 @@ class WeatherConfig:
 
 
 @dataclass
+class OutputConfig:
+    """Configuration for where generated PDFs are copied after generation."""
+    directory: str = "Files/"
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
@@ -62,6 +68,7 @@ class ScreamsheetConfig:
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
+    output: OutputConfig = field(default_factory=OutputConfig)
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -99,6 +106,10 @@ def _parse_weather(raw: dict) -> WeatherConfig:
     )
 
 
+def _parse_output(raw: dict) -> OutputConfig:
+    return OutputConfig(directory=str(raw.get("directory", "Files/")))
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -130,4 +141,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
         weather=_parse_weather(raw.get("weather", {})),
+        output=_parse_output(raw.get("output", {})),
     )

@@ -12,6 +12,7 @@ from .config import load_config
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
 from .political import PresidentialScreamsheet
+from .sky.sky_tonight import SkyTonightScreamsheet
 
 __all__ = [
     'ScreamsheetFactory',
@@ -22,6 +23,7 @@ __all__ = [
     'MLBTradeRumorsScreamsheet',
     'MLBNewsScreamsheet',
     'PresidentialScreamsheet',
+    'SkyTonightScreamsheet',
 ]
 
 
@@ -35,8 +37,7 @@ def _build_sheets(today_str: str) -> list:
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
     mlb_news_names = cfg.mlb.news_names
 
-    return [
-        (
+    return [        (
             "MLB  — " + (cfg.mlb.favorite_teams[0].name if cfg.mlb.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_mlb_screamsheet(
                 output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
@@ -87,6 +88,16 @@ def _build_sheets(today_str: str) -> list:
                 weather_lat=cfg.weather.presidential.lat,
                 weather_lon=cfg.weather.presidential.lon,
                 weather_location_name=cfg.weather.presidential.location_name,
+                date=today,
+            ),
+        ),
+        (
+            "Sky Tonight — " + cfg.sky.location_name,
+            lambda: ScreamsheetFactory.create_sky_tonight_screamsheet(
+                output_filename=f'Files/SKY_{today_str}.pdf',
+                lat=cfg.sky.lat,
+                lon=cfg.sky.lon,
+                location_name=cfg.sky.location_name,
                 date=today,
             ),
         ),

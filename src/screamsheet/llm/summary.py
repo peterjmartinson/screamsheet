@@ -15,7 +15,7 @@ continue to work unchanged.
 # isort: skip_file
 from .config import LLMConfig, DEFAULT_LLM_CONFIG  # noqa: F401
 from .base import BaseGameSummaryGenerator, ExtractedInfo, PromptChainInput  # noqa: F401
-from .summarizers import NHLGameSummarizer, MLBGameSummarizer, NewsSummarizer  # noqa: F401
+from .summarizers import NHLGameSummarizer, MLBGameSummarizer, NewsSummarizer, SkyNightSummarizer  # noqa: F401
 
 __all__ = [
     "LLMConfig",

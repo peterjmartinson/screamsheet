@@ -165,3 +165,35 @@ class PoliticalNewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class SkyNightSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a sky-tonight narrative bullet list.
+
+    Persona: an enthusiastic naked-eye amateur astronomer who also finds
+    astrology playfully fun.  Never recommends telescopes.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``planets``    str  — formatted planet/zodiac summary line
+    - ``moon_phase`` str  — e.g. "Waxing Crescent (35% illuminated)"
+    - ``highlights`` str  — newline-separated highlight sentences
+    - ``location``   str  — observer location name
+    - ``date``       str  — display date string
+    """
+
+    _PROMPT_FILE = Path("sky_tonight.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

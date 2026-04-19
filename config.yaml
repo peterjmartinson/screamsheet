@@ -38,10 +38,15 @@ nfl:
 
 weather:
   presidential:
-    lat: 34.8697
-    lon: -111.7610
-    location_name: "Sedona, AZ"
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"
   mlb_news:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+
+sky:
+  lat: 40.02
+  lon: -75.34
+  location_name: "Bryn Mawr, PA"

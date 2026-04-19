@@ -53,3 +53,10 @@ weather:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+
+# Sky Tonight location.
+# Find lat/lon for your city at https://www.latlong.net/
+sky:
+  lat: 40.02
+  lon: -75.34
+  location_name: "Bryn Mawr, PA"

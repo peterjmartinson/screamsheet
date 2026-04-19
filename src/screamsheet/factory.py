@@ -5,6 +5,7 @@ from datetime import datetime
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, GrokMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
+from .sky.sky_tonight import SkyTonightScreamsheet
 
 
 class ScreamsheetFactory:
@@ -356,5 +357,38 @@ class ScreamsheetFactory:
             weather_lat=weather_lat,
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
+            date=date,
+        )
+
+    @staticmethod
+    def create_sky_tonight_screamsheet(
+        output_filename: str,
+        lat: float = 40.0,
+        lon: float = -75.0,
+        location_name: str = "My Location",
+        date: Optional[datetime] = None,
+    ) -> SkyTonightScreamsheet:
+        """
+        Create a Sky Tonight screamsheet.
+
+        Generates a one-page PDF summarising the naked-eye night sky for
+        the configured location: a zodiac wheel showing planet positions
+        and a bulleted highlights section with an optional LLM remark.
+
+        Args:
+            output_filename: Path to save the PDF.
+            lat:             Observer latitude (decimal degrees).
+            lon:             Observer longitude (decimal degrees).
+            location_name:   Display name for the observer location.
+            date:            Target date (defaults to today).
+
+        Returns:
+            SkyTonightScreamsheet instance
+        """
+        return SkyTonightScreamsheet(
+            output_filename=output_filename,
+            lat=lat,
+            lon=lon,
+            location_name=location_name,
             date=date,
         )

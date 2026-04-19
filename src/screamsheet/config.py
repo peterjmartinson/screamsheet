@@ -55,6 +55,14 @@ class WeatherConfig:
 
 
 @dataclass
+class SkyConfig:
+    """Location config for the sky tonight screamsheet."""
+    lat: float = 40.0
+    lon: float = -75.0
+    location_name: str = "My Location"
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
@@ -62,6 +70,7 @@ class ScreamsheetConfig:
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
+    sky: SkyConfig = field(default_factory=SkyConfig)
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -99,6 +108,14 @@ def _parse_weather(raw: dict) -> WeatherConfig:
     )
 
 
+def _parse_sky(raw: dict) -> SkyConfig:
+    return SkyConfig(
+        lat=float(raw.get("lat", 40.0)),
+        lon=float(raw.get("lon", -75.0)),
+        location_name=str(raw.get("location_name", "My Location")),
+    )
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -130,4 +147,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
         weather=_parse_weather(raw.get("weather", {})),
+        sky=_parse_sky(raw.get("sky", {})),
     )

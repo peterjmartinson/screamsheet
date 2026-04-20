@@ -9,9 +9,10 @@ import os
 from datetime import datetime
 from typing import Any, List, cast
 
+from reportlab.lib.colors import black, HexColor
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from ..base import Section
 from ..llm.summarizers import SkyNightSummarizer
@@ -50,6 +51,20 @@ class SkyHighlightsSection(Section):
             spaceAfter=3,
         )
         self._heading_style = base["Heading2"]
+        self._glyph_style = ParagraphStyle(
+            "SkyGlyph",
+            parent=base["Normal"],
+            fontSize=9,
+            leading=11,
+            alignment=TA_CENTER,
+        )
+        self._gloss_style = ParagraphStyle(
+            "SkyGloss",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=11,
+            alignment=TA_CENTER,
+        )
 
     # ------------------------------------------------------------------
     # Section interface
@@ -84,6 +99,10 @@ class SkyHighlightsSection(Section):
             bullets: List[str] = cast(List[str], self.data) if isinstance(self.data, list) else []
             for bullet in bullets:
                 elements.append(Paragraph(f"• {bullet}", self._bullet_style))
+
+        # Glossary: symbol → planet name
+        elements.append(Spacer(1, 8))
+        elements.extend(self._build_glossary())
 
         return elements
 
@@ -128,3 +147,32 @@ class SkyHighlightsSection(Section):
             return str(result).strip() if result else ""
         except Exception:  # noqa: BLE001
             return ""
+
+    # ------------------------------------------------------------------
+    # Symbol glossary
+    # ------------------------------------------------------------------
+
+    def _build_glossary(self) -> List[Any]:
+        """Return a compact one-row symbol glossary as a ReportLab Table."""
+        from .zodiac_wheel import _PLANET_SYMBOLS, _UNICODE_FONT  # local import avoids circularity
+
+        ordered = [
+            "Sun", "Moon", "Mercury", "Venus", "Mars",
+            "Jupiter", "Saturn", "Uranus", "Neptune",
+        ]
+
+        symbol_cells = [Paragraph(f"<font name='{_UNICODE_FONT}' size='11'>{_PLANET_SYMBOLS[n]}</font>",
+                                   self._glyph_style) for n in ordered]
+        name_cells   = [Paragraph(n, self._gloss_style) for n in ordered]
+
+        col_w = 50  # points per column
+        table = Table([symbol_cells, name_cells],
+                      colWidths=[col_w] * len(ordered))
+        table.setStyle(TableStyle([
+            ("ALIGN",       (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING",  (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LINEABOVE",   (0, 0), (-1, 0),  0.5, HexColor("#AAAAAA")),
+        ]))
+        return [table]

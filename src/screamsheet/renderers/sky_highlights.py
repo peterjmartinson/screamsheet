@@ -68,14 +68,22 @@ class SkyHighlightsSection(Section):
         elements.append(Paragraph(self.title, self._heading_style))
         elements.append(Spacer(1, 4))
 
-        bullets: List[str] = cast(List[str], self.data) if isinstance(self.data, list) else []
-        for bullet in bullets:
-            elements.append(Paragraph(f"• {bullet}", self._bullet_style))
-
-        # Optional LLM-generated astronomy/astrology bullet
-        llm_bullet = self._get_llm_bullet()
-        if llm_bullet:
-            elements.append(Paragraph(f"• {llm_bullet}", self._bullet_style))
+        # Prefer LLM-generated bullets; fall back to raw highlights if unavailable.
+        llm_output = self._get_llm_bullet()
+        if llm_output:
+            # The LLM returns one "• text" line per bullet — render each separately.
+            for line in llm_output.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # Strip a leading bullet character the LLM already added.
+                text = line.lstrip("•").strip()
+                if text:
+                    elements.append(Paragraph(f"• {text}", self._bullet_style))
+        else:
+            bullets: List[str] = cast(List[str], self.data) if isinstance(self.data, list) else []
+            for bullet in bullets:
+                elements.append(Paragraph(f"• {bullet}", self._bullet_style))
 
         return elements
 

@@ -52,11 +52,11 @@ _PLANET_RADII: dict[str, float] = {
     "Neptune": _OUTER_R * 0.64,
 }
 
-# Binary color scheme: visible sign = white, not visible = near-black
+# Binary color scheme: visible sign = white, not visible = medium gray
 _VISIBLE_FILL   = HexColor("#FFFFFF")
-_INVISIBLE_FILL = HexColor("#1A1A1A")
+_INVISIBLE_FILL = HexColor("#BBBBBB")
 _VISIBLE_TEXT   = black
-_INVISIBLE_TEXT = HexColor("#FFFFFF")
+_INVISIBLE_TEXT = black
 
 # Astrological symbols for the nine visible planets/luminaries
 _PLANET_SYMBOLS: dict[str, str] = {

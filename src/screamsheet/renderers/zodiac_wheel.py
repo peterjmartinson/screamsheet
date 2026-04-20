@@ -14,6 +14,7 @@ from typing import Any, Dict, List, cast
 
 from reportlab.graphics.shapes import (
     Drawing,
+    Line,
     Wedge,
     Circle,
     String,
@@ -21,7 +22,6 @@ from reportlab.graphics.shapes import (
 from reportlab.lib.colors import (
     HexColor,
     black,
-    Color,
 )
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
@@ -33,17 +33,30 @@ from ..base import Section
 # ---------------------------------------------------------------------------
 # Visual constants
 # ---------------------------------------------------------------------------
-_WHEEL_SIZE = 260          # drawing canvas size (points)
-_OUTER_R = 118.0           # outer radius of the sign ring
-_RIM_R = _OUTER_R * 0.90  # label radius (centre of rim band)
-_INNER_R = _OUTER_R * 0.72 # inner edge of sign ring / outer edge of planet zone
-_PLANET_R = _OUTER_R * 0.54  # radius at which planet symbols are placed
+_WHEEL_SIZE = 520           # drawing canvas size (points) — fills the page width
+_OUTER_R    = 236.0         # outer radius of the sign ring
+_RIM_R      = _OUTER_R * 0.90   # label radius (centre of rim band)
+_INNER_R    = _OUTER_R * 0.72   # inner edge of sign ring / outer edge of planet zone
 
-# Grayscale alternating wedge fills
-_SIGN_COLORS = (HexColor("#F0F0F0"), HexColor("#D8D8D8"))
+# Per-planet radii: each planet at a unique distance from centre so
+# conjunctions (overlapping longitudes) remain individually legible.
+_PLANET_RADII: dict[str, float] = {
+    "Sun":     _OUTER_R * 0.36,
+    "Moon":    _OUTER_R * 0.40,
+    "Mercury": _OUTER_R * 0.44,
+    "Venus":   _OUTER_R * 0.48,
+    "Mars":    _OUTER_R * 0.52,
+    "Jupiter": _OUTER_R * 0.56,
+    "Saturn":  _OUTER_R * 0.60,
+    "Uranus":  _OUTER_R * 0.62,
+    "Neptune": _OUTER_R * 0.64,
+}
 
-# Visible-sign overlay: semi-transparent gray
-_VISIBLE_OVERLAY_GRAY = Color(0.5, 0.5, 0.5, alpha=0.3)
+# Binary color scheme: visible sign = white, not visible = medium gray
+_VISIBLE_FILL   = HexColor("#FFFFFF")
+_INVISIBLE_FILL = HexColor("#BBBBBB")
+_VISIBLE_TEXT   = black
+_INVISIBLE_TEXT = black
 
 # Astrological symbols for the nine visible planets/luminaries
 _PLANET_SYMBOLS: dict[str, str] = {
@@ -136,59 +149,76 @@ class ZodiacWheelSection(Section):
         visible: List[str] = sky_data.get("visible_constellations", [])
         planets: List[Dict[str, Any]] = sky_data.get("planets", [])
 
-        # Zodiac wedges (ecliptic 0° = Aries at right, grows CCW)
+        # ------------------------------------------------------------------
+        # 1. Zodiac wedges (ecliptic 0° = Aries at right, grows CCW)
+        #    White = visible above the horizon tonight; dark = below horizon.
+        # ------------------------------------------------------------------
         for i, (short, full) in enumerate(zip(_ZODIAC_SHORT, _ZODIAC_FULL)):
-            start_deg = i * 30
-            fill = _SIGN_COLORS[i % 2]
+            start_deg  = i * 30
+            is_visible = full in visible
+            fill       = _VISIBLE_FILL   if is_visible else _INVISIBLE_FILL
+            text_col   = _VISIBLE_TEXT   if is_visible else _INVISIBLE_TEXT
 
-            # Annular wedge (outer ring)
             w = Wedge(cx, cy, _OUTER_R, start_deg, start_deg + 30, radius1=_INNER_R)
-            w.fillColor = fill
+            w.fillColor   = fill
             w.strokeColor = black
-            w.strokeWidth = 0.4
+            w.strokeWidth = 0.8
             d.add(w)
 
-            # Visible overlay (gray tint)
-            if full in visible:
-                overlay = Wedge(cx, cy, _OUTER_R, start_deg, start_deg + 30, radius1=_INNER_R)
-                overlay.fillColor = _VISIBLE_OVERLAY_GRAY
-                overlay.strokeColor = None
-                d.add(overlay)
-
-            # Sign label on rim
             mid_rad = math.radians(start_deg + 15)
             lx = cx + _RIM_R * math.cos(mid_rad)
             ly = cy + _RIM_R * math.sin(mid_rad)
-            d.add(String(lx, ly - 3, short, fontSize=6.5, textAnchor="middle",
-                          fillColor=black))
+            d.add(String(lx, ly - 6, short, fontSize=13, textAnchor="middle",
+                         fillColor=text_col))
 
-        # Inner circle border
+        # ------------------------------------------------------------------
+        # 2. Inner circle — white background for the planet zone.
+        # ------------------------------------------------------------------
         inner_circle = Circle(cx, cy, _INNER_R)
-        inner_circle.fillColor = HexColor("#FFFFFF")
+        inner_circle.fillColor   = HexColor("#FFFFFF")
         inner_circle.strokeColor = black
-        inner_circle.strokeWidth = 0.5
+        inner_circle.strokeWidth = 1.0
         d.add(inner_circle)
 
-        # Central dot
-        dot = Circle(cx, cy, 2)
-        dot.fillColor = black
-        dot.strokeColor = None
-        d.add(dot)
+        # ------------------------------------------------------------------
+        # 3. Spoke lines — extend each sector boundary into the inner circle
+        #    so it is easy to read which sign each planet sits in.
+        # ------------------------------------------------------------------
+        for i in range(12):
+            angle_rad = math.radians(i * 30)
+            sx = cx + _INNER_R * math.cos(angle_rad)
+            sy = cy + _INNER_R * math.sin(angle_rad)
+            spoke = Line(cx, cy, sx, sy)
+            spoke.strokeColor = black
+            spoke.strokeWidth = 0.5
+            d.add(spoke)
 
-        # Planet symbols (astrological Unicode glyphs, or two-letter fallback)
+        # ------------------------------------------------------------------
+        # 4. Planet symbols — each at its own unique radius so conjunctions
+        #    remain individually legible.
+        # ------------------------------------------------------------------
         for planet in planets:
-            lon_deg = float(planet.get("ecliptic_lon", 0))
-            name = str(planet.get("name", ""))
+            lon_deg    = float(planet.get("ecliptic_lon", 0))
+            name       = str(planet.get("name", ""))
             two_letter = str(planet.get("two_letter", name[:2]))
 
+            radius    = _PLANET_RADII.get(name, _OUTER_R * 0.54)
             angle_rad = math.radians(lon_deg)
-            px = cx + _PLANET_R * math.cos(angle_rad)
-            py = cy + _PLANET_R * math.sin(angle_rad)
+            px = cx + radius * math.cos(angle_rad)
+            py = cy + radius * math.sin(angle_rad)
 
             symbol = _PLANET_SYMBOLS.get(name, two_letter)
-            font = _UNICODE_FONT if name in _PLANET_SYMBOLS else "Helvetica"
+            font   = _UNICODE_FONT if name in _PLANET_SYMBOLS else "Helvetica"
 
-            d.add(String(px, py - 4, symbol, fontSize=10, textAnchor="middle",
+            d.add(String(px, py - 8, symbol, fontSize=20, textAnchor="middle",
                          fontName=font, fillColor=black))
+
+        # ------------------------------------------------------------------
+        # 5. Central dot
+        # ------------------------------------------------------------------
+        dot = Circle(cx, cy, 4)
+        dot.fillColor   = black
+        dot.strokeColor = None
+        d.add(dot)
 
         return d

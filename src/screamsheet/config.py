@@ -55,11 +55,24 @@ class WeatherConfig:
 
 
 @dataclass
+class PersonConfig:
+    """Birth details for a horoscope reading."""
+    name: str
+    birth_date: str          # YYYY-MM-DD
+    birth_time: str          # HH:MM (24-hour)
+    birth_location: str
+    sun_sign: str = ""
+    moon_sign: str = ""
+    ascendant: str = ""
+
+
+@dataclass
 class SkyConfig:
     """Location config for the sky tonight screamsheet."""
     lat: float = 40.0
     lon: float = -75.0
     location_name: str = "My Location"
+    people: List[PersonConfig] = field(default_factory=list)
 
 
 @dataclass
@@ -108,11 +121,25 @@ def _parse_weather(raw: dict) -> WeatherConfig:
     )
 
 
+def _parse_person(raw: dict) -> PersonConfig:
+    return PersonConfig(
+        name=str(raw.get("name", "Unknown")),
+        birth_date=str(raw.get("birth_date", "")),
+        birth_time=str(raw.get("birth_time", "")),
+        birth_location=str(raw.get("birth_location", "")),
+        sun_sign=str(raw.get("sun_sign", "")),
+        moon_sign=str(raw.get("moon_sign", "")),
+        ascendant=str(raw.get("ascendant", "")),
+    )
+
+
 def _parse_sky(raw: dict) -> SkyConfig:
+    people = [_parse_person(p) for p in raw.get("people", [])]
     return SkyConfig(
         lat=float(raw.get("lat", 40.0)),
         lon=float(raw.get("lon", -75.0)),
         location_name=str(raw.get("location_name", "My Location")),
+        people=people,
     )
 
 

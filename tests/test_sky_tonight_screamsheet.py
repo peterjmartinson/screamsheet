@@ -57,9 +57,9 @@ class TestSkyTonightScreamshetSections:
         sections = self.sheet.build_sections()
         assert isinstance(sections, list)
 
-    def test_build_sections_has_two_sections(self):
+    def test_build_sections_has_three_sections(self):
         sections = self.sheet.build_sections()
-        assert len(sections) == 2
+        assert len(sections) == 3
 
     def test_first_section_is_zodiac_wheel(self):
         sections = self.sheet.build_sections()

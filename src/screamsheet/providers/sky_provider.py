@@ -205,7 +205,7 @@ class SkyDataProvider(DataProvider):
         return planets
 
     def _compute_moon_phase(self, date: datetime) -> str:
-        """Return a human-readable moon phase string with illumination %."""
+        """Return a human-readable moon phase string."""
         ts, eph = self._load_ephemeris()
         t = ts.utc(date.year, date.month, date.day, 22, 0, 0)
         earth = eph["earth"]
@@ -216,7 +216,7 @@ class SkyDataProvider(DataProvider):
         elongation = (float(moon_lon.degrees) - float(sun_lon.degrees)) % 360
         phase_name = self._moon_phase_name(elongation)
         illumination = round((1 - math.cos(math.radians(elongation))) / 2 * 100)
-        return f"{phase_name} ({illumination}% illuminated)"
+        return phase_name
 
     # ------------------------------------------------------------------
     # Visibility computation

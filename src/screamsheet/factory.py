@@ -367,6 +367,7 @@ class ScreamsheetFactory:
         lon: float = -75.0,
         location_name: str = "My Location",
         date: Optional[datetime] = None,
+        people: Optional[list] = None,
     ) -> SkyTonightScreamsheet:
         """
         Create a Sky Tonight screamsheet.
@@ -381,6 +382,7 @@ class ScreamsheetFactory:
             lon:             Observer longitude (decimal degrees).
             location_name:   Display name for the observer location.
             date:            Target date (defaults to today).
+            people:          Up to 2 PersonConfig entries for horoscope readings.
 
         Returns:
             SkyTonightScreamsheet instance
@@ -391,4 +393,5 @@ class ScreamsheetFactory:
             lon=lon,
             location_name=location_name,
             date=date,
+            people=people or [],
         )

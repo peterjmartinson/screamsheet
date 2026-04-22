@@ -5,9 +5,11 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..base import BaseScreamsheet, Section
+from ..config import PersonConfig
 from ..providers.sky_provider import SkyDataProvider
 from ..renderers.zodiac_wheel import ZodiacWheelSection
 from ..renderers.sky_highlights import SkyHighlightsSection
+from ..renderers.sky_horoscope import SkyHoroscopeSection
 
 
 class SkyTonightScreamsheet(BaseScreamsheet):
@@ -23,6 +25,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         lon:             Observer longitude (decimal degrees).
         location_name:   Display name for the observer location.
         date:            Target date; defaults to *today* (not yesterday).
+        people:          Up to 2 PersonConfig entries for horoscope readings.
     """
 
     def __init__(
@@ -32,12 +35,14 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         lon: float,
         location_name: str,
         date: Optional[datetime] = None,
+        people: Optional[List[PersonConfig]] = None,
     ) -> None:
         # Default to *today* — we're describing tonight's sky, not last night's.
         super().__init__(output_filename, date=date if date is not None else datetime.now())
         self.lat = lat
         self.lon = lon
         self.location_name = location_name
+        self.people: List[PersonConfig] = people if people is not None else []
         self.provider = SkyDataProvider(lat=lat, lon=lon, location_name=location_name)
 
     # ------------------------------------------------------------------
@@ -62,5 +67,12 @@ class SkyTonightScreamsheet(BaseScreamsheet):
                 provider=self.provider,
                 date=self.date,
                 location_name=self.location_name,
+            ),
+            SkyHoroscopeSection(
+                title="Tonight's Horoscopes",
+                provider=self.provider,
+                date=self.date,
+                location_name=self.location_name,
+                people=self.people,
             ),
         ]

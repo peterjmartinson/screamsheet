@@ -197,3 +197,35 @@ class SkyNightSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class HoroscopeSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a personalized ~200-word horoscope reading for one person.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``name``           str  — person's name
+    - ``birth_date``     str  — YYYY-MM-DD
+    - ``birth_time``     str  — HH:MM (24-hour)
+    - ``birth_location`` str  — city/state of birth
+    - ``planets``        str  — formatted planet/zodiac summary line
+    - ``moon_phase``     str  — e.g. "Waxing Crescent"
+    - ``date``           str  — display date string
+    - ``location``       str  — observer location name
+    """
+
+    _PROMPT_FILE = Path("sky_horoscope.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

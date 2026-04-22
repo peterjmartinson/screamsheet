@@ -23,10 +23,12 @@ from reportlab.lib.colors import (
     HexColor,
     black,
 )
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from ..base import Section
 
@@ -134,7 +136,43 @@ class ZodiacWheelSection(Section):
         elements.append(Paragraph(self.title, styles["Heading2"]))
         elements.append(Spacer(1, 4))
         elements.append(self._build_drawing())
+        elements.append(Spacer(1, 6))
+        elements.extend(self._build_glossary())
         return elements
+
+    def _build_glossary(self) -> List[Any]:
+        """Compact two-row symbol/name legend for all nine planets."""
+        base = getSampleStyleSheet()
+        glyph_style = ParagraphStyle(
+            "WheelGlyph", parent=base["Normal"],
+            fontSize=9, leading=11, alignment=TA_CENTER,
+        )
+        gloss_style = ParagraphStyle(
+            "WheelGloss", parent=base["Normal"],
+            fontSize=8, leading=11, alignment=TA_CENTER,
+        )
+        ordered = [
+            "Sun", "Moon", "Mercury", "Venus", "Mars",
+            "Jupiter", "Saturn", "Uranus", "Neptune",
+        ]
+        symbol_cells = [
+            Paragraph(
+                f"<font name='{_UNICODE_FONT}' size='11'>{_PLANET_SYMBOLS[n]}</font>",
+                glyph_style,
+            )
+            for n in ordered
+        ]
+        name_cells = [Paragraph(n, gloss_style) for n in ordered]
+        col_w = 50
+        table = Table([symbol_cells, name_cells], colWidths=[col_w] * len(ordered))
+        table.setStyle(TableStyle([
+            ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING",    (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LINEABOVE",     (0, 0), (-1, 0),  0.5, HexColor("#AAAAAA")),
+        ]))
+        return [table]
 
     # ------------------------------------------------------------------
     # Drawing construction

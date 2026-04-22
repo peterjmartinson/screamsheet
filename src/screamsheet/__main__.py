@@ -99,6 +99,7 @@ def _build_sheets(today_str: str) -> list:
                 lon=cfg.sky.lon,
                 location_name=cfg.sky.location_name,
                 date=today,
+                people=cfg.sky.people,
             ),
         ),
     ]

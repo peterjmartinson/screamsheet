@@ -50,3 +50,19 @@ sky:
   lat: 40.02
   lon: -75.34
   location_name: "Bryn Mawr, PA"
+  # Horoscope readings — edit name/birth_date/birth_time/birth_location to your details.
+  people:
+    - name: "Pisces"
+      birth_date: "1978-02-26"
+      birth_time: "01:20"
+      birth_location: "Wauwatosa, WI"
+      sun_sign: "Pisces"
+      moon_sign: "Libra"
+      ascendant: "Sagittarius"
+    - name: "Virgo"
+      birth_date: "1981-08-26"
+      birth_time: "13:26"
+      birth_location: "New York, NY"
+      sun_sign: "Virgo"
+      moon_sign: "Cancer"
+      ascendant: "Scorpio"

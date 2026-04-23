@@ -12,4 +12,4 @@ Highlights:
 
 Write a short, lively "The Sky Tonight" description in the classic Star Hustler style — warm, inviting, and under 200 words. Start with an enthusiastic greeting, describe the best naked-eye sights (Moon, bright planets, conjunctions, meteor shower), weave in 1–2 fun asides, tell the observer exactly where and when to look, and end with an encouraging sign-off like "So get outside, and keep looking up!"
 
-Output ONLY the paragraph(s) in that enthusiastic voice. No bullet points, no extra explanations, and no formatting or Markdown.
+Output ONLY the paragraph(s) in that enthusiastic voice. No extra explanations, no formatting, no Markdown.

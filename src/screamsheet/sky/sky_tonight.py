@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from ..base import BaseScreamsheet, Section
 from ..config import PersonConfig
+from ..providers.astro_provider import AstroDataProvider
 from ..providers.sky_provider import SkyDataProvider
 from ..renderers.zodiac_wheel import ZodiacWheelSection
 from ..renderers.sky_highlights import SkyHighlightsSection
@@ -44,6 +45,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         self.location_name = location_name
         self.people: List[PersonConfig] = people if people is not None else []
         self.provider = SkyDataProvider(lat=lat, lon=lon, location_name=location_name)
+        self.astro_provider = AstroDataProvider()
 
     # ------------------------------------------------------------------
     # BaseScreamsheet interface
@@ -74,5 +76,6 @@ class SkyTonightScreamsheet(BaseScreamsheet):
                 date=self.date,
                 location_name=self.location_name,
                 people=self.people,
+                astro_provider=self.astro_provider,
             ),
         ]

@@ -12,7 +12,7 @@ from typing import Any, List, cast
 from reportlab.lib.colors import black
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.platypus import Paragraph
 
 from ..base import Section
 from ..llm.summarizers import SkyNightSummarizer
@@ -66,8 +66,6 @@ class SkyHighlightsSection(Section):
             self.fetch_data()
 
         elements: List[Any] = []
-        elements.append(Paragraph(self.title, self._heading_style))
-        elements.append(Spacer(1, 4))
 
         # Prefer LLM-generated bullets; fall back to raw highlights if unavailable.
         llm_output = self._get_llm_bullet()

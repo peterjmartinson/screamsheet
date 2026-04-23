@@ -86,3 +86,41 @@ The `db_update` CLI command is already wired in `[project.scripts]`:
 [project.scripts]
 db_update = "screamsheet.db.db_update:main"
 ```
+
+---
+
+## Sky Tonight — Horoscope Pipeline (Issue #66)
+
+The Sky Tonight screamsheet uses **two separate astronomy libraries** for different purposes:
+
+| Concern | Library | Provider |
+|---|---|---|
+| Zodiac wheel visual, constellation visibility, sky highlights | Skyfield (DE421) | `SkyDataProvider` |
+| Horoscope planet positions, planetary aspects, moon phase | Swiss Ephemeris (Moshier) | `AstroDataProvider` |
+
+### `AstroDataProvider`
+
+Located at `src/screamsheet/providers/astro_provider.py`.  Uses [`pyswisseph`](https://pypi.org/project/pyswisseph/) with the Moshier built-in ephemeris — **no data file downloads required**.
+
+Key methods:
+
+| Method | Returns | Description |
+|---|---|---|
+| `get_planet_longitudes(date)` | `List[Dict]` | Tropical ecliptic longitude for 9 planets (Sun–Neptune) anchored to the vernal equinox |
+| `get_aspects(date)` | `List[Dict]` | All major aspects (conjunction, sextile, square, trine, opposition) with standard orbs |
+| `get_moon_phase(date)` | `str` | Phase name derived from Sun–Moon elongation |
+| `get_horoscope_data(date)` | `Dict` | Combined dict with `planets`, `aspects`, `moon_phase` |
+
+### Planetary aspects
+
+Five major aspects are computed for all pairs of the 9 modern planets:
+
+| Aspect | Angle | Orb |
+|---|---|---|
+| Conjunction | 0° | ±8° |
+| Sextile | 60° | ±6° |
+| Square | 90° | ±8° |
+| Trine | 120° | ±8° |
+| Opposition | 180° | ±8° |
+
+The aspects list is passed to the horoscope LLM prompt via the `{aspects}` template variable.

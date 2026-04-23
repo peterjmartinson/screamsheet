@@ -118,8 +118,14 @@ dependencies = [
     "yarl==1.22.0",
     "zstandard==0.25.0",
     "skyfield>=1.48",
+    "pyswisseph>=2.10.3.2",
 ]
 
 [project.scripts]
 db_update    = "screamsheet.db.db_update:main"
 show_prompt  = "screamsheet.tools.show_prompt:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.2",
+]

@@ -213,3 +213,83 @@ class TestPolarEdgeCase:
         with patch.object(provider, "_find_astronomical_dusk", return_value=None):
             result = provider._get_visible_constellations(datetime(2026, 4, 18), None)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# _compute_ayanamsa  (pure static helper)
+# ---------------------------------------------------------------------------
+
+class TestComputeAyanamsa:
+    def test_j2000_ayanamsa_is_approx_23_85(self):
+        """Lahiri ayanamsa at J2000 epoch should be ~23.853°."""
+        result = SkyDataProvider._compute_ayanamsa(datetime(2000, 1, 1))
+        assert abs(result - 23.853) < 0.05
+
+    def test_ayanamsa_grows_over_time(self):
+        """Ayanamsa in 2026 must be greater than in 2000 (precession increases it)."""
+        a2000 = SkyDataProvider._compute_ayanamsa(datetime(2000, 1, 1))
+        a2026 = SkyDataProvider._compute_ayanamsa(datetime(2026, 4, 23))
+        assert a2026 > a2000
+
+    def test_2026_ayanamsa_is_approx_24_2(self):
+        """Ayanamsa for 2026-04-23 should be roughly 24.2° (between 24.1 and 24.4)."""
+        result = SkyDataProvider._compute_ayanamsa(datetime(2026, 4, 23))
+        assert 24.1 < result < 24.4
+
+
+# ---------------------------------------------------------------------------
+# _compute_planet_positions — sidereal output
+# ---------------------------------------------------------------------------
+
+class TestComputePlanetPositionsSidereal:
+    """Verify that _compute_planet_positions stores sidereal ecliptic longitude."""
+
+    def _make_mock_ephemeris(self, tropical_lon_deg: float) -> tuple:
+        """Return (mock_ts, mock_eph) whose observe chain yields *tropical_lon_deg*."""
+        lon_mock = MagicMock()
+        lon_mock.degrees = tropical_lon_deg
+
+        astro_mock = MagicMock()
+        astro_mock.ecliptic_latlon.return_value = (MagicMock(), lon_mock, MagicMock())
+
+        at_mock = MagicMock()
+        at_mock.observe.return_value = astro_mock
+
+        earth_mock = MagicMock()
+        earth_mock.at.return_value = at_mock
+
+        eph_mock = MagicMock()
+        eph_mock.__getitem__ = MagicMock(return_value=earth_mock)
+
+        ts_mock = MagicMock()
+        ts_mock.utc.return_value = MagicMock()
+
+        return ts_mock, eph_mock
+
+    def test_ecliptic_lon_is_sidereal_corrected(self):
+        """Stored ecliptic_lon should be tropical minus ayanamsa (sidereal)."""
+        date = datetime(2026, 4, 23)
+        tropical_lon = 91.0
+        provider = SkyDataProvider(lat=40.02, lon=-75.34, location_name="Test")
+
+        ts_mock, eph_mock = self._make_mock_ephemeris(tropical_lon)
+        with patch.object(provider, "_load_ephemeris", return_value=(ts_mock, eph_mock)):
+            planets = provider._compute_planet_positions(date)
+
+        ayanamsa = SkyDataProvider._compute_ayanamsa(date)
+        expected_sidereal = (tropical_lon - ayanamsa) % 360
+        sun_entry = next(p for p in planets if p["name"] == "Sun")
+        assert abs(sun_entry["ecliptic_lon"] - expected_sidereal) < 0.01
+
+    def test_zodiac_key_reflects_sidereal_constellation(self):
+        """A tropical lon of 91° should map to Gemini after ayanamsa correction, not Cancer."""
+        date = datetime(2026, 4, 23)
+        tropical_lon = 91.0  # 91° tropical = Cancer; ~67° sidereal = Gemini
+        provider = SkyDataProvider(lat=40.02, lon=-75.34, location_name="Test")
+
+        ts_mock, eph_mock = self._make_mock_ephemeris(tropical_lon)
+        with patch.object(provider, "_load_ephemeris", return_value=(ts_mock, eph_mock)):
+            planets = provider._compute_planet_positions(date)
+
+        sun_entry = next(p for p in planets if p["name"] == "Sun")
+        assert sun_entry["zodiac"] == "Gemini"

@@ -138,6 +138,23 @@ class SkyDataProvider(DataProvider):
         return _ZODIAC_SIGNS[idx]
 
     @staticmethod
+    def _compute_ayanamsa(date: datetime) -> float:
+        """Return the Lahiri ayanamsa (degrees) for *date*.
+
+        The ayanamsa is the angular offset between the tropical vernal equinox
+        and the sidereal first point of Aries.  It grows at ~50.3" per year
+        (precession of the equinoxes).  The Lahiri value at J2000.0 is 23.853°.
+
+        Formula: ayanamsa = 23.853 + years_since_j2000 * 0.013969
+        where 0.013969 ≈ 50.3" / 3600 (degrees per Julian year).
+        """
+        # J2000.0 = 2000-01-01 12:00:00 UTC
+        j2000_days = 730120.5  # datetime(2000,1,1) is day 730120 from datetime epoch
+        date_days = date.toordinal() + 0.5  # noon approximation
+        years_since_j2000 = (date_days - j2000_days) / 365.25
+        return 23.853 + years_since_j2000 * 0.013969
+
+    @staticmethod
     def _moon_phase_name(elongation_deg: float) -> str:
         """Return the phase name for a Sun–Moon elongation angle (0–360°)."""
         e = elongation_deg % 360
@@ -188,17 +205,19 @@ class SkyDataProvider(DataProvider):
             ("Neptune", "neptune barycenter"),
         ]
 
+        ayanamsa = self._compute_ayanamsa(date)
         planets: List[Dict[str, Any]] = []
         for name, body_key in bodies:
             body = eph[body_key]
             astrometric = earth.at(t).observe(body)
             _, lon, _ = astrometric.ecliptic_latlon()
-            lon_deg = float(lon.degrees)
+            tropical_lon = float(lon.degrees)
+            sidereal_lon = (tropical_lon - ayanamsa) % 360
             planets.append(
                 {
                     "name": name,
-                    "zodiac": self._ecliptic_lon_to_zodiac(lon_deg),
-                    "ecliptic_lon": lon_deg,
+                    "zodiac": self._ecliptic_lon_to_zodiac(sidereal_lon),
+                    "ecliptic_lon": sidereal_lon,
                     "two_letter": _PLANET_TWO_LETTER[name],
                 }
             )

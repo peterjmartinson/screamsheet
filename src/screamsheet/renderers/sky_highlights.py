@@ -78,11 +78,11 @@ class SkyHighlightsSection(Section):
                 # Strip a leading bullet character the LLM already added.
                 text = line.lstrip("•").strip()
                 if text:
-                    elements.append(Paragraph(f"• {text}", self._bullet_style))
+                    elements.append(Paragraph(text, self._bullet_style))
         else:
             bullets: List[str] = cast(List[str], self.data) if isinstance(self.data, list) else []
             for bullet in bullets:
-                elements.append(Paragraph(f"• {bullet}", self._bullet_style))
+                elements.append(Paragraph(bullet, self._bullet_style))
 
         return elements
 

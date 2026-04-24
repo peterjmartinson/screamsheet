@@ -117,12 +117,14 @@ class SportsScreamsheet(BaseScreamsheet):
         featured = self._resolve_featured_team()
         if featured:
             featured_id, featured_name = featured
+            is_primary = bool(self.favorite_teams) and featured == self.favorite_teams[0]
             sections.append(
                 BoxScoreSection(
                     title=f"{featured_name} Box Score",
                     provider=self.provider,
                     team_id=featured_id,
-                    date=self.date
+                    date=self.date,
+                    is_primary_favorite=is_primary,
                 )
             )
         

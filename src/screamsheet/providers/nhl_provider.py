@@ -157,13 +157,17 @@ class NHLDataProvider(DataProvider):
             print(f"Error getting NHL box score: {e}")
             return None
     
-    def get_game_summary(self, team_id: int, date: datetime) -> Optional[str]:
+    def get_game_summary(self, team_id: int, date: datetime, is_primary_favorite: bool = False) -> Optional[str]:
         """
         Get game summary for a specific team and date.
-        
+
+        When ``is_primary_favorite`` is True and the featured team lost, the
+        summary uses the angry-fan rant persona instead of the neutral recap.
+
         Args:
             team_id: The NHL team ID
             date: The date to fetch summary for
+            is_primary_favorite: True when this is the #1 priority team
             
         Returns:
             Game summary text or None if not available
@@ -171,19 +175,44 @@ class NHLDataProvider(DataProvider):
         try:
             import os
             from .extractors import NHLGameExtractor
-            from ..llm.summary import NHLGameSummarizer
+            from ..llm.summary import NHLGameSummarizer, NHLFanRantSummarizer
             game_pk = self._get_game_pk(team_id, date)
             if not game_pk:
                 return None
             extractor = NHLGameExtractor()
-            extracted = extractor.extract_key_info(extractor.fetch_raw_data(game_pk))
+            raw = extractor.fetch_raw_data(game_pk)
+            extracted = extractor.extract_key_info(raw)
             if isinstance(extracted, str):
                 return extracted
-            summarizer = NHLGameSummarizer(
-                gemini_api_key=os.getenv("GEMINI_API_KEY"),
-                grok_api_key=os.getenv("GROK_API_KEY")
-            )
-            return summarizer.generate_summary(llm_choice='gemini', data=extracted)
+
+            use_rant = False
+            losing_team: Optional[str] = None
+            if is_primary_favorite and raw:
+                home_id = raw.get("homeTeam", {}).get("id")
+                home_score = int(extracted["home_score"])
+                away_score = int(extracted["away_score"])
+                if home_id == team_id:
+                    team_won = home_score > away_score
+                    losing_team = str(extracted["home_team"])
+                else:
+                    team_won = away_score > home_score
+                    losing_team = str(extracted["away_team"])
+                use_rant = not team_won
+
+            if use_rant and losing_team is not None:
+                summarizer: NHLGameSummarizer = NHLFanRantSummarizer(
+                    gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                    grok_api_key=os.getenv("GROK_API_KEY"),
+                )
+                data = {**extracted, "losing_team": losing_team}
+            else:
+                summarizer = NHLGameSummarizer(
+                    gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                    grok_api_key=os.getenv("GROK_API_KEY"),
+                )
+                data = extracted  # type: ignore[assignment]
+
+            return summarizer.generate_summary(llm_choice="gemini", data=data)
         except Exception as e:
             print(f"Error getting NHL game summary: {e}")
             return None

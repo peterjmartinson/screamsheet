@@ -71,7 +71,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
                 location_name=self.location_name,
             ),
             SkyHoroscopeSection(
-                title="Tonight's Horoscopes",
+                title="Horoscopes",
                 provider=self.provider,
                 date=self.date,
                 location_name=self.location_name,

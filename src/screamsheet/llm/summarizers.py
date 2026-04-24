@@ -78,6 +78,36 @@ class NHLGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+class NHLFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an angry hometown-fan game recap when the primary favorite NHL team loses.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``          str
+    - ``away_team``          str
+    - ``home_score``         int
+    - ``away_score``         int
+    - ``narrative_snippets`` str  — period-tagged play-by-play
+    - ``losing_team``        str  — full name of the featured team that lost
+    """
+
+    _PROMPT_FILE = Path("nhl_game_fan_rant.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
 class MLBGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates an over-the-top MLB game recap for a stat-savvy young fan.
@@ -92,6 +122,39 @@ class MLBGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
 
     _PROMPT_FILE = Path("mlb_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
+class MLBFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an angry hometown-fan game recap when the primary favorite team loses.
+
+    Uses the same game-data structure as ``MLBGameSummarizer`` but adds
+    ``losing_team`` so the prompt can address the fan base directly.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``          str
+    - ``away_team``          str
+    - ``home_score``         int
+    - ``away_score``         int
+    - ``narrative_snippets`` str  — space-joined play descriptions
+    - ``losing_team``        str  — full name of the featured team that lost
+    """
+
+    _PROMPT_FILE = Path("mlb_game_fan_rant.txt")
 
     def __init__(
         self,

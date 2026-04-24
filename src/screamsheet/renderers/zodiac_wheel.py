@@ -1,9 +1,9 @@
 """Zodiac wheel renderer for the Sky Tonight screamsheet.
 
 Draws a full circular zodiac wheel using ReportLab vector graphics:
-  - 12 alternating grayscale annular wedges labelled with 3-letter sign abbreviations
+  - 12 annular wedges labelled with full constellation names, rotated tangentially
+  - Light-gray shading marks signs visible above the horizon tonight
   - Planet astrological symbols at their ecliptic longitude positions
-  - A semi-transparent gray overlay for zodiac signs visible above the horizon
 """
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from typing import Any, Dict, List, cast
 
 from reportlab.graphics.shapes import (
     Drawing,
+    Group,
     Line,
     Wedge,
     Circle,
@@ -54,9 +55,9 @@ _PLANET_RADII: dict[str, float] = {
     "Neptune": _OUTER_R * 0.64,
 }
 
-# Binary color scheme: visible sign = white, not visible = medium gray
-_VISIBLE_FILL   = HexColor("#FFFFFF")
-_INVISIBLE_FILL = HexColor("#BBBBBB")
+# Binary color scheme: visible above horizon tonight = light gray, below horizon = white
+_VISIBLE_FILL   = HexColor("#BBBBBB")
+_INVISIBLE_FILL = HexColor("#FFFFFF")
 _VISIBLE_TEXT   = black
 _INVISIBLE_TEXT = black
 
@@ -189,9 +190,9 @@ class ZodiacWheelSection(Section):
 
         # ------------------------------------------------------------------
         # 1. Zodiac wedges (ecliptic 0° = Aries at right, grows CCW)
-        #    White = visible above the horizon tonight; dark = below horizon.
+        #    Light gray = visible above the horizon tonight; white = below.
         # ------------------------------------------------------------------
-        for i, (short, full) in enumerate(zip(_ZODIAC_SHORT, _ZODIAC_FULL)):
+        for i, full in enumerate(_ZODIAC_FULL):
             start_deg  = i * 30
             is_visible = full in visible
             fill       = _VISIBLE_FILL   if is_visible else _INVISIBLE_FILL
@@ -203,11 +204,20 @@ class ZodiacWheelSection(Section):
             w.strokeWidth = 0.8
             d.add(w)
 
-            mid_rad = math.radians(start_deg + 15)
+            mid_deg = float(start_deg + 15)
+            mid_rad = math.radians(mid_deg)
             lx = cx + _RIM_R * math.cos(mid_rad)
             ly = cy + _RIM_R * math.sin(mid_rad)
-            d.add(String(lx, ly - 6, short, fontSize=13, textAnchor="middle",
-                         fillColor=text_col))
+            # Tangential label: baseline follows the arc, letter tops pointing
+            # outward toward the rim.  fontSize=7 keeps "Sagittarius" inside
+            # the 30° arc at _RIM_R without overflowing into adjacent sectors.
+            rot_rad = math.radians(mid_deg - 90.0)
+            cos_t, sin_t = math.cos(rot_rad), math.sin(rot_rad)
+            s = String(0, 0, full, fontSize=13, textAnchor="middle",
+                       fillColor=text_col)
+            g = Group(s)
+            g.transform = (cos_t, sin_t, -sin_t, cos_t, lx, ly)
+            d.add(g)
 
         # ------------------------------------------------------------------
         # 2. Inner circle — white background for the planet zone.

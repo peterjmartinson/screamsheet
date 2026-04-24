@@ -18,11 +18,13 @@ class BoxScoreSection(Section):
     Currently only fully implemented for MLB and NHL.
     """
     
-    def __init__(self, title: str, provider: DataProvider, team_id: int, date: datetime):
+    def __init__(self, title: str, provider: DataProvider, team_id: int, date: datetime,
+                 is_primary_favorite: bool = False):
         super().__init__(title)
         self.provider = provider
         self.team_id = team_id
         self.date = date
+        self.is_primary_favorite = is_primary_favorite
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -67,7 +69,9 @@ class BoxScoreSection(Section):
         elements = []
         
         # Get game summary from provider
-        game_summary = self.provider.get_game_summary(self.team_id, self.date)
+        game_summary = self.provider.get_game_summary(
+            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite
+        )
         
         # Build left column (game summary)
         left_column = []

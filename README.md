@@ -1,126 +1,177 @@
-# screamsheet
-One page news, suitable for printout in the morning!
+# Screamsheet
 
-## Available Screamsheets
+> *One page of news, printed fresh every morning.*
 
-| Sheet | Output file | Description |
+---
+
+## Why
+
+My son became obsessed with baseball scores — but every way to check them involved a screen. Once he was on a screen, getting him off was a battle. My wife and I call it "screen withdrawal," and it's real.
+
+I wanted him to follow the Phillies without hunting for the remote. Then I remembered something from the cyberpunk role-playing games of my youth: the **Screamsheet** — a futuristic fax machine that prints the day's headlines for a buck, you read it, and toss it away.
+
+So I built one.
+
+Every morning at 6 AM, a cron job runs on our basement Linux box, pulls the latest scores and news from the internet, formats it into a tidy one-page PDF, and sends it to the printer. My son comes downstairs, picks it up, and reads it over breakfast — no screen required.
+
+> *"Dad, the Brewers are last in their division."*
+> 
+> He was poking at my Wisconsin heritage. The Brewers may be losing, but Team Parents had won.
+
+Since then it's grown to cover NHL and NFL scores, MLB trade rumors, political news, and even a nightly star chart with horoscopes. The goal in every case is the same: **use AI and automation to make technology invisible** — replace the infinite scroll with a single printed page.
+
+I wrote about the whole story [on my blog](https://peterjmartinson.com) if you want the full origin.
+
+---
+
+## What
+
+Screamsheet is a Python system that generates **print-ready one-page PDFs** — called *screamsheets* — and sends them to a printer automatically every morning via cron.
+
+Each screamsheet is a self-contained PDF covering one topic: sports scores, sports news, political headlines, or whatever you wire up. The current set includes:
+
+| Sheet | Output file | What's on it |
 |---|---|---|
-| MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, and box score for the Philadelphia Phillies |
-| MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from [MLB Trade Rumors](https://www.mlbtraderumors.com/), prioritising Phillies, Padres, Yankees |
-| **MLB News** | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com team RSS feeds (Phillies → Padres → Yankees priority; configurable) |
-| NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, and box score for the Philadelphia Flyers |
-| Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political news stories from 7 RSS feeds + White House |
+| MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, Phillies box score + AI narrative |
+| MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from MLB Trade Rumors |
+| MLB News | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com RSS feeds |
+| NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, Flyers box score |
+| Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political stories from 7 RSS feeds + WhiteHouse.gov |
 
-### Customising MLB News team priority
+Run them all at once:
 
-Open [src/screamsheet/__main__.py](src/screamsheet/__main__.py) and edit the `favorite_teams` list for the `"MLB News"` entry, or call the factory directly:
+```bash
+uv run screamsheet
+```
+
+---
+
+## How It Works
+
+The system is built around four concepts:
+
+```
+DataProvider  →  fetches raw data (API, RSS, scrape, package)
+Section       →  one content block on the page (scores table, standings, article list…)
+Screamsheet   →  orchestrates sections → renders → outputs a PDF
+Factory       →  the single public entry point for creating any screamsheet
+```
+
+```
+src/screamsheet/
+├── base/           # Abstract base classes: BaseScreamsheet, DataProvider, Section
+├── sports/         # MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
+├── news/           # NewsScreamsheet base + concrete news sheets
+├── providers/      # One provider per data source (MLB Stats API, NHL API, RSS feeds…)
+├── renderers/      # ReportLab helpers: game_scores, standings, box_score, news_articles…
+├── db/             # SQLite cache for reference data (NHL teams, players)
+├── factory.py      # ScreamsheetFactory — only public surface for instantiation
+└── __main__.py     # Entry point: calls factory for each sheet, sends to printer
+```
+
+PDFs land in `Files/` named `{TYPE}_{YYYYMMDD}.pdf`.
+
+---
+
+## How to Make Your Own
+
+The intended workflow for forking this repo is:
+
+1. **Fork & clone** the repo onto your machine.
+2. **Point your AI assistant at this README and `src/screamsheet/README.md`** — the architecture docs are written to be readable by an LLM. Ask it to scaffold a new screamsheet for whatever you care about.
+3. **Wire it up to cron** to print (or email, or drop to a folder) every morning.
+
+Here's the pattern your AI will follow:
+
+### Step 1 — Create a Data Provider
 
 ```python
-ScreamsheetFactory.create_mlb_news_screamsheet(
-    output_filename="Files/MLB_NEWS_20260319.pdf",
-    favorite_teams=["Dodgers", "Phillies"],   # your preferred order
-)
+# src/screamsheet/providers/mls_provider.py
+from ..base import DataProvider
+
+class MLSDataProvider(DataProvider):
+    def get_game_scores(self, date):
+        ...  # call your API / scrape / whatever
+
+    def get_standings(self):
+        ...
 ```
 
-Any team listed in `MLBNewsRssProvider.TEAM_FEEDS` is supported.  To add a new team, add its name and MLB.com RSS URL to that dictionary in [src/screamsheet/providers/mlb_news_rss_provider.py](src/screamsheet/providers/mlb_news_rss_provider.py).
+### Step 2 — Create the Screamsheet class
 
-## Running the system
+```python
+# src/screamsheet/sports/mls.py
+from .base_sports import SportsScreamsheet
+from ..providers.mls_provider import MLSDataProvider
+
+class MLSScreamsheet(SportsScreamsheet):
+    def __init__(self, output_filename, team_id=None, team_name=None, date=None):
+        super().__init__("MLS", output_filename, team_id, team_name, date)
+
+    def create_provider(self):
+        return MLSDataProvider()
+```
+
+### Step 3 — Register it in the Factory
+
+```python
+# src/screamsheet/factory.py
+@staticmethod
+def create_mls_screamsheet(output_filename, team_id=None, team_name=None, date=None):
+    return MLSScreamsheet(output_filename=output_filename, team_id=team_id,
+                          team_name=team_name, date=date)
+```
+
+### Step 4 — Add it to `__main__.py` and run
 
 ```bash
-uv run screamsheet        # generate all sheets and send to printer
+uv run screamsheet
 ```
+
+That's it. Your AI can handle steps 1–3 autonomously once it's read the architecture docs. Your job is to tell it what data source to use and what you want on the page.
 
 ---
 
-## DB Update — NHL Teams & Players Cache
+## Setup
 
-The local SQLite cache (`src/screamsheet/db/nhl.db`) stores NHL team and player
-reference data so that live lookups during generation are fast and resilient to
-transient API failures.  The cache is populated / refreshed by `update_db.sh`.
-
-### Manual run
+**Requirements**: Python 3.10+, [`uv`](https://docs.astral.sh/uv/), a printer (optional but the whole point).
 
 ```bash
-# From any working directory:
-bash /home/peter/Code/screamsheet/update_db.sh
+git clone https://github.com/peterjmartinson/screamsheet.git
+cd screamsheet
+uv sync
 ```
 
-Or use the `uv` entry point directly (no shell script):
-
-```bash
-cd /home/peter/Code/screamsheet
-uv run db_update                                    # use default DB path
-uv run db_update --db src/screamsheet/db/nhl.db    # explicit path
-```
-
-### Cron — weekly sync (every Monday at 3 am)
+### Cron — print every morning at 6 AM
 
 ```cron
-0 3 * * 1 /home/peter/Code/screamsheet/update_db.sh
+0 6 * * * cd /path/to/screamsheet && uv run screamsheet
 ```
 
-Add with `crontab -e`.  Verify with `crontab -l`.
+Add with `crontab -e`.
 
-### Log output
+### DB cache — NHL teams & players (refresh weekly)
 
-Each run appends to a dated file:
-
-```
-logfiles/update_db_log_YYYYMMDD.txt
+```bash
+uv run db_update
 ```
 
-Messages are also echoed to stdout so cron mailers and systemd journal capture them.
+Cron entry for weekly sync (Monday 3 AM):
 
-### Exit codes
-
-| Code | Meaning |
-|------|---------|
-| `0`  | Both teams and players synced with non-zero row counts |
-| `1`  | A sync raised an exception or returned zero rows (network failure) |
-
-### `pyproject.toml` — entry point (no changes needed)
-
-The `db_update` CLI command is already wired in `[project.scripts]`:
-
-```toml
-[project.scripts]
-db_update = "screamsheet.db.db_update:main"
+```cron
+0 3 * * 1 cd /path/to/screamsheet && uv run db_update
 ```
 
 ---
 
-## Sky Tonight — Horoscope Pipeline (Issue #66)
+## Architecture Reference
 
-The Sky Tonight screamsheet uses **two separate astronomy libraries** for different purposes:
+For a full breakdown of every module, base class, renderer, and extension pattern, see [`src/screamsheet/README.md`](src/screamsheet/README.md).
 
-| Concern | Library | Provider |
-|---|---|---|
-| Zodiac wheel visual, constellation visibility, sky highlights | Skyfield (DE421) | `SkyDataProvider` |
-| Horoscope planet positions, planetary aspects, moon phase | Swiss Ephemeris (Moshier) | `AstroDataProvider` |
+That document is intentionally written to be consumed by an LLM — if you're using Copilot, Cursor, or another AI assistant to extend the system, point it there first.
 
-### `AstroDataProvider`
+---
 
-Located at `src/screamsheet/providers/astro_provider.py`.  Uses [`pyswisseph`](https://pypi.org/project/pyswisseph/) with the Moshier built-in ephemeris — **no data file downloads required**.
+## Questions & Contributions
 
-Key methods:
-
-| Method | Returns | Description |
-|---|---|---|
-| `get_planet_longitudes(date)` | `List[Dict]` | Tropical ecliptic longitude for 9 planets (Sun–Neptune) anchored to the vernal equinox |
-| `get_aspects(date)` | `List[Dict]` | All major aspects (conjunction, sextile, square, trine, opposition) with standard orbs |
-| `get_moon_phase(date)` | `str` | Phase name derived from Sun–Moon elongation |
-| `get_horoscope_data(date)` | `Dict` | Combined dict with `planets`, `aspects`, `moon_phase` |
-
-### Planetary aspects
-
-Five major aspects are computed for all pairs of the 9 modern planets:
-
-| Aspect | Angle | Orb |
-|---|---|---|
-| Conjunction | 0° | ±8° |
-| Sextile | 60° | ±6° |
-| Square | 90° | ±8° |
-| Trine | 120° | ±8° |
-| Opposition | 180° | ±8° |
-
-The aspects list is passed to the horoscope LLM prompt via the `{aspects}` template variable.
+Drop a note in [Issues](https://github.com/peterjmartinson/screamsheet/issues) if you have questions about setup or ideas for new sheets. Pull requests welcome!

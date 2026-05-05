@@ -15,6 +15,7 @@ class NBAScreamsheet(SportsScreamsheet):
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
     ):
         """
@@ -25,6 +26,7 @@ class NBAScreamsheet(SportsScreamsheet):
             team_id: NBA team ID (deprecated — use favorite_teams)
             team_name: Team name (deprecated — use favorite_teams)
             date: Target date (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
         """
         super().__init__(
@@ -33,6 +35,7 @@ class NBAScreamsheet(SportsScreamsheet):
             team_id=team_id,
             team_name=team_name,
             date=date,
+            display_date=display_date,
             favorite_teams=favorite_teams,
         )
     

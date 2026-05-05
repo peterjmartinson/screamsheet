@@ -292,3 +292,62 @@ class HoroscopeSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class NBAGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an Athletic/ESPN-style NBA game recap.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``          str
+    - ``away_team``          str
+    - ``home_score``         int
+    - ``away_score``         int
+    - ``narrative_snippets`` str  — quarter-tagged play descriptions
+    """
+
+    _PROMPT_FILE = Path("nba_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
+class NBAFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an angry hometown-fan NBA recap when the primary favorite team loses.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``          str
+    - ``away_team``          str
+    - ``home_score``         int
+    - ``away_score``         int
+    - ``narrative_snippets`` str  — quarter-tagged play descriptions
+    - ``losing_team``        str  — full name of the featured team that lost
+    """
+
+    _PROMPT_FILE = Path("nba_game_fan_rant.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

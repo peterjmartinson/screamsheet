@@ -3,11 +3,16 @@
 These classes own the data-fetching and transformation steps only — no LLM logic lives here.
 Pass the returned ExtractedInfo dict to the appropriate summarizer in llm/summary.py.
 """
+import logging
+import re
+import time
 import requests
 from typing import Optional, Dict, Any, Union, List
 
 from ..db import lookup_player as _db_lookup_player
 from ..db.nhl_teams_db import lookup_team_by_id as _db_lookup_team
+
+logger = logging.getLogger(__name__)
 
 ExtractedInfo = Dict[str, Union[str, int]]
 
@@ -230,3 +235,241 @@ class NHLGameExtractor:
         except (KeyError, IndexError, TypeError) as e:
             print(f"Error parsing NHL game data: {e}")
             return "Could not parse NHL game details for summary generation."
+
+
+class NBAGameExtractor:
+    """Fetches and extracts NBA game data from nba_api for LLM summarizers.
+
+    Play-by-play is sourced from ``PlayByPlayV3`` (preferred — works for
+    playoff games) with ``PlayByPlayV2`` as a fallback.  Final score and team
+    names are authoritative from ``BoxScoreTraditionalV2``.
+    """
+
+    # V3 actionType strings we include in the narrative
+    _V3_NARRATIVE_TYPES = {"Made Shot", "Free Throw", "Turnover", "Foul"}
+
+    # V2 EVENTMSGTYPE codes we include in the narrative
+    _V2_MADE_SHOT = 1
+    _V2_FREE_THROW = 3
+    _V2_TURNOVER = 5
+    _V2_FOUL = 6
+    _V2_NARRATIVE_CODES = {_V2_MADE_SHOT, _V2_FREE_THROW, _V2_TURNOVER, _V2_FOUL}
+
+    @staticmethod
+    def _parse_v3_clock(clock: str) -> str:
+        """Convert ISO 8601 duration ``PT11M30.00S`` → ``11:30``."""
+        m = re.match(r"PT(\d+)M([\d.]+)S", clock)
+        if m:
+            mins = m.group(1)
+            secs = str(int(float(m.group(2)))).zfill(2)
+            return f"{mins}:{secs}"
+        return clock
+
+    def fetch_raw_data(self, game_id: str) -> Optional[Dict[str, Any]]:
+        """Return a dict with ``play_by_play`` DataFrame, ``boxscore`` DataFrame,
+        and ``pbp_version`` (3, 2, or 0).
+
+        Strategy:
+        1. Fetch BoxScoreTraditionalV2 (always reliable).
+        2. Try PlayByPlayV3 first — handles regular-season *and* playoff games.
+        3. Fall back to PlayByPlayV2 if V3 fails.
+        4. If both fail, return an empty DataFrame (box-score-only summary).
+        """
+        import pandas as pd
+
+        try:
+            from nba_api.stats.endpoints import boxscoretraditionalv2
+        except ImportError:
+            logger.error("nba_api not installed — cannot fetch NBA game data")
+            return None
+
+        # ---- boxscore (required) ----
+        try:
+            box_df = boxscoretraditionalv2.BoxScoreTraditionalV2(
+                game_id=game_id
+            ).get_data_frames()[0]
+        except Exception:
+            logger.exception("BoxScoreTraditionalV2 failed for game_id=%s", game_id)
+            return None
+
+        # nba_api enforces a ~600 ms rate limit between consecutive requests.
+        time.sleep(0.8)
+
+        # ---- play-by-play V3 (preferred — works for playoffs) ----
+        try:
+            from nba_api.stats.endpoints import playbyplayv3
+            pbp_df = playbyplayv3.PlayByPlayV3(
+                game_id=game_id, start_period=0, end_period=14
+            ).get_data_frames()[0]
+            logger.info("PlayByPlayV3: %d events for game_id=%s", len(pbp_df), game_id)
+            return {"play_by_play": pbp_df, "boxscore": box_df, "pbp_version": 3}
+        except Exception:
+            logger.warning(
+                "PlayByPlayV3 failed for game_id=%s — trying V2", game_id, exc_info=True
+            )
+
+        time.sleep(0.8)
+
+        # ---- play-by-play V2 (fallback — regular season only) ----
+        try:
+            from nba_api.stats.endpoints import playbyplayv2
+            pbp_df = playbyplayv2.PlayByPlayV2(game_id=game_id).get_data_frames()[0]
+            logger.info("PlayByPlayV2: %d events for game_id=%s", len(pbp_df), game_id)
+            return {"play_by_play": pbp_df, "boxscore": box_df, "pbp_version": 2}
+        except Exception:
+            logger.warning(
+                "PlayByPlayV2 also failed for game_id=%s — summary will be box-score only",
+                game_id,
+                exc_info=True,
+            )
+
+        return {"play_by_play": pd.DataFrame(), "boxscore": box_df, "pbp_version": 0}
+
+    def extract_key_info(
+        self,
+        raw_data: Optional[Dict[str, Any]],
+        featured_team_id: int,
+    ) -> Union[ExtractedInfo, str]:
+        """Extract team names, final score, and play-by-play narrative.
+
+        Handles V3 columns (``scoreHome``/``scoreAway``, ``actionType``,
+        ``description``), V2 columns (``SCORE``, ``EVENTMSGTYPE``,
+        ``HOMEDESCRIPTION``/``VISITORDESCRIPTION``), and an empty play-by-play
+        DataFrame (box-score-only fallback for both score and narrative).
+        """
+        if not raw_data:
+            return "No game data available."
+
+        try:
+            import pandas as pd
+
+            pbp: pd.DataFrame = raw_data["play_by_play"]
+            box: pd.DataFrame = raw_data["boxscore"]
+            pbp_version: int = raw_data.get("pbp_version", 0)
+
+            # ---- team IDs and names from boxscore ----
+            team_ids = box["TEAM_ID"].unique()
+            if len(team_ids) < 2:
+                return "Could not identify teams in NBA boxscore."
+
+            # Default order from boxscore (may be visitor-first; corrected below)
+            home_team_id: int = int(team_ids[0])
+            away_team_id: int = int(team_ids[1])
+
+            # V3 play-by-play has a `location` column: 'h' = home, 'v' = visitor.
+            # Use it to reliably map team_id → home/away.
+            if pbp_version == 3 and not pbp.empty and "location" in pbp.columns and "teamId" in pbp.columns:
+                home_rows_pbp = pbp[(pbp["location"] == "h") & pbp["teamId"].notna()]
+                away_rows_pbp = pbp[(pbp["location"] == "v") & pbp["teamId"].notna()]
+                if not home_rows_pbp.empty and not away_rows_pbp.empty:
+                    home_team_id = int(home_rows_pbp.iloc[0]["teamId"])
+                    away_team_id = int(away_rows_pbp.iloc[0]["teamId"])
+                    logger.debug(
+                        "V3 location: home_team_id=%s away_team_id=%s", home_team_id, away_team_id
+                    )
+
+            def _team_name(tid: int) -> str:
+                rows = box[box["TEAM_ID"] == tid]
+                if rows.empty:
+                    return "Unknown Team"
+                r = rows.iloc[0]
+                city = str(r.get("TEAM_CITY", ""))
+                name = str(r.get("TEAM_NICKNAME", r.get("TEAM_NAME", "")))
+                return f"{city} {name}".strip()
+
+            home_team_name = _team_name(home_team_id)
+            away_team_name = _team_name(away_team_id)
+            featured_team_is_home = (featured_team_id == home_team_id)
+
+            # ---- final score ----
+            home_score: int
+            away_score: int
+
+            if pbp_version == 3 and not pbp.empty and "scoreHome" in pbp.columns:
+                # V3: scoreHome/scoreAway columns, empty string on non-scoring rows
+                valid = pbp[pbp["scoreHome"].notna() & (pbp["scoreHome"] != "")]
+                if not valid.empty:
+                    last = valid.iloc[-1]
+                    home_score = int(float(str(last["scoreHome"])))
+                    away_score = int(float(str(last["scoreAway"])))
+                else:
+                    home_score = int(box[box["TEAM_ID"] == home_team_id]["PTS"].sum())
+                    away_score = int(box[box["TEAM_ID"] == away_team_id]["PTS"].sum())
+            elif pbp_version == 2 and not pbp.empty and "SCORE" in pbp.columns:
+                # V2: "VISITOR - HOME" string in SCORE column
+                score_rows = pbp[pbp["SCORE"].notna() & (pbp["SCORE"] != "")]
+                if not score_rows.empty:
+                    parts = str(score_rows.iloc[-1]["SCORE"]).split(" - ")
+                    away_score = int(parts[0].strip()) if len(parts) == 2 else 0
+                    home_score = int(parts[1].strip()) if len(parts) == 2 else 0
+                else:
+                    home_score = int(box[box["TEAM_ID"] == home_team_id]["PTS"].sum())
+                    away_score = int(box[box["TEAM_ID"] == away_team_id]["PTS"].sum())
+            else:
+                # No play-by-play — use boxscore totals
+                home_score = int(box[box["TEAM_ID"] == home_team_id]["PTS"].sum())
+                away_score = int(box[box["TEAM_ID"] == away_team_id]["PTS"].sum())
+
+            # ---- narrative ----
+            narrative_parts: List[str] = []
+
+            if pbp_version == 3 and not pbp.empty and "actionType" in pbp.columns:
+                for _, row in pbp.iterrows():
+                    if str(row.get("actionType", "")) not in self._V3_NARRATIVE_TYPES:
+                        continue
+                    desc = str(row.get("description", "")).strip()
+                    if not desc or desc.lower() == "nan":
+                        continue
+                    period = row.get("period", "")
+                    clock = self._parse_v3_clock(str(row.get("clock", "")).strip())
+                    prefix = f"[Q{period} {clock}]" if period and clock else ""
+                    narrative_parts.append(f"{prefix} {desc}".strip())
+
+            elif pbp_version == 2 and not pbp.empty and "EVENTMSGTYPE" in pbp.columns:
+                for _, row in pbp.iterrows():
+                    if row.get("EVENTMSGTYPE") not in self._V2_NARRATIVE_CODES:
+                        continue
+                    home_desc = str(row.get("HOMEDESCRIPTION") or "").strip()
+                    visit_desc = str(row.get("VISITORDESCRIPTION") or "").strip()
+                    desc = home_desc or visit_desc
+                    if not desc or desc.lower() == "nan":
+                        continue
+                    period = row.get("PERIOD", "")
+                    clock = str(row.get("PCTIMESTRING") or "").strip()
+                    prefix = f"[Q{period} {clock}]" if period and clock else ""
+                    narrative_parts.append(f"{prefix} {desc}".strip())
+
+            # If no play-by-play at all, build a minimal narrative from the top
+            # scorers in the boxscore so the LLM has *something* to work with.
+            if not narrative_parts:
+                logger.info(
+                    "No play-by-play for game_id; building narrative from boxscore top scorers"
+                )
+                for tid, label in [(home_team_id, "Home"), (away_team_id, "Away")]:
+                    team_rows = box[box["TEAM_ID"] == tid].copy()
+                    team_rows = team_rows[team_rows["MIN"].notna() & (team_rows["MIN"] != "")]
+                    top = team_rows.nlargest(3, "PTS") if "PTS" in team_rows.columns else team_rows.head(3)
+                    for _, r in top.iterrows():
+                        name = str(r.get("PLAYER_NAME", "Unknown"))
+                        pts = int(float(str(r.get("PTS", 0)))) if str(r.get("PTS", "nan")) != "nan" else 0
+                        reb = int(float(str(r.get("REB", 0)))) if str(r.get("REB", "nan")) != "nan" else 0
+                        ast = int(float(str(r.get("AST", 0)))) if str(r.get("AST", "nan")) != "nan" else 0
+                        narrative_parts.append(
+                            f"{name} ({label}): {pts} pts, {reb} reb, {ast} ast"
+                        )
+
+            losing_team = home_team_name if home_score < away_score else away_team_name
+
+            return {
+                "home_team": home_team_name,
+                "away_team": away_team_name,
+                "home_score": home_score,
+                "away_score": away_score,
+                "featured_team_is_home": featured_team_is_home,
+                "losing_team": losing_team,
+                "narrative_snippets": " ".join(narrative_parts),
+            }
+
+        except (KeyError, IndexError, TypeError, ValueError) as e:
+            logger.exception("Error parsing NBA game data")
+            return "Could not parse NBA game details for summary generation."

@@ -2,10 +2,13 @@
 Main entry point for the screamsheet system.
 
 Usage:
-    uv run python -m screamsheet            # run all screamsheets
-    uv run python -m screamsheet --single   # pick one interactively and run it
+    uv run screamsheet                         # run all (yesterday's games)
+    uv run screamsheet --single                # pick one interactively
+    uv run screamsheet --date 20260503         # treat May 3 as today (fetches May 2 games)
+    uv run screamsheet --single --date 20260503
 """
 import argparse
+import logging
 from datetime import datetime, timedelta
 from .factory import ScreamsheetFactory
 from .config import load_config
@@ -35,6 +38,7 @@ def _build_sheets(today_str: str) -> list:
     cfg = load_config()
     mlb_teams = [(t.id, t.name) for t in cfg.mlb.favorite_teams]
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
+    nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
     mlb_news_names = cfg.mlb.news_names
 
     return [        (
@@ -76,6 +80,15 @@ def _build_sheets(today_str: str) -> list:
             lambda: ScreamsheetFactory.create_nhl_screamsheet(
                 output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
                 favorite_teams=nhl_teams,
+                date=game_date,
+                display_date=today,
+            ),
+        ),
+        (
+            "NBA  — " + (cfg.nba.favorite_teams[0].name if cfg.nba.favorite_teams else ""),
+            lambda: ScreamsheetFactory.create_nba_screamsheet(
+                output_filename=f'Files/NBA_gamescores_{today_str}.pdf',
+                favorite_teams=nba_teams,
                 date=game_date,
                 display_date=today,
             ),
@@ -131,6 +144,11 @@ def _pick_and_run(sheets: list) -> None:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(name)-40s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
     parser = argparse.ArgumentParser(
         prog="python -m screamsheet",
         description="Generate screamsheet PDFs.",
@@ -140,9 +158,24 @@ def main():
         action="store_true",
         help="Interactively select and run a single screamsheet.",
     )
+    parser.add_argument(
+        "--date",
+        metavar="YYYYMMDD",
+        help=(
+            "Treat this date as 'today' (game data fetched for the day before). "
+            "Example: --date 20260503 fetches games from May 2 and stamps files with 20260503."
+        ),
+    )
     args = parser.parse_args()
 
-    today_str = datetime.now().strftime("%Y%m%d")
+    if args.date:
+        try:
+            today_str = datetime.strptime(args.date, "%Y%m%d").strftime("%Y%m%d")
+        except ValueError:
+            parser.error(f"--date must be in YYYYMMDD format, got: {args.date}")
+    else:
+        today_str = datetime.now().strftime("%Y%m%d")
+
     sheets = _build_sheets(today_str)
 
     if args.single:

@@ -1,13 +1,16 @@
 """Box score section renderer."""
+import logging
 from datetime import datetime
 from typing import List, Any, Optional
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import Table, TableStyle, Spacer, Paragraph, PageBreak
 from reportlab.platypus.flowables import KeepInFrame
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from ..base import Section, DataProvider
+
+logger = logging.getLogger(__name__)
 
 
 class BoxScoreSection(Section):
@@ -56,7 +59,10 @@ class BoxScoreSection(Section):
     
     def fetch_data(self):
         """Fetch box score from the provider."""
+        logger.info("Fetching box score for team_id=%s date=%s", self.team_id, self.date.strftime("%Y-%m-%d"))
         self.data = self.provider.get_box_score(self.team_id, self.date)
+        if self.data is None:
+            logger.warning("get_box_score returned None for team_id=%s date=%s — back page may be blank", self.team_id, self.date.strftime("%Y-%m-%d"))
     
     def render(self) -> List[Any]:
         """Render the box score section with two-column layout."""
@@ -64,9 +70,10 @@ class BoxScoreSection(Section):
             self.fetch_data()
         
         if not self.data:
+            logger.warning("No box score data for team_id=%s — returning empty render", self.team_id)
             return []
         
-        elements = []
+        elements: List[Any] = [PageBreak()]
         
         # Get game summary from provider
         game_summary = self.provider.get_game_summary(
@@ -94,6 +101,9 @@ class BoxScoreSection(Section):
             elif 'home_skaters' in self.data:
                 # NHL box score (raw data - legacy format)
                 right_column.extend(self._render_nhl_boxscore(self.data))
+            elif 'player_stats' in self.data:
+                # NBA box score
+                right_column.extend(self._render_nba_boxscore(self.data))
         
         # Wrap the summary in KeepInFrame so it never exceeds the page frame
         # height (708pt on 'Later' pages with letter/36pt-margin layout).
@@ -270,4 +280,66 @@ class BoxScoreSection(Section):
         for item in legend_items:
             elements.append(Paragraph(item, self.legend_style))
         
+        return elements
+
+    def _render_nba_boxscore(self, boxscore_data: dict) -> List[Any]:
+        """Render NBA box score with per-player stats and an acronym legend."""
+        elements: List[Any] = []
+
+        player_stats = boxscore_data.get("player_stats", [])
+        if not player_stats:
+            return elements
+
+        # Drop the first name, keep everything else ("Wendell Carter Jr." → "Carter Jr.")
+        def _short_name(full: str) -> str:
+            parts = full.split()
+            return " ".join(parts[1:]) if len(parts) > 1 else full
+
+        header = ["Player", "MIN", "FG", "3P", "FT", "REB", "AST", "PTS"]
+        table_data = [header]
+        for p in player_stats:
+            table_data.append([
+                _short_name(p.get("name", "")),
+                p.get("MIN", ""),
+                p.get("FG", ""),
+                p.get("3P", ""),
+                p.get("FT", ""),
+                str(p.get("REB", 0)),
+                str(p.get("AST", 0)),
+                str(p.get("PTS", 0)),
+            ])
+
+        table_style = TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("ALIGN", (0, 0), (0, -1), "LEFT"),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ])
+
+        # Column widths: last name ~65pt, FG wider (e.g. "9-18"), counters narrow
+        # Total = 65+28+34+28+28+22+22+22 = 249pt — fits in a 270pt half-page column
+        col_widths = [65, 28, 34, 28, 28, 22, 22, 22]
+        nba_table = Table(table_data, colWidths=col_widths)
+        nba_table.setStyle(table_style)
+        elements.append(nba_table)
+        elements.append(Spacer(1, 8))
+
+        legend_items = [
+            "MIN = Minutes",
+            "FG = Field Goals (Made-Attempted)",
+            "3P = Three-Pointers (Made-Attempted)",
+            "FT = Free Throws (Made-Attempted)",
+            "REB = Rebounds",
+            "AST = Assists",
+            "PTS = Points",
+        ]
+        for item in legend_items:
+            elements.append(Paragraph(item, self.legend_style))
+
         return elements

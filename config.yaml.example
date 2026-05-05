@@ -35,6 +35,10 @@ nba:
   favorite_teams:
     - id: 1610612755
       name: "Philadelphia 76ers"
+    - id: 1610612752
+      name: "New York Knicks"
+    - id: 1610612749
+      name: "Milwaukee Bucks"
 
 nfl:
   favorite_teams:

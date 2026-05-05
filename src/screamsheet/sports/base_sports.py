@@ -1,7 +1,10 @@
 """Base class for all sports screamsheets."""
+import logging
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from ..base import BaseScreamsheet, Section, DataProvider
 from ..renderers import (
@@ -87,9 +90,15 @@ class SportsScreamsheet(BaseScreamsheet):
         Returns:
             (team_id, team_name) tuple, or None if no team played (or no list set).
         """
+        date_str = self.date.strftime("%Y-%m-%d")
+        logger.info("Resolving featured team for %s on %s (%d candidates)", self.sport_name, date_str, len(self.favorite_teams))
         for tid, tname in self.favorite_teams:
-            if self.provider.has_game(tid, self.date):
+            played = self.provider.has_game(tid, self.date)
+            logger.info("  %s (id=%s) played on %s: %s", tname, tid, date_str, played)
+            if played:
+                logger.info("Featured team selected: %s (id=%s)", tname, tid)
                 return (tid, tname)
+        logger.warning("No favorite team played on %s — back page will be skipped", date_str)
         return None
     
     def build_sections(self) -> List[Section]:

@@ -70,3 +70,6 @@ sky:
       sun_sign: "Virgo"
       moon_sign: "Cancer"
       ascendant: "Scorpio"
+
+layout:
+  brand_footer_text: distractedfortune.com

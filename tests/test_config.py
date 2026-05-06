@@ -5,6 +5,7 @@ import pytest
 import yaml
 
 from screamsheet.config import (
+    LayoutConfig,
     ScreamsheetConfig,
     SportConfig,
     MLBConfig,
@@ -142,3 +143,23 @@ class TestTeamEntryOptionalId:
         cfg = load_config(path)
         assert cfg.nhl.favorite_teams[0].name == "Philadelphia Flyers"
         assert cfg.nhl.favorite_teams[0].id is None
+
+
+# ---------------------------------------------------------------------------
+# LayoutConfig
+# ---------------------------------------------------------------------------
+
+class TestLayoutConfig:
+    def test_layout_config_default_brand_footer_text(self):
+        cfg = LayoutConfig()
+        assert cfg.brand_footer_text == "distractedfortune.com"
+
+    def test_load_config_reads_brand_footer_text_from_yaml(self, tmp_path):
+        path = _write_yaml(tmp_path, {"layout": {"brand_footer_text": "example.com"}})
+        cfg = load_config(path)
+        assert cfg.layout.brand_footer_text == "example.com"
+
+    def test_load_config_layout_uses_default_when_section_absent(self, tmp_path):
+        path = _write_yaml(tmp_path, {})
+        cfg = load_config(path)
+        assert cfg.layout.brand_footer_text == "distractedfortune.com"

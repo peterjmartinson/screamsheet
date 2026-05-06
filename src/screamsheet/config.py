@@ -81,6 +81,12 @@ class SkyConfig:
 
 
 @dataclass
+class LayoutConfig:
+    """Layout presentation config shared across all screamsheet types."""
+    brand_footer_text: str = "distractedfortune.com"
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
@@ -89,6 +95,7 @@ class ScreamsheetConfig:
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
+    layout: LayoutConfig = field(default_factory=LayoutConfig)
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -148,6 +155,12 @@ def _parse_sky(raw: dict) -> SkyConfig:
     )
 
 
+def _parse_layout(raw: dict) -> LayoutConfig:
+    return LayoutConfig(
+        brand_footer_text=str(raw.get("brand_footer_text", "distractedfortune.com")),
+    )
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -180,4 +193,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nfl=_parse_sport(raw.get("nfl", {})),
         weather=_parse_weather(raw.get("weather", {})),
         sky=_parse_sky(raw.get("sky", {})),
+        layout=_parse_layout(raw.get("layout", {})),
     )

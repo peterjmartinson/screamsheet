@@ -1,7 +1,7 @@
 """Base screamsheet class that all screamsheets inherit from."""
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Callable, List, Optional
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,18 +19,27 @@ class BaseScreamsheet(ABC):
     to define its specific sections and generate the PDF.
     """
     
-    def __init__(self, output_filename: str, date: Optional[datetime] = None, display_date: Optional[datetime] = None):
+    def __init__(
+        self,
+        output_filename: str,
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
+        brand_footer_text: str = "",
+    ):
         """
         Initialize the screamsheet.
-        
+
         Args:
-            output_filename: Path to save the generated PDF
-            date: Target date for game data lookups (defaults to yesterday)
-            display_date: Date shown in the subtitle header (defaults to date)
+            output_filename:   Path to save the generated PDF
+            date:              Target date for game data lookups (defaults to yesterday)
+            display_date:      Date shown in the subtitle header (defaults to date)
+            brand_footer_text: Text centered at the bottom of every page.
+                               Pass an empty string (default) to suppress the footer.
         """
         self.output_filename = output_filename
         self.date = date or (datetime.now() - timedelta(days=1))
         self.display_date: datetime = display_date if display_date is not None else self.date
+        self.brand_footer_text: str = brand_footer_text
         self.sections: List[Section] = []
         self.styles = getSampleStyleSheet()
         self._setup_styles()
@@ -137,8 +146,26 @@ class BaseScreamsheet(ABC):
                 story.append(Spacer(1, 20))
         
         # Build PDF
-        doc.build(story)
-        
+        if self.brand_footer_text:
+            footer_text = self.brand_footer_text
+
+            def _draw_brand_footer(canvas: object, doc: object) -> None:  # type: ignore[override]
+                import reportlab.lib.pagesizes as _ps
+                page_width = _ps.letter[0]
+                c = canvas  # type: ignore[attr-defined]
+                c.saveState()
+                c.setFont("Helvetica-Bold", 8)
+                c.drawCentredString(page_width / 2, 18, footer_text)
+                c.restoreState()
+
+            doc.build(
+                story,
+                onFirstPage=_draw_brand_footer,
+                onLaterPages=_draw_brand_footer,
+            )
+        else:
+            doc.build(story)
+
         return self.output_filename
     
     def add_section(self, section: Section):

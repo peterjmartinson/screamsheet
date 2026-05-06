@@ -122,8 +122,10 @@ dependencies = [
 ]
 
 [project.scripts]
-db_update    = "screamsheet.db.db_update:main"
-show_prompt  = "screamsheet.tools.show_prompt:main"
+screamsheet         = "screamsheet.__main__:main"
+screamsheet-service = "screamsheet.service:main"
+db_update           = "screamsheet.db.db_update:main"
+show_prompt         = "screamsheet.tools.show_prompt:main"
 
 [dependency-groups]
 dev = [

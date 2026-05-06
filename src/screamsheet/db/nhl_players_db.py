@@ -1,4 +1,4 @@
-"""SQLite cache for NHL player data (stored in nhl.db).
+"""SQLite cache for NHL player data (stored in screamsheet.db).
 
 Table schema:
     players (

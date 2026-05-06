@@ -120,3 +120,25 @@ class TestLoadConfigMissingFile:
         missing = tmp_path / "config.yaml"
         with pytest.raises(FileNotFoundError, match="config.yaml.example"):
             load_config(missing)
+
+
+# ---------------------------------------------------------------------------
+# TeamEntry — id is optional (subscriber configs omit it)
+# ---------------------------------------------------------------------------
+
+class TestTeamEntryOptionalId:
+    def test_team_entry_without_id_defaults_to_none(self):
+        entry = TeamEntry(name="Philadelphia Flyers")
+        assert entry.id is None
+
+    def test_team_entry_with_id_retains_id(self):
+        entry = TeamEntry(id=4, name="Philadelphia Flyers")
+        assert entry.id == 4
+
+    def test_subscriber_config_teams_parsed_without_id(self, tmp_path):
+        path = _write_yaml(tmp_path, {
+            "nhl": {"favorite_teams": [{"name": "Philadelphia Flyers"}]},
+        })
+        cfg = load_config(path)
+        assert cfg.nhl.favorite_teams[0].name == "Philadelphia Flyers"
+        assert cfg.nhl.favorite_teams[0].id is None

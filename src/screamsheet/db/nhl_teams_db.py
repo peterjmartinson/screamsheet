@@ -1,4 +1,4 @@
-"""SQLite cache for NHL team data (stored in nhl.db).
+"""SQLite cache for NHL team data (stored in screamsheet.db).
 
 Table schema:
     teams (
@@ -62,7 +62,7 @@ def init_db(db_path: Optional[Path] = None):
     path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{path}", echo=False)
     _Base.metadata.create_all(engine)
-    logger.info("NHL DB initialised at %s", path)
+    logger.info("Screamsheet DB initialised at %s", path)
     return engine
 
 
@@ -160,4 +160,28 @@ def lookup_team_by_abbrev(
         row = session.query(_Team).filter(
             _Team.team.ilike(abbrev)
         ).first()
+        return _row_to_dict(row) if row else None
+
+
+def lookup_team_by_full_name(
+    full_name: str,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict]:
+    """Return the team whose ``city + ' ' + team_full_name`` matches *full_name*.
+
+    Args:
+        full_name: Canonical combined name, e.g. ``"Philadelphia Flyers"``.
+        db_path:   Override DB path (used in tests).
+
+    Returns:
+        Team dict or ``None`` if not found.
+    """
+    engine = _get_engine(db_path)
+    with Session(engine) as session:
+        row = (
+            session.query(_Team)
+            .filter(text("city || ' ' || team_full_name = :name"))
+            .params(name=full_name)
+            .first()
+        )
         return _row_to_dict(row) if row else None

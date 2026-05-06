@@ -16,6 +16,7 @@ Windows (run manually or add to Task Scheduler):
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -23,6 +24,7 @@ import requests
 
 from .nhl_teams_db import init_db, upsert_teams
 from ._nhl_db_shared import get_db_path
+from .team_lookup import upsert_team
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +69,25 @@ def fetch_teams_from_standings() -> List[dict]:
     return list(seen.values())
 
 
+def _sync_nhl_lookup_table(teams: List[dict], db_path: Optional[Path]) -> None:
+    """Populate the unified nhl_teams lookup table from fetched team data."""
+    now = datetime.now(timezone.utc).isoformat()
+    for t in teams:
+        team_id = t.get("team_id")
+        city = t.get("city", "")
+        nickname = t.get("team_full_name", "")
+        abbrev = t.get("team", "")
+        if not team_id:
+            continue
+        full_name = f"{city} {nickname}".strip()
+        upsert_team("nhl", team_id, full_name, abbrev, now, db_path)
+
+
 def full_sync_teams(db_path: Optional[Path] = None) -> int:
     """Fetch all NHL teams and upsert them into the local cache.
+
+    Also populates the unified ``nhl_teams`` lookup table used by subscriber
+    config resolution.
 
     Args:
         db_path: Path to the SQLite file.  Defaults to get_db_path().
@@ -80,6 +99,7 @@ def full_sync_teams(db_path: Optional[Path] = None) -> int:
     teams = fetch_teams_from_standings()
     logger.info("full_sync_teams: fetched %d teams", len(teams))
     count = upsert_teams(teams, db_path)
+    _sync_nhl_lookup_table(teams, db_path)
     logger.info("full_sync_teams: complete — %d teams upserted", count)
     return count
 

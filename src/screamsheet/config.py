@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import yaml
 
@@ -18,9 +18,14 @@ _CONFIG_PATH = _PROJECT_ROOT / "config.yaml"
 
 @dataclass
 class TeamEntry:
-    """A single team with its provider ID and display name."""
-    id: int
+    """A single team with its provider ID and display name.
+
+    ``id`` is optional — subscriber configs store only canonical team names;
+    the generator resolves names to API IDs via the local SQLite team tables.
+    Personal-use ``config.yaml`` entries should still include ``id``.
+    """
     name: str
+    id: Optional[int] = None
 
 
 @dataclass
@@ -87,12 +92,12 @@ class ScreamsheetConfig:
 
 
 def _parse_sport(raw: dict) -> SportConfig:
-    teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
+    teams = [TeamEntry(id=t.get("id"), name=t["name"]) for t in raw.get("favorite_teams", [])]
     return SportConfig(favorite_teams=teams)
 
 
 def _parse_mlb(raw: dict) -> MLBConfig:
-    teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
+    teams = [TeamEntry(id=t.get("id"), name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
     return MLBConfig(favorite_teams=teams, news_names=news_names)
 

@@ -21,6 +21,8 @@ The existing `ScreamsheetFactory` / `BaseScreamsheet` / `Section` architecture i
 | Subscriber config interface | Generator accepts a YAML config file path; produces all sheets in one invocation | Matches the dispatch model — one call per subscriber, not one call per sheet type |
 | Config schema | Extend existing `config.yaml` schema to support subscriber-specific overrides | The existing schema already models team preferences; subscriber configs are the same shape with a GUID and email added |
 | Team name → ID resolution | Generator looks up team IDs from local SQLite tables at runtime; subscriber configs store only canonical team names | Keeps ID knowledge inside the generator domain; dispatch and subscribers never deal with numeric IDs; insulates configs from ID changes |
+| Output PDF naming | Generator uses existing `{sheet_type}_{YYYYMMDD}.pdf` convention; dispatch does not rename files | Consistent with personal-use output; no coordination needed between repos |
+| Layout config location | Add a `layout:` section to the existing `config.yaml` | One config file to manage; no split between layout and other settings |
 
 ---
 
@@ -148,14 +150,6 @@ nfl_teams:  id INT, name TEXT, abbreviation TEXT, last_synced DATETIME
 The `db_update` command is extended with one sync job per sport. Each job hits the sport's API, fetches the current team list, and upserts into the corresponding table. The nightly cron entry for `db_update` runs separately from the morning dispatch run (suggested: 2am) so that a failed sync never delays delivery.
 
 The canonical team name stored in the DB is the exact string expected in subscriber configs and in the signup form dropdown. Name → ID lookup at generation time is a simple `WHERE name = ?` query — no fuzzy matching.
-
----
-
-## Open Questions
-
-1. **Output filename convention** — When dispatch invokes the generator, it provides `output_dir`. Should the generator name the PDF `{sheet_type}_{YYYYMMDD}.pdf` (existing convention) or should dispatch control the filename? Suggest: generator uses the existing naming convention; dispatch doesn't rename files.
-
-2. **Personal-use `config.yaml` and the new layout config block** — Should the layout config live in the existing `config.yaml` or in a separate `layout_config.yaml`? Suggest: add a `layout:` section to the existing `config.yaml` so there's one config file to manage.
 
 ---
 

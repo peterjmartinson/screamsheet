@@ -4,7 +4,7 @@
 
 The `screamsheet` PDF generator currently produces multi-page PDFs using hardcoded page breaks and fixed-position ReportLab drawing calls. This causes recurring layout failures in practice: blank pages, articles starting on the wrong side of the sheet, and standings charts splitting across pages. These failures happen almost every day and degrade the product being delivered to subscribers.
 
-This PRD covers the changes needed to make the generator produce consistently well-formed two-page PDFs — a front side and a back side — with content that flows naturally, sports charts that never break across pages, a graceful overflow recovery strategy when content is too long, and consistent branding on every page.
+This PRD covers the changes needed to make the generator produce consistently well-formed two-page PDFs — a front side and a back side — with content that flows naturally, sports charts that never break across pages, a graceful overflow recovery strategy when content is too long, consistent branding on every page, and a subscriber config interface so that the `screamsheet-dispatch` system can invoke the generator on behalf of any subscriber.
 
 ---
 
@@ -50,6 +50,13 @@ The standard sports sheet layout is: scores table at the top of the front (below
 - [ ] **AC-DATA-01** — If a data provider fails to retrieve expected data (e.g., game scores not found, API rate-limited, network error), the generator records the specific failure in the structured result rather than silently producing an incomplete sheet.
 - [ ] **AC-DATA-02** — A data failure for one section does not crash the generator — remaining sections are still rendered and the PDF is still returned.
 
+### Subscriber Config Interface
+
+- [ ] **AC-IFACE-01** — The generator accepts a path to a subscriber YAML config file as its primary input.
+- [ ] **AC-IFACE-02** — The generator reads the config to determine which sheet types to produce and what per-sheet options to use (e.g., preferred teams, weather location).
+- [ ] **AC-IFACE-03** — A single invocation with a subscriber config produces one PDF per sheet type listed in the config.
+- [ ] **AC-IFACE-04** — The generator returns a list of structured results, one per sheet produced, each containing the PDF file path, the layout-clean flag, and any issue descriptions (per AC-QC-01).
+
 ---
 
 ## Out of Scope
@@ -58,4 +65,4 @@ The standard sports sheet layout is: scores table at the top of the front (below
 - NFL sheet layout (standings-on-back pattern) — deferred to a follow-on PRD.
 - Sky Tonight and other specialty sheets — they retain their existing fixed-position rendering until a follow-on PRD addresses them.
 - Adding new sheet types.
-- Subscriber config or delivery concerns of any kind.
+- Subscriber management, delivery, dispatch orchestration, or email concerns — those belong in the `screamsheet-dispatch` repo.

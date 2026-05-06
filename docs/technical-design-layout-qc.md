@@ -91,7 +91,7 @@ nba:
 
 news:
   types: list[str]                 — e.g. ["presidential", "mlb_trade_rumors"]
-  weather_location: str            — optional; city name for weather section
+  include_weather: bool            — false for subscriber sheets; weather requires geocoding (deferred)
 ```
 
 ### Generator Entry Point (subscriber invocation)
@@ -157,4 +157,8 @@ The canonical team name stored in the DB is the exact string expected in subscri
 
 2. **Personal-use `config.yaml` and the new layout config block** — Should the layout config live in the existing `config.yaml` or in a separate `layout_config.yaml`? Suggest: add a `layout:` section to the existing `config.yaml` so there's one config file to manage.
 
-3. **News sheet weather section** — The subscriber config includes `weather_location`. The existing news sheets may or may not include weather. Does the presence of `weather_location` in the config enable weather, or is it per-sheet-type opt-in? Needs clarification before implementing news sheet layout changes.
+---
+
+## Out of Scope
+
+- **Subscriber weather opt-in** — Weather currently appears automatically on news sheets using hardcoded coordinates from the developer's personal `config.yaml`. For subscriber sheets, `include_weather: false` suppresses it entirely. Enabling per-subscriber weather requires a geocoding integration (city/state → lat/lon) which is deferred to a future update. When implemented, the subscriber config will gain a `weather` block with city/state fields, and the generator will resolve coordinates via a geocoding API (e.g. OpenStreetMap Nominatim) at sync time, storing resolved coordinates in the config.

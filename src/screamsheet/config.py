@@ -84,6 +84,8 @@ class SkyConfig:
 class LayoutConfig:
     """Layout presentation config shared across all screamsheet types."""
     brand_footer_text: str = "distractedfortune.com"
+    standings_row_padding: int = 4
+    score_min_col_width: int = 50
 
 
 @dataclass
@@ -158,6 +160,8 @@ def _parse_sky(raw: dict) -> SkyConfig:
 def _parse_layout(raw: dict) -> LayoutConfig:
     return LayoutConfig(
         brand_footer_text=str(raw.get("brand_footer_text", "distractedfortune.com")),
+        standings_row_padding=int(raw.get("standings_row_padding", 4)),
+        score_min_col_width=int(raw.get("score_min_col_width", 50)),
     )
 
 

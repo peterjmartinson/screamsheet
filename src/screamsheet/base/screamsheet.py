@@ -1,7 +1,7 @@
 """Base screamsheet class that all screamsheets inherit from."""
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -100,6 +100,36 @@ class BaseScreamsheet(ABC):
         """Return the formatted date string (uses display_date for the subtitle)."""
         return self.display_date.strftime("%B %d, %Y")
     
+    def _build_story(self) -> List[Any]:
+        """Assemble and return the full ReportLab story from the current sections.
+
+        Requires ``self.sections`` to already be populated (call ``build_sections()``
+        and assign before calling this).  Safe to call multiple times — each call
+        invokes ``section.render()`` afresh, so callers can mutate section params
+        between calls (e.g. the overflow-compression loop in SportsScreamsheet).
+        """
+        story: List[Any] = []
+
+        # Title
+        story.append(Paragraph(self.get_title(), self.title_style))
+
+        # Optional subtitle
+        subtitle = self.get_subtitle()
+        if subtitle:
+            story.append(Paragraph(f"<i>{subtitle}</i>", self.subtitle_style))
+
+        # Date
+        story.append(Paragraph(self.get_date_string(), self.subtitle_style))
+        story.append(Spacer(1, 12))
+
+        # Sections
+        for section in self.sections:
+            if section.has_content():
+                story.extend(section.render())
+                story.append(Spacer(1, 20))
+
+        return story
+
     def generate(self) -> str:
         """
         Generate the complete screamsheet PDF.
@@ -120,30 +150,7 @@ class BaseScreamsheet(ABC):
             bottomMargin=36
         )
         
-        # Build story (content)
-        story = []
-        
-        # Add title
-        title = Paragraph(self.get_title(), self.title_style)
-        story.append(title)
-        
-        # Add subtitle if present (e.g., news source)
-        subtitle = self.get_subtitle()
-        if subtitle:
-            # Use italic style for subtitle
-            subtitle_para = Paragraph(f"<i>{subtitle}</i>", self.subtitle_style)
-            story.append(subtitle_para)
-        
-        # Add date
-        date_para = Paragraph(self.get_date_string(), self.subtitle_style)
-        story.append(date_para)
-        story.append(Spacer(1, 12))
-        
-        # Add each section
-        for section in self.sections:
-            if section.has_content():
-                story.extend(section.render())
-                story.append(Spacer(1, 20))
+        story = self._build_story()
         
         # Build PDF
         if self.brand_footer_text:

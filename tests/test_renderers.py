@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from reportlab.platypus import Table, Spacer, Paragraph
+from reportlab.platypus import Table, KeepTogether, Spacer, Paragraph
 
 from screamsheet.renderers.game_scores import GameScoresSection
 from screamsheet.renderers.standings import StandingsSection
@@ -100,12 +100,36 @@ class TestStandingsSection:
         result = sec.render()
         assert len(result) > 0
 
-    def test_render_returns_table_for_nhl(self, nhl_standings_df):
+    def test_render_returns_keep_together_for_nhl(self, nhl_standings_df):
         provider = _fake_provider_with_standings(nhl_standings_df)
         sec = StandingsSection("Standings", provider)
         sec.data = nhl_standings_df
         result = sec.render()
-        assert any(isinstance(el, Table) for el in result)
+        assert any(isinstance(el, KeepTogether) for el in result)
+
+    def test_render_mlb_wraps_output_in_keep_together(self, mlb_standings_df):
+        provider = _fake_provider_with_standings(mlb_standings_df)
+        sec = StandingsSection("Standings", provider)
+        sec.data = mlb_standings_df
+        result = sec.render()
+        assert all(isinstance(el, KeepTogether) for el in result)
+
+    def test_render_nhl_wraps_output_in_keep_together(self, nhl_standings_df):
+        provider = _fake_provider_with_standings(nhl_standings_df)
+        sec = StandingsSection("Standings", provider)
+        sec.data = nhl_standings_df
+        result = sec.render()
+        assert all(isinstance(el, KeepTogether) for el in result)
+
+    def test_standings_section_default_row_padding_is_four(self):
+        from unittest.mock import MagicMock
+        sec = StandingsSection("Standings", MagicMock())
+        assert sec.row_padding == 4
+
+    def test_standings_section_stores_custom_row_padding(self):
+        from unittest.mock import MagicMock
+        sec = StandingsSection("Standings", MagicMock(), row_padding=2)
+        assert sec.row_padding == 2
 
     def test_render_returns_empty_for_empty_df(self):
         empty_df = pd.DataFrame()

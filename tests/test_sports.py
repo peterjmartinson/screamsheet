@@ -229,3 +229,35 @@ class TestBackwardCompatSingleTeam:
         run_date = datetime(2026, 3, 22)
         s = NHLScreamsheet("out.pdf", date=game_date, display_date=run_date)
         assert s.get_date_string() == "March 22, 2026"
+
+
+# ---------------------------------------------------------------------------
+# SportsScreamsheet — overflow compression
+# ---------------------------------------------------------------------------
+
+class TestSportsOverflowRecovery:
+    def test_generate_reduces_standings_row_padding_on_overflow(self, tmp_path):
+        """generate() decrements StandingsSection.row_padding when probe reports page > 1."""
+        out = tmp_path / "mlb.pdf"
+        sheet = MLBScreamsheet(str(out))
+
+        mock_provider = MagicMock()
+        mock_provider.get_standings.return_value = None
+        standings = StandingsSection("Standings", mock_provider)
+        assert standings.row_padding == 4
+
+        init_count = [0]
+
+        class FakeDoc:
+            def __init__(self_, filename_or_buf, **kwargs):
+                init_count[0] += 1
+                self_.page = 2 if init_count[0] <= 2 else 1
+
+            def build(self_, story, **kwargs):
+                pass
+
+        with patch("screamsheet.sports.base_sports.SimpleDocTemplate", FakeDoc), \
+             patch.object(sheet, "build_sections", return_value=[standings]):
+            sheet.generate()
+
+        assert standings.row_padding == 2

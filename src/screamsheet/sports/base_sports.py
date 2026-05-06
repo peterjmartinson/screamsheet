@@ -1,8 +1,12 @@
 """Base class for all sports screamsheets."""
+import io
 import logging
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 from datetime import datetime
+
+from reportlab.platypus import SimpleDocTemplate
+from reportlab.lib.pagesizes import letter
 
 logger = logging.getLogger(__name__)
 
@@ -151,3 +155,53 @@ class SportsScreamsheet(BaseScreamsheet):
         
         return sections
 
+    def generate(self) -> str:
+        """Generate the PDF with iterative overflow compression.
+
+        Before writing to disk, the story is rendered to a BytesIO buffer.  If
+        Platypus reports more than one page, the ``row_padding`` on every
+        ``StandingsSection`` is decremented (floor: 1) and the story is rebuilt.
+        Up to three compression attempts are made; then the final story is
+        written to ``self.output_filename``.
+        """
+        self.sections = self.build_sections()
+
+        _doc_kwargs = dict(
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36,
+        )
+
+        # Iterative compression loop
+        for _attempt in range(3):
+            story = self._build_story()
+            buf = io.BytesIO()
+            probe = SimpleDocTemplate(buf, **_doc_kwargs)
+            probe.build(story)
+            if probe.page <= 1:
+                break
+            for sec in self.sections:
+                if isinstance(sec, StandingsSection):
+                    sec.row_padding = max(1, sec.row_padding - 1)
+
+        # Final build to disk
+        story = self._build_story()
+        doc = SimpleDocTemplate(self.output_filename, **_doc_kwargs)
+        if self.brand_footer_text:
+            footer_text = self.brand_footer_text
+
+            def _draw_brand_footer(canvas: object, doc: object) -> None:  # type: ignore[override]
+                import reportlab.lib.pagesizes as _ps
+                c = canvas  # type: ignore[attr-defined]
+                c.saveState()
+                c.setFont("Helvetica-Bold", 8)
+                c.drawCentredString(_ps.letter[0] / 2, 18, footer_text)
+                c.restoreState()
+
+            doc.build(story, onFirstPage=_draw_brand_footer, onLaterPages=_draw_brand_footer)
+        else:
+            doc.build(story)
+
+        return self.output_filename

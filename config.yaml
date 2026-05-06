@@ -73,3 +73,5 @@ sky:
 
 layout:
   brand_footer_text: distractedfortune.com
+  standings_row_padding: 4
+  score_min_col_width: 50

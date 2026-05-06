@@ -163,3 +163,21 @@ class TestLayoutConfig:
         path = _write_yaml(tmp_path, {})
         cfg = load_config(path)
         assert cfg.layout.brand_footer_text == "distractedfortune.com"
+
+    def test_layout_config_standings_row_padding_default(self):
+        cfg = LayoutConfig()
+        assert cfg.standings_row_padding == 4
+
+    def test_layout_config_score_min_col_width_default(self):
+        cfg = LayoutConfig()
+        assert cfg.score_min_col_width == 50
+
+    def test_load_config_reads_standings_row_padding_from_yaml(self, tmp_path):
+        path = _write_yaml(tmp_path, {"layout": {"standings_row_padding": 2}})
+        cfg = load_config(path)
+        assert cfg.layout.standings_row_padding == 2
+
+    def test_load_config_reads_score_min_col_width_from_yaml(self, tmp_path):
+        path = _write_yaml(tmp_path, {"layout": {"score_min_col_width": 40}})
+        cfg = load_config(path)
+        assert cfg.layout.score_min_col_width == 40

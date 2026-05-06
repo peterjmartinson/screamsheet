@@ -1,6 +1,6 @@
 """Standings section renderer."""
 from typing import List, Any
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import Table, TableStyle, Spacer, Paragraph, KeepTogether
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
@@ -16,9 +16,10 @@ class StandingsSection(Section):
     Displays standings in a formatted table. Format varies by sport.
     """
     
-    def __init__(self, title: str, provider: DataProvider):
+    def __init__(self, title: str, provider: DataProvider, row_padding: int = 4):
         super().__init__(title)
         self.provider = provider
+        self.row_padding = row_padding
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -49,24 +50,22 @@ class StandingsSection(Section):
         
         elements = []
         
-        # Section title suppressed (document top-level title used instead)
-        
         # Detect sport type and render accordingly
         if 'conference' in self.data.columns and 'division' in self.data.columns and 'GP' in self.data.columns:
             # NHL-style standings (has conference, division, and GP)
-            elements.append(self._render_nhl_standings(self.data))
+            elements.append(KeepTogether([self._render_nhl_standings(self.data)]))
         elif 'conference' in self.data.columns and 'winPercent' in self.data.columns:
             # NFL-style standings (has conference and winPercent)
-            elements.append(self._render_nfl_standings(self.data))
+            elements.append(KeepTogether([self._render_nfl_standings(self.data)]))
         elif 'conference' in self.data.columns:
             # NBA-style standings (has conference)
-            elements.append(self._render_nba_standings(self.data))
+            elements.append(KeepTogether([self._render_nba_standings(self.data)]))
         elif 'division' in self.data.columns:
             # MLB-style standings (has division)
-            elements.append(self._render_mlb_standings(self.data))
+            elements.append(KeepTogether([self._render_mlb_standings(self.data)]))
         else:
             # Generic standings
-            elements.append(self._render_generic_standings(self.data))
+            elements.append(KeepTogether([self._render_generic_standings(self.data)]))
         
         return elements
     
@@ -97,6 +96,8 @@ class StandingsSection(Section):
                         ('FONTSIZE', (0, 0), (-1, -1), 9),
                         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                         ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                        ('TOPPADDING', (0, 0), (-1, -1), self.row_padding),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), self.row_padding),
                     ])
                     standings_table = Table(table_data, colWidths=[150, 30, 30, 30])
                     standings_table.setStyle(table_style)
@@ -153,6 +154,8 @@ class StandingsSection(Section):
                         ('FONTSIZE', (0, 0), (-1, -1), 8),
                         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                         ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                        ('TOPPADDING', (0, 0), (-1, -1), self.row_padding),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), self.row_padding),
                     ])
                     
                     inner_table = Table(table_data, colWidths=INNER_COL_WIDTHS)
@@ -206,6 +209,8 @@ class StandingsSection(Section):
                     ('FONTSIZE', (0, 0), (-1, -1), 9),
                     ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                     ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                    ('TOPPADDING', (0, 0), (-1, -1), self.row_padding),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), self.row_padding),
                 ])
                 standings_table = Table(table_data, colWidths=[150, 25, 25, 25, 40])
                 standings_table.setStyle(table_style)
@@ -248,6 +253,8 @@ class StandingsSection(Section):
                     ('FONTSIZE', (0, 0), (-1, -1), 9),
                     ('ALIGN', (0, 0), (0, -1), 'LEFT'),
                     ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                    ('TOPPADDING', (0, 0), (-1, -1), self.row_padding),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), self.row_padding),
                 ])
                 standings_table = Table(table_data, colWidths=[150, 30, 30, 40])
                 standings_table.setStyle(table_style)

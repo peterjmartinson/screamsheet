@@ -77,17 +77,8 @@ class PresidentialScreamsheet(NewsScreamsheet):
             NewsArticlesSection(
                 title="Top Stories",
                 provider=self.provider,
-                max_articles=2,
+                max_articles=4,
                 start_index=0,
-                summarizer_class=PoliticalNewsSummarizer,
-            )
-        )
-        sections.append(
-            NewsArticlesSection(
-                title="More Stories",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2,
                 summarizer_class=PoliticalNewsSummarizer,
             )
         )

@@ -66,37 +66,23 @@ class TestMLBNewsScreamsheeetWeatherSection:
 
 
 class TestMLBNewsScreamsheeetNewsSections:
-    def test_build_sections_contains_two_news_sections(self) -> None:
+    def test_build_sections_contains_one_news_section(self) -> None:
         s = MLBNewsScreamsheet("out.pdf", include_weather=False)
         news_sections = [
             sec for sec in s.build_sections() if isinstance(sec, NewsArticlesSection)
         ]
-        assert len(news_sections) == 2
+        assert len(news_sections) == 1
 
-    def test_first_news_section_start_index_is_zero(self) -> None:
+    def test_news_section_start_index_is_zero(self) -> None:
         s = MLBNewsScreamsheet("out.pdf", include_weather=False)
         news_sections = [
             sec for sec in s.build_sections() if isinstance(sec, NewsArticlesSection)
         ]
         assert news_sections[0].start_index == 0
 
-    def test_second_news_section_start_index_is_two(self) -> None:
+    def test_news_section_max_articles_is_four(self) -> None:
         s = MLBNewsScreamsheet("out.pdf", include_weather=False)
         news_sections = [
             sec for sec in s.build_sections() if isinstance(sec, NewsArticlesSection)
         ]
-        assert news_sections[1].start_index == 2
-
-    def test_first_news_section_max_articles_is_two(self) -> None:
-        s = MLBNewsScreamsheet("out.pdf", include_weather=False)
-        news_sections = [
-            sec for sec in s.build_sections() if isinstance(sec, NewsArticlesSection)
-        ]
-        assert news_sections[0].max_articles == 2
-
-    def test_second_news_section_max_articles_is_two(self) -> None:
-        s = MLBNewsScreamsheet("out.pdf", include_weather=False)
-        news_sections = [
-            sec for sec in s.build_sections() if isinstance(sec, NewsArticlesSection)
-        ]
-        assert news_sections[1].max_articles == 2
+        assert news_sections[0].max_articles == 4

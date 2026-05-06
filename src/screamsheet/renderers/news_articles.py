@@ -2,13 +2,12 @@
 from typing import List, Any
 import os
 from dotenv import load_dotenv
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import KeepTogether, Spacer, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
 from ..base import Section, DataProvider
 
-# Load environment variables
 load_dotenv()
 
 
@@ -194,75 +193,48 @@ class NewsArticlesSection(Section):
         return summarized_articles
     
     def render(self) -> List[Any]:
-        """Render the news articles section."""
+        """Render the news articles section.
+
+        Each article is wrapped in a ``KeepTogether`` block so that Platypus
+        will not split a single article across pages. Articles flow naturally
+        across pages without any explicit ``PageBreak``.
+        """
         if not self.data:
             self.fetch_data()
-        
+
         if not self.data:
             return []
-        
-        elements = []
-        
-        # Section title suppressed (document top-level title used instead)
-        
-        # `self.data` now contains only the articles for this section
-        articles_to_render = self.data
-        
-        # Create two-column layout for articles
-        left_column = []
-        right_column = []
-        
-        for i, article in enumerate(articles_to_render):
-            # Split summary into paragraphs on double newlines
-            summary_paragraphs = [p for p in article['summary'].split('\n\n') if p.strip()]
-            
-            article_elements = [
+
+        elements: List[Any] = []
+
+        for article in self.data:
+            article_elements: List[Any] = [
                 Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
             ]
-            
-            # Add source / publication date byline if available
+
             byline_parts = []
-            if article.get('source'):
-                byline_parts.append(article['source'])
-            if article.get('pub_date'):
-                byline_parts.append(article['pub_date'])
+            if article.get("source"):
+                byline_parts.append(article["source"])
+            if article.get("pub_date"):
+                byline_parts.append(article["pub_date"])
             if byline_parts:
                 date_style = ParagraphStyle(
                     name="ArticleDate",
-                    parent=self.styles['Normal'],
-                    fontName='Helvetica-Oblique',
+                    parent=self.styles["Normal"],
+                    fontName="Helvetica-Oblique",
                     fontSize=9,
-                    textColor='#666666',
+                    textColor="#666666",
                     spaceAfter=6,
                 )
                 article_elements.append(Paragraph(" — ".join(byline_parts), date_style))
-            
-            # Add each paragraph as a separate Paragraph element
+
+            summary_paragraphs = [p for p in article["summary"].split("\n\n") if p.strip()]
             for paragraph in summary_paragraphs:
                 article_elements.append(Paragraph(paragraph, self.article_text_style))
-                article_elements.append(Spacer(1, 6))  # Smaller spacer between paragraphs
-            
-            article_elements.append(Spacer(1, 12))  # Larger spacer between articles
-            
-            if i % 2 == 0:
-                left_column.extend(article_elements)
-            else:
-                right_column.extend(article_elements)
-        
-        # Create table for two-column layout
-        news_table = Table(
-            [[left_column, right_column]],
-            colWidths=[270, 270]
-        )
-        
-        news_style = TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (0, 0), 0),
-            ('RIGHTPADDING', (1, 0), (1, 0), 0),
-            ('RIGHTPADDING', (0, 0), (0, 0), 10),
-        ])
-        news_table.setStyle(news_style)
-        
-        elements.append(news_table)
-        
+                article_elements.append(Spacer(1, 6))
+
+            article_elements.append(Spacer(1, 12))
+
+            elements.append(KeepTogether(article_elements))
+
         return elements

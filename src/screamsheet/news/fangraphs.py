@@ -42,17 +42,8 @@ class FanGraphsScreamsheet(NewsScreamsheet):
             NewsArticlesSection(
                 title="FanGraphs Blogs",
                 provider=self.provider,
-                max_articles=2,
+                max_articles=4,
                 start_index=0,
-            )
-        )
-
-        sections.append(
-            NewsArticlesSection(
-                title="More from FanGraphs",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2,
             )
         )
 

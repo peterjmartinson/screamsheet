@@ -23,6 +23,10 @@ The existing `ScreamsheetFactory` / `BaseScreamsheet` / `Section` architecture i
 | Team name → ID resolution | Generator looks up team IDs from local SQLite tables at runtime; subscriber configs store only canonical team names | Keeps ID knowledge inside the generator domain; dispatch and subscribers never deal with numeric IDs; insulates configs from ID changes |
 | Output PDF naming | Generator uses existing `{sheet_type}_{YYYYMMDD}.pdf` convention; dispatch does not rename files | Consistent with personal-use output; no coordination needed between repos |
 | Layout config location | Add a `layout:` section to the existing `config.yaml` | One config file to manage; no split between layout and other settings |
+| Subscriber invocation mode | `--config` flag added to existing `__main__.py` entry point | Same `uv run screamsheet` CLI, distinct mode; `--config` presence switches to JSON-only stdout and subscriber output path |
+| stdout in `--config` mode | JSON-only (`list[GenerationResult]`); all human-readable progress output suppressed | Dispatch parses stdout directly; any non-JSON output would break parsing |
+| `TeamEntry.id` field | Make `id: int \| None = None` (optional) | Subscriber configs are name-only; personal-use configs retain `id`; avoids a parallel class hierarchy |
+| SQLite database filename | Rename `nhl.db` → `screamsheet.db`; all sport tables live in one file | Single DB file is simpler to configure and manage; `nhl.db` was single-purpose by accident — all code references updated at rename time |
 
 ---
 

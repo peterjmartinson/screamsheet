@@ -170,41 +170,35 @@ class TestLookupTeamByAbbrev:
 # ---------------------------------------------------------------------------
 
 class TestFetchTeamsFromStandings:
-    def _schedule_payload(self):
-        """Minimal /schedule/now payload covering two teams."""
+    def _standings_payload(self):
+        """Minimal /standings/now payload covering two teams."""
         return {
-            "gameWeek": [
+            "standings": [
                 {
-                    "games": [
-                        {
-                            "homeTeam": {
-                                "id":         4,
-                                "abbrev":     "PHI",
-                                "commonName": {"default": "Flyers"},
-                                "placeName":  {"default": "Philadelphia"},
-                            },
-                            "awayTeam": {
-                                "id":         22,
-                                "abbrev":     "EDM",
-                                "commonName": {"default": "Oilers"},
-                                "placeName":  {"default": "Edmonton"},
-                            },
-                        }
-                    ]
-                }
+                    "teamId":         4,
+                    "teamAbbrev":     {"default": "PHI"},
+                    "teamCommonName": {"default": "Flyers"},
+                    "placeName":      {"default": "Philadelphia"},
+                },
+                {
+                    "teamId":         22,
+                    "teamAbbrev":     {"default": "EDM"},
+                    "teamCommonName": {"default": "Oilers"},
+                    "placeName":      {"default": "Edmonton"},
+                },
             ]
         }
 
     def test_returns_list_of_team_dicts(self):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = self._schedule_payload()
+        mock_resp.json.return_value = self._standings_payload()
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             result = fetch_teams_from_standings()
         assert len(result) == 2
 
     def test_team_dict_has_required_keys(self):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = self._schedule_payload()
+        mock_resp.json.return_value = self._standings_payload()
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             result = fetch_teams_from_standings()
         team = result[0]
@@ -214,19 +208,14 @@ class TestFetchTeamsFromStandings:
     def test_skips_entries_without_team_id(self):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
-            "gameWeek": [
+            "standings": [
+                {"teamAbbrev": {"default": "PHI"}},   # missing teamId
                 {
-                    "games": [
-                        {
-                            "homeTeam": {"abbrev": "PHI"},   # missing id
-                            "awayTeam": {
-                                "id": 22, "abbrev": "EDM",
-                                "commonName": {"default": "Oilers"},
-                                "placeName":  {"default": "Edmonton"},
-                            },
-                        }
-                    ]
-                }
+                    "teamId": 22,
+                    "teamAbbrev":     {"default": "EDM"},
+                    "teamCommonName": {"default": "Oilers"},
+                    "placeName":      {"default": "Edmonton"},
+                },
             ]
         }
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
@@ -234,35 +223,29 @@ class TestFetchTeamsFromStandings:
         assert len(result) == 1
         assert result[0]["team"] == "EDM"
 
-    def test_deduplicates_teams_across_days(self):
+    def test_all_standings_entries_included(self):
         payload = {
-            "gameWeek": [
-                {"games": [{"homeTeam": {"id": 4, "abbrev": "PHI",
-                                         "commonName": {"default": "Flyers"},
-                                         "placeName":  {"default": "Philadelphia"}},
-                             "awayTeam": {"id": 22, "abbrev": "EDM",
-                                          "commonName": {"default": "Oilers"},
-                                          "placeName":  {"default": "Edmonton"}}}]},
-                # PHI appears again the next day
-                {"games": [{"homeTeam": {"id": 4, "abbrev": "PHI",
-                                         "commonName": {"default": "Flyers"},
-                                         "placeName":  {"default": "Philadelphia"}},
-                             "awayTeam": {"id": 3, "abbrev": "NYR",
-                                          "commonName": {"default": "Rangers"},
-                                          "placeName":  {"default": "New York"}}}]},
+            "standings": [
+                {"teamId": 4,  "teamAbbrev": {"default": "PHI"},
+                 "teamCommonName": {"default": "Flyers"},
+                 "placeName":      {"default": "Philadelphia"}},
+                {"teamId": 22, "teamAbbrev": {"default": "EDM"},
+                 "teamCommonName": {"default": "Oilers"},
+                 "placeName":      {"default": "Edmonton"}},
+                {"teamId": 3,  "teamAbbrev": {"default": "NYR"},
+                 "teamCommonName": {"default": "Rangers"},
+                 "placeName":      {"default": "New York"}},
             ]
         }
         mock_resp = MagicMock()
         mock_resp.json.return_value = payload
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             result = fetch_teams_from_standings()
-        abbrevs = [t["team"] for t in result]
-        assert len(abbrevs) == len(set(abbrevs))   # no duplicates
         assert len(result) == 3
 
     def test_maps_fields_correctly(self):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = self._schedule_payload()
+        mock_resp.json.return_value = self._standings_payload()
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             result = fetch_teams_from_standings()
         phi = next(t for t in result if t["team"] == "PHI")
@@ -276,27 +259,27 @@ class TestFetchTeamsFromStandings:
 # ---------------------------------------------------------------------------
 
 class TestFullSyncTeams:
-    def _schedule_payload(self):
+    def _standings_payload(self):
         return {
-            "gameWeek": [
+            "standings": [
                 {
-                    "games": [
-                        {
-                            "homeTeam": {"id": 4,  "abbrev": "PHI",
-                                         "commonName": {"default": "Flyers"},
-                                         "placeName":  {"default": "Philadelphia"}},
-                            "awayTeam": {"id": 22, "abbrev": "EDM",
-                                         "commonName": {"default": "Oilers"},
-                                         "placeName":  {"default": "Edmonton"}},
-                        }
-                    ]
-                }
+                    "teamId":         4,
+                    "teamAbbrev":     {"default": "PHI"},
+                    "teamCommonName": {"default": "Flyers"},
+                    "placeName":      {"default": "Philadelphia"},
+                },
+                {
+                    "teamId":         22,
+                    "teamAbbrev":     {"default": "EDM"},
+                    "teamCommonName": {"default": "Oilers"},
+                    "placeName":      {"default": "Edmonton"},
+                },
             ]
         }
 
     def test_returns_upserted_row_count(self, tmp_path):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = self._schedule_payload()
+        mock_resp.json.return_value = self._standings_payload()
         db = tmp_path / "sync_test.db"
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             count = full_sync_teams(db)
@@ -304,7 +287,7 @@ class TestFullSyncTeams:
 
     def test_teams_are_queryable_after_sync(self, tmp_path):
         mock_resp = MagicMock()
-        mock_resp.json.return_value = self._schedule_payload()
+        mock_resp.json.return_value = self._standings_payload()
         db = tmp_path / "sync_test.db"
         with patch("screamsheet.db.nhl_teams_sync.requests.get", return_value=mock_resp):
             full_sync_teams(db)

@@ -32,10 +32,11 @@ _BASE_URL = "https://api-web.nhle.com/v1"
 
 
 def fetch_teams_from_standings() -> List[dict]:
-    """Fetch all NHL teams from the weekly schedule endpoint.
+    """Fetch all 32 NHL teams from the standings endpoint.
 
-    The ``/schedule/now`` response includes all 32 teams across its gameWeek
-    entries, each with the canonical numeric team ``id``, abbreviation,
+    The ``/standings/now`` response always includes every franchise regardless
+    of whether games are currently scheduled (handles off-season and playoffs
+    correctly).  Each entry has the canonical numeric ``teamId``, abbreviation,
     common name, and place name — everything needed for the teams table.
 
     Returns:
@@ -44,29 +45,26 @@ def fetch_teams_from_standings() -> List[dict]:
     Raises:
         requests.exceptions.HTTPError: on a non-2xx response.
     """
-    url = f"{_BASE_URL}/schedule/now"
+    url = f"{_BASE_URL}/standings/now"
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     data = response.json()
 
-    seen: dict = {}
-    for day in data.get("gameWeek", []):
-        for game in day.get("games", []):
-            for side in ("homeTeam", "awayTeam"):
-                t = game.get(side, {})
-                team_id = t.get("id")
-                abbrev  = t.get("abbrev")
-                if not team_id or not abbrev or abbrev in seen:
-                    continue
-                seen[abbrev] = {
-                    "team_id":        team_id,
-                    "team":           abbrev,
-                    "team_full_name": t.get("commonName", {}).get("default", ""),
-                    "city":           t.get("placeName", {}).get("default", ""),
-                    "raw_json":       json.dumps(t),
-                }
+    teams: list = []
+    for t in data.get("standings", []):
+        team_id = t.get("teamId")
+        abbrev  = t.get("teamAbbrev", {}).get("default", "")
+        if not team_id or not abbrev:
+            continue
+        teams.append({
+            "team_id":        team_id,
+            "team":           abbrev,
+            "team_full_name": t.get("teamCommonName", {}).get("default", ""),
+            "city":           t.get("placeName", {}).get("default", ""),
+            "raw_json":       json.dumps(t),
+        })
 
-    return list(seen.values())
+    return teams
 
 
 def _sync_nhl_lookup_table(teams: List[dict], db_path: Optional[Path]) -> None:

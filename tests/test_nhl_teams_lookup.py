@@ -2,7 +2,22 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+_NHL_STANDINGS_RESPONSE = {
+    "standings": [
+        {
+            "teamAbbrev": {"default": "PHI"},
+            "teamName": {"default": "Philadelphia Flyers"},
+            "placeName": {"default": "Philadelphia"},
+        },
+        {
+            "teamAbbrev": {"default": "EDM"},
+            "teamName": {"default": "Edmonton Oilers"},
+            "placeName": {"default": "Edmonton"},
+        },
+    ]
+}
 
 _NHL_SCHEDULE_RESPONSE = {
     "gameWeek": [
@@ -28,12 +43,21 @@ _NHL_SCHEDULE_RESPONSE = {
 }
 
 
+def _make_mock_response(data: dict) -> MagicMock:
+    m = MagicMock()
+    m.raise_for_status.return_value = None
+    m.json.return_value = data
+    return m
+
+
 class TestNhlTeamsSyncPopulatesLookupTable:
     def test_full_sync_populates_nhl_teams_table(self, tmp_path: Path) -> None:
         db = tmp_path / "test.db"
         with patch("screamsheet.db.nhl_teams_sync.requests.get") as mock_get:
-            mock_get.return_value.raise_for_status.return_value = None
-            mock_get.return_value.json.return_value = _NHL_SCHEDULE_RESPONSE
+            mock_get.side_effect = [
+                _make_mock_response(_NHL_STANDINGS_RESPONSE),
+                _make_mock_response(_NHL_SCHEDULE_RESPONSE),
+            ]
             from screamsheet.db.nhl_teams_sync import full_sync_teams
             full_sync_teams(db)
         from screamsheet.db.team_lookup import lookup_team_id_by_name
@@ -43,8 +67,10 @@ class TestNhlTeamsSyncPopulatesLookupTable:
     def test_lookup_team_by_full_name_in_teams_db(self, tmp_path: Path) -> None:
         db = tmp_path / "test.db"
         with patch("screamsheet.db.nhl_teams_sync.requests.get") as mock_get:
-            mock_get.return_value.raise_for_status.return_value = None
-            mock_get.return_value.json.return_value = _NHL_SCHEDULE_RESPONSE
+            mock_get.side_effect = [
+                _make_mock_response(_NHL_STANDINGS_RESPONSE),
+                _make_mock_response(_NHL_SCHEDULE_RESPONSE),
+            ]
             from screamsheet.db.nhl_teams_sync import full_sync_teams
             full_sync_teams(db)
         from screamsheet.db.nhl_teams_db import lookup_team_by_full_name

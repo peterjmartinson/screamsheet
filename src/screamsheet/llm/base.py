@@ -8,6 +8,7 @@ unchanged — ``llm/summary.py`` re-exports everything from here.
 """
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
@@ -122,13 +123,13 @@ class BaseGameSummaryGenerator:
         """Return the initialised LLM corresponding to *llm_choice*."""
         llm_choice = llm_choice.lower()
         if llm_choice == "gemini" and self.llm_gemini:
-            print("--- Using GEMINI for generation ---")
+            print("--- Using GEMINI for generation ---", file=sys.stderr)
             return self.llm_gemini
         elif llm_choice == "grok" and self.llm_grok:
-            print("--- Using GROK for generation ---")
+            print("--- Using GROK for generation ---", file=sys.stderr)
             return self.llm_grok
 
-        print("--- No LLM available for generation ---")
+        print("--- No LLM available for generation ---", file=sys.stderr)
         return None
 
     # ------------------------------------------------------------------

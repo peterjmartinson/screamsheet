@@ -180,7 +180,7 @@ def lookup_team_by_full_name(
     with Session(engine) as session:
         row = (
             session.query(_Team)
-            .filter(text("city || ' ' || team_full_name = :name"))
+            .filter(text("team_full_name = :name"))
             .params(name=full_name)
             .first()
         )

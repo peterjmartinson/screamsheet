@@ -1,12 +1,52 @@
 """Game scores section renderer."""
 from datetime import datetime
-from typing import List, Any
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from typing import List, Any, Optional, Dict, Tuple
+from reportlab.platypus import Table, TableStyle, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
 from ..base import Section, DataProvider
+
+
+def _determine_series_badge(
+    away_abbrev: str,
+    home_abbrev: str,
+    away_score: int,
+    home_score: int,
+    series_status: Dict[str, Any],
+) -> Tuple[str, str]:
+    """Return (badge_row, badge_text) for a playoff game.
+
+    badge_row is "away" or "home".
+    badge_text is one of "(leads X-Y)", "(won X-Y)", or "(tied X-X)".
+    """
+    top_abbrev = series_status["top_seed_abbrev"]
+    top_wins = series_status["top_seed_wins"]
+    bottom_abbrev = series_status["bottom_seed_abbrev"]
+    bottom_wins = series_status["bottom_seed_wins"]
+    needed = series_status["needed_to_win"]
+
+    # Determine series winner/leader
+    if top_wins == needed:
+        leader_abbrev = top_abbrev
+        badge_text = f"(won {top_wins}-{bottom_wins})"
+    elif bottom_wins == needed:
+        leader_abbrev = bottom_abbrev
+        badge_text = f"(won {bottom_wins}-{top_wins})"
+    elif top_wins > bottom_wins:
+        leader_abbrev = top_abbrev
+        badge_text = f"(leads {top_wins}-{bottom_wins})"
+    elif bottom_wins > top_wins:
+        leader_abbrev = bottom_abbrev
+        badge_text = f"(leads {bottom_wins}-{top_wins})"
+    else:
+        # Tied — badge goes on game winner's row
+        leader_abbrev = away_abbrev if away_score > home_score else home_abbrev
+        badge_text = f"(tied {top_wins}-{bottom_wins})"
+
+    badge_row = "away" if leader_abbrev == away_abbrev else "home"
+    return badge_row, badge_text
 
 
 class GameScoresSection(Section):
@@ -30,7 +70,7 @@ class GameScoresSection(Section):
             spaceAfter=12,
             alignment=TA_CENTER
         )
-    
+
     def fetch_data(self):
         """Fetch game scores from the provider."""
         self.data = self.provider.get_game_scores(self.date)
@@ -48,16 +88,35 @@ class GameScoresSection(Section):
         # Section title suppressed (document top-level title used instead)
         
         # Organize games into three columns
-        scores_left = []
-        scores_center = []
-        scores_right = []
+        scores_left: List[Any] = []
+        scores_center: List[Any] = []
+        scores_right: List[Any] = []
         
         for i, game in enumerate(self.data):
             if game.get("away_score") is not None and game.get("home_score") is not None:
-                table_data = [
-                    [game['away_team'], str(game['away_score'])],
-                    [f"@{game['home_team']}", str(game['home_score'])]
-                ]
+                series_status: Optional[Dict[str, Any]] = game.get("series_status")
+
+                if series_status:
+                    badge_row, badge_text = _determine_series_badge(
+                        away_abbrev=game.get("away_abbrev", ""),
+                        home_abbrev=game.get("home_abbrev", ""),
+                        away_score=game["away_score"],
+                        home_score=game["home_score"],
+                        series_status=series_status,
+                    )
+                    away_badge = badge_text if badge_row == "away" else ""
+                    home_badge = badge_text if badge_row == "home" else ""
+                    table_data: List[Any] = [
+                        [game['away_team'], str(game["away_score"]), away_badge],
+                        [f"@{game['home_team']}", str(game["home_score"]), home_badge],
+                    ]
+                    col_widths = [65, 20, 65]
+                else:
+                    table_data = [
+                        [game['away_team'], str(game["away_score"])],
+                        [f"@{game['home_team']}", str(game["home_score"])],
+                    ]
+                    col_widths = [80, 50]
                 table_style = TableStyle([
                     ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
@@ -65,7 +124,7 @@ class GameScoresSection(Section):
                     ('LEFTPADDING', (0, 0), (0, -1), 0),
                     ('RIGHTPADDING', (0, 0), (0, -1), 0),
                 ])
-                game_table = Table(table_data, colWidths=[80, 50])
+                game_table = Table(table_data, colWidths=col_widths)
                 game_table.setStyle(table_style)
                 
                 if i % 3 == 0:

@@ -64,26 +64,49 @@ class NHLDataProvider(DataProvider):
             game_state = game['gameState']
             
             if game_state in ['FINAL', 'OFF', 'LIVE']:
+                game_type: int = game.get('gameType', 2)
                 away_place_name = game['awayTeam']['placeName']['default']
                 home_place_name = game['homeTeam']['placeName']['default']
                 away_team_name = game['awayTeam']['commonName']['default']
                 home_team_name = game['homeTeam']['commonName']['default']
-                
-                away_full_name = f"{away_place_name} {away_team_name}"
-                home_full_name = f"{home_place_name} {home_team_name}"
+                away_abbrev: str = game['awayTeam'].get('abbrev', '')
+                home_abbrev: str = game['homeTeam'].get('abbrev', '')
+
+                # Playoffs: use location name only (saves space for the series badge)
+                if game_type == 3:
+                    away_display = away_place_name
+                    home_display = home_place_name
+                else:
+                    away_display = f"{away_place_name} {away_team_name}"
+                    home_display = f"{home_place_name} {home_team_name}"
                 
                 away_score_raw = game['awayTeam'].get('score')
                 home_score_raw = game['homeTeam'].get('score')
                 away_score = int(away_score_raw) if away_score_raw is not None else 0
                 home_score = int(home_score_raw) if home_score_raw is not None else 0
+
+                series_status: Optional[Dict[str, Any]] = None
+                raw_series = game.get('seriesStatus')
+                if game_type == 3 and raw_series:
+                    series_status = {
+                        "top_seed_abbrev": raw_series['topSeedTeamAbbrev'],
+                        "top_seed_wins": int(raw_series['topSeedWins']),
+                        "bottom_seed_abbrev": raw_series['bottomSeedTeamAbbrev'],
+                        "bottom_seed_wins": int(raw_series['bottomSeedWins']),
+                        "needed_to_win": int(raw_series['neededToWin']),
+                    }
                 
                 game_info = {
                     "gameDate": game.get('startTimeUTC'),
-                    "away_team": away_full_name,
-                    "home_team": home_full_name,
+                    "away_team": away_display,
+                    "home_team": home_display,
+                    "away_abbrev": away_abbrev,
+                    "home_abbrev": home_abbrev,
                     "away_score": away_score,
                     "home_score": home_score,
-                    "status": game_state
+                    "status": game_state,
+                    "game_type": game_type,
+                    "series_status": series_status,
                 }
                 games.append(game_info)
         

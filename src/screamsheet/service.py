@@ -86,6 +86,7 @@ def _generate_sheet(
 
     section = raw_config.get(sheet_type, {})
     teams_raw = section.get("favorite_teams", [])
+    masthead = str(raw_config.get("layout", {}).get("masthead", ""))
 
     if sheet_type == "nhl":
         # Resolve name → id via DB; fall back to None if DB not populated yet.
@@ -95,6 +96,7 @@ def _generate_sheet(
             favorite_teams=favorite_teams,
             date=game_date,
             display_date=today,
+            masthead=masthead,
         )
 
     elif sheet_type == "mlb":
@@ -105,6 +107,7 @@ def _generate_sheet(
             favorite_teams=favorite_teams,
             date=game_date,
             display_date=today,
+            masthead=masthead,
         )
 
     elif sheet_type == "nba":
@@ -114,6 +117,7 @@ def _generate_sheet(
             favorite_teams=favorite_teams,
             date=game_date,
             display_date=today,
+            masthead=masthead,
         )
 
     elif sheet_type == "nfl":
@@ -122,7 +126,7 @@ def _generate_sheet(
             output_filename=output_path,
             favorite_teams=favorite_teams,
             date=game_date,
-            display_date=today,
+            masthead=masthead,
         )
 
     else:

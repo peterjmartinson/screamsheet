@@ -17,12 +17,14 @@ class FanGraphsScreamsheet(NewsScreamsheet):
         max_articles: int = 4,
         include_weather: bool = True,
         date: Optional[datetime] = None,
+        masthead: str = "",
     ):
         super().__init__(
             news_source="FanGraphs Blogs",
             output_filename=output_filename,
             include_weather=include_weather,
             date=date,
+            masthead=masthead,
         )
         self.max_articles = max_articles
         self.provider = FanGraphsProvider(max_articles=self.max_articles)

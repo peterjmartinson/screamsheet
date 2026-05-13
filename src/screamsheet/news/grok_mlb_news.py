@@ -24,12 +24,14 @@ class GrokMLBNewsScreamsheet(NewsScreamsheet):
         max_articles: int = 4,
         include_weather: bool = True,
         date: Optional[datetime] = None,
+        masthead: str = "",
     ):
         super().__init__(
             news_source='MLB News from X',
             output_filename=output_filename,
             include_weather=include_weather,
             date=date,
+            masthead=masthead,
         )
         self.favorite_teams = favorite_teams or ['Phillies', 'Padres', 'Yankees']
         self.max_articles = max_articles

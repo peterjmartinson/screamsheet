@@ -40,12 +40,14 @@ class PresidentialScreamsheet(NewsScreamsheet):
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
+        masthead: str = "",
     ):
         super().__init__(
             news_source="Presidential Screamsheet",
             output_filename=output_filename,
             include_weather=include_weather,
             date=date,
+            masthead=masthead,
         )
         self.max_articles = max_articles
         self.weather_lat = weather_lat

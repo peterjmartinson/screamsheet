@@ -98,47 +98,42 @@ class TestBaseScreamshetDisplayDate:
 
 
 # ---------------------------------------------------------------------------
-# Brand footer
+# Masthead
 # ---------------------------------------------------------------------------
 
-class TestBaseScreamshetBrandFooter:
-    def test_brand_footer_text_stored(self):
-        s = _ConcreteScreamsheet("output.pdf", brand_footer_text="example.com")
-        assert s.brand_footer_text == "example.com"
+class TestBaseScreamshetMasthead:
+    def test_masthead_stored(self):
+        s = _ConcreteScreamsheet("output.pdf", masthead="example.com")
+        assert s.masthead == "example.com"
 
-    def test_brand_footer_defaults_to_empty_string(self):
+    def test_masthead_defaults_to_empty_string(self):
         s = _ConcreteScreamsheet("output.pdf")
-        assert s.brand_footer_text == ""
+        assert s.masthead == ""
 
-    def test_generate_passes_page_callbacks_when_footer_set(self, tmp_path):
-        s = _ConcreteScreamsheet(
-            str(tmp_path / "out.pdf"), brand_footer_text="distractedfortune.com"
-        )
-        with patch("screamsheet.base.screamsheet.SimpleDocTemplate") as mock_cls:
-            mock_doc = MagicMock()
-            mock_cls.return_value = mock_doc
-            s.generate()
-        kwargs = mock_doc.build.call_args.kwargs
-        assert "onFirstPage" in kwargs
-        assert "onLaterPages" in kwargs
+    def test_sanitize_masthead_strips_https(self):
+        from screamsheet.base.screamsheet import _sanitize_masthead
+        assert _sanitize_masthead("https://example.com") == "example.com"
 
-    def test_generate_no_page_callbacks_when_footer_empty(self, tmp_path):
-        s = _ConcreteScreamsheet(str(tmp_path / "out.pdf"))
-        with patch("screamsheet.base.screamsheet.SimpleDocTemplate") as mock_cls:
-            mock_doc = MagicMock()
-            mock_cls.return_value = mock_doc
-            s.generate()
-        kwargs = mock_doc.build.call_args.kwargs
-        assert "onFirstPage" not in kwargs
-        assert "onLaterPages" not in kwargs
+    def test_sanitize_masthead_strips_http(self):
+        from screamsheet.base.screamsheet import _sanitize_masthead
+        assert _sanitize_masthead("http://example.com") == "example.com"
 
-    def test_both_callbacks_are_the_same_function(self, tmp_path):
-        s = _ConcreteScreamsheet(
-            str(tmp_path / "out.pdf"), brand_footer_text="distractedfortune.com"
-        )
-        with patch("screamsheet.base.screamsheet.SimpleDocTemplate") as mock_cls:
-            mock_doc = MagicMock()
-            mock_cls.return_value = mock_doc
-            s.generate()
-        kwargs = mock_doc.build.call_args.kwargs
-        assert kwargs["onFirstPage"] is kwargs["onLaterPages"]
+    def test_sanitize_masthead_lowercases_plain_domain(self):
+        from screamsheet.base.screamsheet import _sanitize_masthead
+        assert _sanitize_masthead("DISTRACTEDFORTUNE.COM") == "distractedfortune.com"
+
+    def test_build_story_includes_masthead_in_date_line(self):
+        from reportlab.platypus import Paragraph
+        s = _ConcreteScreamsheet("output.pdf", masthead="distractedfortune.com", date=datetime(2025, 3, 15))
+        story = s._build_story()
+        paragraphs = [item for item in story if isinstance(item, Paragraph)]
+        texts = [p.getPlainText() for p in paragraphs]
+        assert any("distractedfortune.com" in t and "|" in t for t in texts)
+
+    def test_build_story_has_no_masthead_when_empty(self):
+        from reportlab.platypus import Paragraph
+        s = _ConcreteScreamsheet("output.pdf", date=datetime(2025, 3, 15))
+        story = s._build_story()
+        paragraphs = [item for item in story if isinstance(item, Paragraph)]
+        texts = [p.getPlainText() for p in paragraphs]
+        assert not any("|" in t for t in texts)

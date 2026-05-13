@@ -60,6 +60,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ) -> MLBScreamsheet:
         """
         Create an MLB screamsheet.
@@ -71,6 +72,7 @@ class ScreamsheetFactory:
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            masthead: Branding text for the top-right header ear box.
             
         Returns:
             MLBScreamsheet instance
@@ -82,6 +84,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     @staticmethod
@@ -92,6 +95,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ) -> NHLScreamsheet:
         """
         Create an NHL screamsheet.
@@ -103,6 +107,7 @@ class ScreamsheetFactory:
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            masthead: Branding text for the top-right header ear box.
             
         Returns:
             NHLScreamsheet instance
@@ -114,6 +119,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     @staticmethod
@@ -123,6 +129,7 @@ class ScreamsheetFactory:
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ) -> NFLScreamsheet:
         """
         Create an NFL screamsheet.
@@ -133,6 +140,7 @@ class ScreamsheetFactory:
             team_name: Team name (deprecated — use favorite_teams)
             date: Target date (defaults to yesterday)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            masthead: Branding text for the top-right header ear box.
             
         Returns:
             NFLScreamsheet instance
@@ -143,6 +151,7 @@ class ScreamsheetFactory:
             team_name=team_name,
             date=date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     @staticmethod
@@ -153,6 +162,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ) -> NBAScreamsheet:
         """
         Create an NBA screamsheet.
@@ -164,6 +174,7 @@ class ScreamsheetFactory:
             date: Target date (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            masthead: Branding text for the top-right header ear box.
             
         Returns:
             NBAScreamsheet instance
@@ -175,6 +186,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     @staticmethod
@@ -186,7 +198,8 @@ class ScreamsheetFactory:
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> MLBTradeRumorsScreamsheet:
         """
         Create an MLB Trade Rumors news screamsheet.
@@ -212,7 +225,8 @@ class ScreamsheetFactory:
             weather_lat=weather_lat,
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
-            date=date
+            date=date,
+            masthead=masthead,
         )
     
     @staticmethod
@@ -224,6 +238,7 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> MLBNewsScreamsheet:
         """
         Create an MLB News screamsheet sourced from MLB.com team RSS feeds.
@@ -248,6 +263,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            masthead=masthead,
         )
 
     @staticmethod
@@ -255,7 +271,8 @@ class ScreamsheetFactory:
         output_filename: str,
         max_articles: int = 4,
         include_weather: bool = True,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> PlayersTribuneScreamsheet:
         """
         Create a Players' Tribune news screamsheet.
@@ -273,7 +290,8 @@ class ScreamsheetFactory:
             output_filename=output_filename,
             max_articles=max_articles,
             include_weather=include_weather,
-            date=date
+            date=date,
+            masthead=masthead,
         )
 
     @staticmethod
@@ -282,6 +300,7 @@ class ScreamsheetFactory:
         max_articles: int = 4,
         include_weather: bool = True,
         date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> FanGraphsScreamsheet:
         """
         Create a FanGraphs Blogs news screamsheet.
@@ -291,6 +310,7 @@ class ScreamsheetFactory:
             max_articles=max_articles,
             include_weather=include_weather,
             date=date,
+            masthead=masthead,
         )
 
     @staticmethod
@@ -300,6 +320,7 @@ class ScreamsheetFactory:
         max_articles: int = 4,
         include_weather: bool = True,
         date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> GrokMLBNewsScreamsheet:
         """
         Create a Grok MLB News screamsheet.
@@ -323,6 +344,7 @@ class ScreamsheetFactory:
             max_articles=max_articles,
             include_weather=include_weather,
             date=date,
+            masthead=masthead,
         )
 
     @staticmethod
@@ -334,6 +356,7 @@ class ScreamsheetFactory:
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
+        masthead: str = "",
     ) -> PresidentialScreamsheet:
         """
         Create a Presidential Screamsheet.
@@ -361,6 +384,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            masthead=masthead,
         )
 
     @staticmethod
@@ -371,6 +395,7 @@ class ScreamsheetFactory:
         location_name: str = "My Location",
         date: Optional[datetime] = None,
         people: Optional[list] = None,
+        masthead: str = "",
     ) -> SkyTonightScreamsheet:
         """
         Create a Sky Tonight screamsheet.
@@ -397,4 +422,5 @@ class ScreamsheetFactory:
             location_name=location_name,
             date=date,
             people=people or [],
+            masthead=masthead,
         )

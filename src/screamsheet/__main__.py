@@ -48,6 +48,7 @@ def _build_sheets(today_str: str) -> list:
                 favorite_teams=mlb_teams,
                 date=game_date,
                 display_date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -61,6 +62,7 @@ def _build_sheets(today_str: str) -> list:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -73,6 +75,7 @@ def _build_sheets(today_str: str) -> list:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -82,6 +85,7 @@ def _build_sheets(today_str: str) -> list:
                 favorite_teams=nhl_teams,
                 date=game_date,
                 display_date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -91,6 +95,7 @@ def _build_sheets(today_str: str) -> list:
                 favorite_teams=nba_teams,
                 date=game_date,
                 display_date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -102,6 +107,7 @@ def _build_sheets(today_str: str) -> list:
                 weather_lon=cfg.weather.presidential.lon,
                 weather_location_name=cfg.weather.presidential.location_name,
                 date=today,
+                masthead=cfg.layout.masthead,
             ),
         ),
         (
@@ -113,6 +119,7 @@ def _build_sheets(today_str: str) -> list:
                 location_name=cfg.sky.location_name,
                 date=today,
                 people=cfg.sky.people,
+                masthead=cfg.layout.masthead,
             ),
         ),
     ]

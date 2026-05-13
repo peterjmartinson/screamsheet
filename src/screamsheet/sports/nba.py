@@ -17,6 +17,7 @@ class NBAScreamsheet(SportsScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ):
         """
         Initialize NBA screamsheet.
@@ -37,6 +38,7 @@ class NBAScreamsheet(SportsScreamsheet):
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     def create_provider(self) -> NBADataProvider:

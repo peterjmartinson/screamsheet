@@ -16,6 +16,7 @@ class NFLScreamsheet(SportsScreamsheet):
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ):
         """
         Initialize NFL screamsheet.
@@ -34,6 +35,7 @@ class NFLScreamsheet(SportsScreamsheet):
             team_name=team_name,
             date=date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     def create_provider(self) -> NFLDataProvider:

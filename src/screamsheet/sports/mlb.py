@@ -17,6 +17,7 @@ class MLBScreamsheet(SportsScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ):
         """
         Initialize MLB screamsheet.
@@ -28,6 +29,7 @@ class MLBScreamsheet(SportsScreamsheet):
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            masthead: Branding text for the top-right header ear box.
         """
         super().__init__(
             sport_name="MLB",
@@ -37,6 +39,7 @@ class MLBScreamsheet(SportsScreamsheet):
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            masthead=masthead,
         )
     
     def create_provider(self) -> MLBDataProvider:

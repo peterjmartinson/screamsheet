@@ -10,6 +10,14 @@ from reportlab.lib.enums import TA_CENTER
 from .section import Section
 
 
+def _sanitize_masthead(text: str) -> str:
+    """Strip protocol prefix and convert to ALL CAPS for display."""
+    for prefix in ("https://", "http://"):
+        if text.lower().startswith(prefix):
+            text = text[len(prefix):]
+    return text.lower()
+
+
 class BaseScreamsheet(ABC):
     """
     Base class for all screamsheets (sports or news).
@@ -24,7 +32,7 @@ class BaseScreamsheet(ABC):
         output_filename: str,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
-        brand_footer_text: str = "",
+        masthead: str = "",
     ):
         """
         Initialize the screamsheet.
@@ -33,13 +41,14 @@ class BaseScreamsheet(ABC):
             output_filename:   Path to save the generated PDF
             date:              Target date for game data lookups (defaults to yesterday)
             display_date:      Date shown in the subtitle header (defaults to date)
-            brand_footer_text: Text centered at the bottom of every page.
-                               Pass an empty string (default) to suppress the footer.
+            masthead:          Branding text shown in the top-right "ear" box on every
+                               page header.  Pass an empty string (default) to suppress
+                               the ear entirely.
         """
         self.output_filename = output_filename
         self.date = date or (datetime.now() - timedelta(days=1))
         self.display_date: datetime = display_date if display_date is not None else self.date
-        self.brand_footer_text: str = brand_footer_text
+        self.masthead: str = masthead
         self.sections: List[Section] = []
         self.styles = getSampleStyleSheet()
         self._setup_styles()
@@ -49,7 +58,7 @@ class BaseScreamsheet(ABC):
         self.title_style = ParagraphStyle(
             name="Title",
             parent=self.styles['h1'],
-            fontName='Helvetica-Bold',
+            fontName='Helvetica-BoldOblique',
             fontSize=28,
             spaceAfter=12,
             alignment=TA_CENTER
@@ -110,17 +119,20 @@ class BaseScreamsheet(ABC):
         """
         story: List[Any] = []
 
-        # Title
-        story.append(Paragraph(self.get_title(), self.title_style))
-
-        # Optional subtitle
+        # ---- Centred header ---------------------------------------------------
+        story.append(Paragraph(self.get_title().upper(), self.title_style))
         subtitle = self.get_subtitle()
         if subtitle:
             story.append(Paragraph(f"<i>{subtitle}</i>", self.subtitle_style))
+        date_line = self.get_date_string()
+        if self.masthead:
+            ear = _sanitize_masthead(self.masthead)
+            date_line = f"{date_line} | <font size='12'>{ear}</font>"
+        story.append(Paragraph(date_line, self.subtitle_style))
+        # -----------------------------------------------------------------------
 
-        # Date
-        story.append(Paragraph(self.get_date_string(), self.subtitle_style))
         story.append(Spacer(1, 12))
+        # -------------------------------------------------------------------------
 
         # Sections
         for section in self.sections:
@@ -153,25 +165,7 @@ class BaseScreamsheet(ABC):
         story = self._build_story()
         
         # Build PDF
-        if self.brand_footer_text:
-            footer_text = self.brand_footer_text
-
-            def _draw_brand_footer(canvas: object, doc: object) -> None:  # type: ignore[override]
-                import reportlab.lib.pagesizes as _ps
-                page_width = _ps.letter[0]
-                c = canvas  # type: ignore[attr-defined]
-                c.saveState()
-                c.setFont("Helvetica-Bold", 8)
-                c.drawCentredString(page_width / 2, 18, footer_text)
-                c.restoreState()
-
-            doc.build(
-                story,
-                onFirstPage=_draw_brand_footer,
-                onLaterPages=_draw_brand_footer,
-            )
-        else:
-            doc.build(story)
+        doc.build(story)
 
         return self.output_filename
     

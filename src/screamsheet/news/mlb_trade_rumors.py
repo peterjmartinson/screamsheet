@@ -20,7 +20,8 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        masthead: str = "",
     ):
         """
         Initialize MLB Trade Rumors screamsheet.
@@ -34,12 +35,14 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
             weather_lon: Longitude for weather location
             weather_location_name: Display name for weather location
             date: Target date (defaults to today)
+            masthead: Branding text for the top-right header ear box.
         """
         super().__init__(
             news_source="MLB Trade Rumors",
             output_filename=output_filename,
             include_weather=include_weather,
-            date=date
+            date=date,
+            masthead=masthead,
         )
         self.favorite_teams = favorite_teams or ['Phillies', 'Padres', 'Yankees']
         self.max_articles = max_articles

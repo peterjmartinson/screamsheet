@@ -41,6 +41,7 @@ class SportsScreamsheet(BaseScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        masthead: str = "",
     ):
         """
         Initialize the sports screamsheet.
@@ -55,8 +56,9 @@ class SportsScreamsheet(BaseScreamsheet):
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples. The
                 first team that played on `date` will be featured. When provided,
                 team_id and team_name are ignored.
+            masthead: Branding text for the top-right header ear box.
         """
-        super().__init__(output_filename, date, display_date)
+        super().__init__(output_filename, date, display_date, masthead)
         self.sport_name = sport_name
 
         # Build the canonical priority list.
@@ -189,19 +191,5 @@ class SportsScreamsheet(BaseScreamsheet):
         # Final build to disk
         story = self._build_story()
         doc = SimpleDocTemplate(self.output_filename, **_doc_kwargs)
-        if self.brand_footer_text:
-            footer_text = self.brand_footer_text
-
-            def _draw_brand_footer(canvas: object, doc: object) -> None:  # type: ignore[override]
-                import reportlab.lib.pagesizes as _ps
-                c = canvas  # type: ignore[attr-defined]
-                c.saveState()
-                c.setFont("Helvetica-Bold", 8)
-                c.drawCentredString(_ps.letter[0] / 2, 18, footer_text)
-                c.restoreState()
-
-            doc.build(story, onFirstPage=_draw_brand_footer, onLaterPages=_draw_brand_footer)
-        else:
-            doc.build(story)
-
+        doc.build(story)
         return self.output_filename

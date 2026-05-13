@@ -16,7 +16,8 @@ class PlayersTribuneScreamsheet(NewsScreamsheet):
         output_filename: str,
         max_articles: int = 4,
         include_weather: bool = True,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        masthead: str = "",
     ):
         """
         Initialize The Players' Tribune screamsheet.
@@ -26,12 +27,14 @@ class PlayersTribuneScreamsheet(NewsScreamsheet):
             max_articles: Maximum number of articles to include
             include_weather: Whether to include weather report
             date: Target date (defaults to today)
+            masthead: Branding text for the top-right header ear box.
         """
         super().__init__(
             news_source="The Players' Tribune",
             output_filename=output_filename,
             include_weather=include_weather,
-            date=date
+            date=date,
+            masthead=masthead,
         )
         self.max_articles = max_articles
         self.provider = PlayersTribuneProvider(max_articles=self.max_articles)

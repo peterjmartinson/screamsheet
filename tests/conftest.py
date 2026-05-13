@@ -113,25 +113,69 @@ def mlb_live_feed_response():
 
 @pytest.fixture
 def nhl_schedule_response():
-    """Minimal NHL /schedule/<date> API response."""
+    """Minimal NHL /schedule/<date> API response — regular season (gameType 2)."""
     return {
         "gameWeek": [
             {
                 "games": [
                     {
+                        "gameType": 2,
                         "gameState": "OFF",
                         "startTimeUTC": "2025-03-15T23:00:00Z",
                         "awayTeam": {
                             "id": 4,
+                            "abbrev": "PHI",
                             "placeName": {"default": "Philadelphia"},
                             "commonName": {"default": "Flyers"},
                             "score": 4,
                         },
                         "homeTeam": {
                             "id": 1,
+                            "abbrev": "NJD",
                             "placeName": {"default": "New Jersey"},
                             "commonName": {"default": "Devils"},
                             "score": 2,
+                        },
+                    }
+                ]
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def nhl_playoff_schedule_response():
+    """Minimal NHL /schedule/<date> API response — playoff game (gameType 3) with seriesStatus."""
+    return {
+        "gameWeek": [
+            {
+                "games": [
+                    {
+                        "gameType": 3,
+                        "gameState": "OFF",
+                        "startTimeUTC": "2026-04-20T23:30:00Z",
+                        "awayTeam": {
+                            "id": 9,
+                            "abbrev": "OTT",
+                            "placeName": {"default": "Ottawa"},
+                            "commonName": {"default": "Senators"},
+                            "score": 2,
+                        },
+                        "homeTeam": {
+                            "id": 12,
+                            "abbrev": "CAR",
+                            "placeName": {"default": "Carolina"},
+                            "commonName": {"default": "Hurricanes"},
+                            "score": 3,
+                        },
+                        "seriesStatus": {
+                            "round": 1,
+                            "neededToWin": 4,
+                            "topSeedTeamAbbrev": "CAR",
+                            "topSeedWins": 2,
+                            "bottomSeedTeamAbbrev": "OTT",
+                            "bottomSeedWins": 0,
+                            "gameNumberOfSeries": 2,
                         },
                     }
                 ]

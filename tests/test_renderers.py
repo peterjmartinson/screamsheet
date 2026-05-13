@@ -83,6 +83,143 @@ class TestGameScoresSection:
 
 
 # ---------------------------------------------------------------------------
+# GameScoresSection — playoff series badge
+# ---------------------------------------------------------------------------
+
+def _make_series_status(top_abbrev, top_wins, bottom_abbrev, bottom_wins, needed=4):
+    return {
+        "top_seed_abbrev": top_abbrev,
+        "top_seed_wins": top_wins,
+        "bottom_seed_abbrev": bottom_abbrev,
+        "bottom_seed_wins": bottom_wins,
+        "needed_to_win": needed,
+    }
+
+
+def _playoff_game(away_abbrev, home_abbrev, away_score, home_score, series_status):
+    return {
+        "away_team": away_abbrev.lower().capitalize(),
+        "home_team": home_abbrev.lower().capitalize(),
+        "away_abbrev": away_abbrev,
+        "home_abbrev": home_abbrev,
+        "away_score": away_score,
+        "home_score": home_score,
+        "status": "OFF",
+        "game_type": 3,
+        "series_status": series_status,
+        "gameDate": "2026-04-20T23:30:00Z",
+    }
+
+
+def _regular_game():
+    return {
+        "away_team": "Philadelphia Flyers",
+        "home_team": "New Jersey Devils",
+        "away_abbrev": "PHI",
+        "home_abbrev": "NJD",
+        "away_score": 4,
+        "home_score": 2,
+        "status": "OFF",
+        "game_type": 2,
+        "series_status": None,
+        "gameDate": "2025-03-15T23:00:00Z",
+    }
+
+
+def _rendered_text(result) -> str:
+    """Flatten all ReportLab flowable text from a render() result."""
+    import re
+    from reportlab.platypus import Paragraph
+
+    texts = []
+    for el in result:
+        if isinstance(el, Paragraph):
+            texts.append(el.text)
+        elif isinstance(el, Table):
+            for row in el._cellvalues:
+                for cell in row:
+                    if isinstance(cell, list):
+                        for item in cell:
+                            if isinstance(item, Paragraph):
+                                texts.append(item.text)
+                            elif isinstance(item, Table):
+                                for r2 in item._cellvalues:
+                                    for c2 in r2:
+                                        if isinstance(c2, Paragraph):
+                                            texts.append(c2.text)
+                                        elif isinstance(c2, str):
+                                            texts.append(c2)
+                    elif isinstance(cell, Paragraph):
+                        texts.append(cell.text)
+                    elif isinstance(cell, str):
+                        texts.append(cell)
+    return " ".join(texts)
+
+
+class TestGameScoresSectionPlayoff:
+    def test_no_badge_rendered_for_regular_season_game(self):
+        game = _regular_game()
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2025, 3, 15))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(leads" not in text and "(won" not in text and "(tied" not in text
+
+    def test_badge_on_series_leader_row_when_away_leads(self):
+        # OTT is top seed leading 2-0; OTT is away
+        ss = _make_series_status("OTT", 2, "CAR", 0)
+        game = _playoff_game("OTT", "CAR", 4, 2, ss)
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2026, 4, 20))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(leads 2-0)" in text
+
+    def test_badge_on_series_leader_row_when_home_leads(self):
+        # CAR is top seed leading 2-0; CAR is home
+        ss = _make_series_status("CAR", 2, "OTT", 0)
+        game = _playoff_game("OTT", "CAR", 2, 3, ss)
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2026, 4, 20))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(leads 2-0)" in text
+
+    def test_badge_text_tied_when_series_tied(self):
+        ss = _make_series_status("CAR", 1, "OTT", 1)
+        game = _playoff_game("OTT", "CAR", 2, 3, ss)
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2026, 4, 20))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(tied 1-1)" in text
+
+    def test_badge_text_won_when_top_seed_clinches(self):
+        ss = _make_series_status("CAR", 4, "OTT", 1)
+        game = _playoff_game("OTT", "CAR", 1, 4, ss)
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2026, 4, 20))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(won 4-1)" in text
+
+    def test_badge_text_won_when_bottom_seed_clinches(self):
+        ss = _make_series_status("CAR", 1, "OTT", 4)
+        game = _playoff_game("OTT", "CAR", 3, 2, ss)
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2026, 4, 20))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "(won 4-1)" in text
+
+
+# ---------------------------------------------------------------------------
 # StandingsSection
 # ---------------------------------------------------------------------------
 

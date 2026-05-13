@@ -32,7 +32,8 @@ class TestNHLGetGameScores:
         with patch("requests.get", return_value=mock_resp):
             result = provider.get_game_scores(sample_date)
         game = result[0]
-        for key in ("away_team", "home_team", "away_score", "home_score", "status"):
+        for key in ("away_team", "home_team", "away_score", "home_score", "status",
+                    "away_abbrev", "home_abbrev", "game_type"):
             assert key in game
 
     def test_full_team_name_constructed(self, provider, nhl_schedule_response, sample_date):
@@ -178,6 +179,85 @@ class TestNHLDumpJson:
             with patch.object(provider, "_dump_json") as mock_dump:
                 provider.get_game_scores(sample_date)
         mock_dump.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# get_game_scores — new fields (game_type, abbrev, series_status)
+# ---------------------------------------------------------------------------
+
+class TestNHLGetGameScoresNewFields:
+    def test_game_type_included_in_regular_season_game(self, provider, nhl_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["game_type"] == 2
+
+    def test_away_abbrev_included_in_game_dict(self, provider, nhl_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["away_abbrev"] == "PHI"
+
+    def test_home_abbrev_included_in_game_dict(self, provider, nhl_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["home_abbrev"] == "NJD"
+
+    def test_regular_season_uses_full_team_name(self, provider, nhl_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["away_team"] == "Philadelphia Flyers"
+        assert result[0]["home_team"] == "New Jersey Devils"
+
+    def test_series_status_absent_for_regular_season(self, provider, nhl_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["series_status"] is None
+
+    def test_playoff_game_uses_place_name_only(self, provider, nhl_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["away_team"] == "Ottawa"
+        assert result[0]["home_team"] == "Carolina"
+
+    def test_series_status_present_for_playoff_game(self, provider, nhl_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["series_status"] is not None
+
+    def test_series_status_has_expected_keys(self, provider, nhl_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        ss = result[0]["series_status"]
+        for key in ("top_seed_abbrev", "top_seed_wins", "bottom_seed_abbrev",
+                    "bottom_seed_wins", "needed_to_win"):
+            assert key in ss
+
+    def test_series_status_values_correctly_mapped(self, provider, nhl_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        ss = result[0]["series_status"]
+        assert ss["top_seed_abbrev"] == "CAR"
+        assert ss["top_seed_wins"] == 2
+        assert ss["bottom_seed_abbrev"] == "OTT"
+        assert ss["bottom_seed_wins"] == 0
+        assert ss["needed_to_win"] == 4
 
 
 # ---------------------------------------------------------------------------

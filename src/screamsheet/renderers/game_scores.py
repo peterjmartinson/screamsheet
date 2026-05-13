@@ -1,10 +1,10 @@
 """Game scores section renderer."""
 from datetime import datetime
 from typing import List, Any, Optional, Dict, Tuple
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import Table, TableStyle, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER
 
 from ..base import Section, DataProvider
 
@@ -71,14 +71,6 @@ class GameScoresSection(Section):
             alignment=TA_CENTER
         )
 
-        self.score_style = ParagraphStyle(
-            name="ScoreCell",
-            fontName='Helvetica',
-            fontSize=10,
-            alignment=TA_RIGHT,
-            leading=12,
-        )
-    
     def fetch_data(self):
         """Fetch game scores from the provider."""
         self.data = self.provider.get_game_scores(self.date)
@@ -112,28 +104,19 @@ class GameScoresSection(Section):
                         home_score=game["home_score"],
                         series_status=series_status,
                     )
-                    away_score_cell: Any = Paragraph(
-                        f'{game["away_score"]} {badge_text}'
-                        if badge_row == "away"
-                        else str(game["away_score"]),
-                        self.score_style,
-                    )
-                    home_score_cell: Any = Paragraph(
-                        f'{game["home_score"]} {badge_text}'
-                        if badge_row == "home"
-                        else str(game["home_score"]),
-                        self.score_style,
-                    )
-                    col_widths = [70, 90]
+                    away_badge = badge_text if badge_row == "away" else ""
+                    home_badge = badge_text if badge_row == "home" else ""
+                    table_data: List[Any] = [
+                        [game['away_team'], str(game["away_score"]), away_badge],
+                        [f"@{game['home_team']}", str(game["home_score"]), home_badge],
+                    ]
+                    col_widths = [65, 20, 65]
                 else:
-                    away_score_cell = str(game["away_score"])
-                    home_score_cell = str(game["home_score"])
+                    table_data = [
+                        [game['away_team'], str(game["away_score"])],
+                        [f"@{game['home_team']}", str(game["home_score"])],
+                    ]
                     col_widths = [80, 50]
-
-                table_data = [
-                    [game['away_team'], away_score_cell],
-                    [f"@{game['home_team']}", home_score_cell],
-                ]
                 table_style = TableStyle([
                     ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),

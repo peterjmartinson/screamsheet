@@ -50,6 +50,11 @@ weather:
     lon: -75.34
     location_name: "Bryn Mawr, PA"
 
+# Output directory: generated PDFs are copied here after generation.
+# Override per-run with: uv run screamsheet --output-dir /path/to/dir
+output:
+  directory: /home/peter/PRINT
+
 sky:
   lat: 40.02
   lon: -75.34

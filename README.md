@@ -142,13 +142,44 @@ cd screamsheet
 uv sync
 ```
 
-### Cron — print every morning at 6 AM
+### Cron — generate every morning at 6 AM
 
 ```cron
 0 6 * * * cd /path/to/screamsheet && uv run screamsheet
 ```
 
 Add with `crontab -e`.
+
+### Output directory
+
+After generating each PDF, screamsheet copies it to a configurable drop folder. An external tool (e.g. `dispatch`, a print daemon, or a network share watcher) monitors that folder to handle delivery.
+
+Set the folder in `config.yaml`:
+
+```yaml
+output:
+  directory: /home/peter/PRINT
+```
+
+You can also override it for a single run on the command line:
+
+```bash
+uv run screamsheet --output-dir /tmp/today
+```
+
+The `--output-dir` flag takes precedence over `config.yaml`. If `output.directory` is empty and no `--output-dir` is given, PDFs are generated into `Files/` as usual but not copied anywhere.
+
+#### CI / deploy setup
+
+`config.yaml.example` contains the placeholder `__PRINT_DIR__`. The deploy workflow substitutes it using the **GitHub repository variable** `PRINT_DIR`:
+
+```
+Settings → Secrets and variables → Actions → Variables → New repository variable
+Name:  PRINT_DIR
+Value: /home/peter/PRINT
+```
+
+No path is hardcoded in the workflow YAML.
 
 ### DB cache — NHL teams & players (refresh weekly)
 

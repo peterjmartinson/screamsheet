@@ -122,13 +122,13 @@ class BaseGameSummaryGenerator:
         """Return the initialised LLM corresponding to *llm_choice*."""
         llm_choice = llm_choice.lower()
         if llm_choice == "gemini" and self.llm_gemini:
-            print("--- Using GEMINI for generation ---")
+            logger.debug("Using GEMINI for generation")
             return self.llm_gemini
         elif llm_choice == "grok" and self.llm_grok:
-            print("--- Using GROK for generation ---")
+            logger.debug("Using GROK for generation")
             return self.llm_grok
 
-        print("--- No LLM available for generation ---")
+        logger.warning("No LLM available for generation (requested: %s)", llm_choice)
         return None
 
     # ------------------------------------------------------------------
@@ -170,7 +170,7 @@ class BaseGameSummaryGenerator:
 
             chain_input: PromptChainInput = {"data": data, "llm_choice": llm_choice}
 
-            # Log a prompt preview before invoking (best-effort)
+            # Log a prompt preview at DEBUG level only (best-effort)
             try:
                 prompt_builder = self._setup_prompt_chain()
                 try:
@@ -179,13 +179,13 @@ class BaseGameSummaryGenerator:
                         prompt_preview = prompt_preview.to_string()
                     else:
                         prompt_preview = str(prompt_preview)
-                    logger.info(
+                    logger.debug(
                         "LLM prompt preview (trimmed 4000 chars):\n%s",
                         prompt_preview[:4000],
                     )
                     logger.debug("Full LLM prompt length: %d", len(prompt_preview))
                 except Exception as exc:
-                    logger.warning("Could not render LLM prompt preview: %s", exc)
+                    logger.debug("Could not render LLM prompt preview: %s", exc)
             except Exception:
                 pass
 
@@ -193,13 +193,15 @@ class BaseGameSummaryGenerator:
                 return self.config.default_text
 
             summary: str = full_pipeline.invoke(chain_input)
+            word_count = len(summary.split())
+            logger.info("LLM summary generated: %d words (via %s)", word_count, llm_choice)
             return summary
 
         except ValueError as ve:
-            print(f"Configuration Error: {ve}")
+            logger.error("LLM configuration error: %s", ve)
             return "Summary generation failed due to configuration issue."
         except Exception as exc:
-            print(f"Error generating summary with LLM: {exc}")
+            logger.error("LLM summary generation failed: %s", exc)
             return "Summary generation failed."
 
     def generate_summary(

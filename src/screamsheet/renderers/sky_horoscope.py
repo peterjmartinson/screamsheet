@@ -6,6 +6,7 @@ configured.
 """
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -20,6 +21,8 @@ from ..config import PersonConfig
 from ..llm.config import DEFAULT_LLM_CONFIG
 from ..llm.summarizers import HoroscopeSummarizer
 from ..providers.astro_provider import AstroDataProvider
+
+logger = logging.getLogger(__name__)
 
 
 class SkyHoroscopeSection(Section):
@@ -48,6 +51,7 @@ class SkyHoroscopeSection(Section):
         astro_provider: Optional[AstroDataProvider] = None,
     ) -> None:
         super().__init__(title)
+        self.page_slot = "back"
         self.provider = provider
         self.date = date
         self.location_name = location_name
@@ -145,6 +149,7 @@ class SkyHoroscopeSection(Section):
         from Swiss Ephemeris (tropical zodiac, vernal-equinox anchored).  When
         not set, falls back to Skyfield positions from the sky data dict.
         """
+        logger.info("Generating horoscope for %s", person.name)
         sky: Dict[str, Any] = self.data or {}
         astro = self.astro_data
         natal_planets = self.natal_data.get(person.name, [])
@@ -238,7 +243,11 @@ class SkyHoroscopeSection(Section):
                     "current_sky": current_sky,
                 },
             )
-            return str(result).strip() if result else f"Horoscope unavailable for {person.name}."
-        except Exception:  # noqa: BLE001
+            result_text = str(result).strip() if result else f"Horoscope unavailable for {person.name}."
+            word_count = len(result_text.split())
+            logger.info("Horoscope for %s complete: %d words", person.name, word_count)
+            return result_text
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Horoscope generation failed for %s: %s", person.name, exc)
             return f"Horoscope unavailable for {person.name}."
 

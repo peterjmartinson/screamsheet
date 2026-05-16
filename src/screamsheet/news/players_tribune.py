@@ -60,13 +60,13 @@ class PlayersTribuneScreamsheet(NewsScreamsheet):
         )
         
         # 3. Back Page News Articles (next 2 articles)
-        sections.append(
-            NewsArticlesSection(
-                title="More Stories",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2
-            )
+        back_section = NewsArticlesSection(
+            title="More Stories",
+            provider=self.provider,
+            max_articles=2,
+            start_index=2
         )
+        back_section.page_slot = "back"
+        sections.append(back_section)
         
         return sections

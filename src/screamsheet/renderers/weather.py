@@ -1,4 +1,5 @@
 """Weather section renderer."""
+import logging
 import os
 from datetime import datetime
 from typing import List, Any, Optional
@@ -11,6 +12,8 @@ from reportlab.lib.units import inch
 
 from ..base import Section
 from ..providers.weather_provider import WeatherProvider
+
+logger = logging.getLogger(__name__)
 
 
 class WeatherSection(Section):
@@ -66,7 +69,7 @@ class WeatherSection(Section):
         try:
             self.data = self.provider.get_5_day_forecast()
         except Exception as e:
-            print(f'Error getting weather report: {e}')
+            logger.error("Error getting weather report: %s", e)
             self.data = []
 
     def render(self) -> List[Any]:

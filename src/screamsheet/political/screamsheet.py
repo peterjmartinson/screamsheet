@@ -82,15 +82,15 @@ class PresidentialScreamsheet(NewsScreamsheet):
                 summarizer_class=PoliticalNewsSummarizer,
             )
         )
-        sections.append(
-            NewsArticlesSection(
-                title="More Stories",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2,
-                summarizer_class=PoliticalNewsSummarizer,
-            )
+        back_section = NewsArticlesSection(
+            title="More Stories",
+            provider=self.provider,
+            max_articles=2,
+            start_index=2,
+            summarizer_class=PoliticalNewsSummarizer,
         )
+        back_section.page_slot = "back"
+        sections.append(back_section)
         return sections
 
 

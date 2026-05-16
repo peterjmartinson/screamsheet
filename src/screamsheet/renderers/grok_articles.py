@@ -4,6 +4,7 @@ Articles arrive pre-written from GrokMLBNewsProvider, so this renderer
 skips the LLM summarization pass entirely and goes straight to layout.
 The two-column Table layout mirrors NewsArticlesSection exactly.
 """
+import logging
 from typing import List, Any
 
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
@@ -11,6 +12,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 
 from ..base import Section
+
+logger = logging.getLogger(__name__)
 
 
 class GrokGeneratedArticlesSection(Section):
@@ -63,8 +66,9 @@ class GrokGeneratedArticlesSection(Section):
         try:
             all_articles = self.provider.get_articles()
             self.data = all_articles[self.start_index: self.start_index + self.max_articles]
+            logger.info("Section '%s' fetched %d articles", self.title, len(self.data))
         except Exception as e:
-            print(f'GrokGeneratedArticlesSection: Error fetching articles: {e}')
+            logger.error("GrokGeneratedArticlesSection: Error fetching articles: %s", e)
             self.data = []
 
     def render(self) -> List[Any]:

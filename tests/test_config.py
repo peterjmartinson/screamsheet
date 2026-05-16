@@ -120,3 +120,24 @@ class TestLoadConfigMissingFile:
         missing = tmp_path / "config.yaml"
         with pytest.raises(FileNotFoundError, match="config.yaml.example"):
             load_config(missing)
+
+
+# ---------------------------------------------------------------------------
+# Branding
+# ---------------------------------------------------------------------------
+
+class TestBrandingConfig:
+    def test_branding_defaults_to_empty_string(self, tmp_path):
+        path = _write_yaml(tmp_path, {})
+        cfg = load_config(path)
+        assert cfg.branding == ""
+
+    def test_branding_parsed_from_yaml(self, tmp_path):
+        path = _write_yaml(tmp_path, {"branding": "DISTRACTEDFORTUNE.COM"})
+        cfg = load_config(path)
+        assert cfg.branding == "DISTRACTEDFORTUNE.COM"
+
+    def test_branding_is_a_string(self, tmp_path):
+        path = _write_yaml(tmp_path, {"branding": "DISTRACTEDFORTUNE.COM"})
+        cfg = load_config(path)
+        assert isinstance(cfg.branding, str)

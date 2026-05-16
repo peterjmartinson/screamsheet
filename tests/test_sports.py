@@ -229,3 +229,115 @@ class TestBackwardCompatSingleTeam:
         run_date = datetime(2026, 3, 22)
         s = NHLScreamsheet("out.pdf", date=game_date, display_date=run_date)
         assert s.get_date_string() == "March 22, 2026"
+
+
+# ---------------------------------------------------------------------------
+# Two-page enforcement
+# ---------------------------------------------------------------------------
+
+import re
+from typing import List as _List
+from screamsheet.base.data_provider import DataProvider
+from screamsheet.base.section import Section
+
+
+class _StubProvider(DataProvider):
+    def get_game_scores(self, date):
+        return []
+
+    def get_standings(self):
+        return None
+
+
+class _BulkyFrontSection(Section):
+    """Generates far more content than fits on one page."""
+
+    def fetch_data(self):
+        self.data = list(range(200))
+
+    def render(self):
+        from reportlab.platypus import Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        styles = getSampleStyleSheet()
+        out = []
+        for i in range(200):
+            out.append(Paragraph(f"Front content row {i}", styles["Normal"]))
+            out.append(Spacer(1, 6))
+        return out
+
+
+class _MinimalBackSection(Section):
+    """Represents a back-page section (e.g. box score)."""
+
+    def __init__(self, title: str):
+        super().__init__(title)
+        self.page_slot = "back"
+
+    def fetch_data(self):
+        self.data = {"content": True}
+
+    def render(self):
+        from reportlab.platypus import Paragraph
+        from reportlab.lib.styles import getSampleStyleSheet
+        styles = getSampleStyleSheet()
+        return [Paragraph("Back page content.", styles["Normal"])]
+
+
+class _StubSportsSheet(SportsScreamsheet):
+    def __init__(self, output_filename: str, sections: _List[Section]):
+        self._test_sections = sections
+        super().__init__("Test", output_filename)
+
+    def create_provider(self) -> DataProvider:
+        return _StubProvider()
+
+    def build_sections(self) -> _List[Section]:
+        return self._test_sections
+
+
+def _count_pdf_pages(path: str) -> int:
+    """Count pages in a ReportLab PDF by scanning for page dictionary objects."""
+    with open(path, "rb") as f:
+        content = f.read()
+    return len(re.findall(rb"/Type\s*/Page[^s]", content))
+
+
+class TestTwoPageEnforcement:
+    def test_box_score_section_has_back_page_slot(self):
+        """BoxScoreSection must declare page_slot='back'."""
+        provider = MagicMock()
+        section = BoxScoreSection(
+            title="Test", provider=provider,
+            team_id=143, date=datetime(2026, 5, 14),
+        )
+        assert section.page_slot == "back"
+
+    def test_box_score_render_does_not_start_with_page_break(self):
+        """BoxScoreSection.render() must not open with a PageBreak flowable."""
+        from reportlab.platypus import PageBreak
+        provider = MagicMock()
+        provider.get_box_score.return_value = {"batting_stats": [], "pitching_stats": []}
+        provider.get_game_summary.return_value = "Summary text."
+        section = BoxScoreSection(
+            title="Test", provider=provider,
+            team_id=143, date=datetime(2026, 5, 14),
+        )
+        elements = section.render()
+        assert not any(isinstance(e, PageBreak) for e in elements)
+
+    def test_overflow_front_content_stays_on_page_one(self, tmp_path):
+        """Front content that overflows is shrunk to fit; PDF has exactly 2 pages."""
+        pdf_path = str(tmp_path / "overflow.pdf")
+        sheet = _StubSportsSheet(pdf_path, [
+            _BulkyFrontSection("bulk"),
+            _MinimalBackSection("back"),
+        ])
+        sheet.generate()
+        assert _count_pdf_pages(pdf_path) == 2
+
+    def test_no_back_section_produces_single_page(self, tmp_path):
+        """When there is no back-page content the PDF is exactly 1 page."""
+        pdf_path = str(tmp_path / "front_only.pdf")
+        sheet = _StubSportsSheet(pdf_path, [_BulkyFrontSection("bulk")])
+        sheet.generate()
+        assert _count_pdf_pages(pdf_path) == 1

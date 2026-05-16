@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime
 from typing import List, Any, Optional
-from reportlab.platypus import Table, TableStyle, Spacer, Paragraph, PageBreak
+from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
 from reportlab.platypus.flowables import KeepInFrame
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -28,6 +28,7 @@ class BoxScoreSection(Section):
         self.team_id = team_id
         self.date = date
         self.is_primary_favorite = is_primary_favorite
+        self.page_slot = "back"
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -73,7 +74,7 @@ class BoxScoreSection(Section):
             logger.warning("No box score data for team_id=%s — returning empty render", self.team_id)
             return []
         
-        elements: List[Any] = [PageBreak()]
+        elements: List[Any] = []
         
         # Get game summary from provider
         game_summary = self.provider.get_game_summary(

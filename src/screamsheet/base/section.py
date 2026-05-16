@@ -20,6 +20,7 @@ class Section(ABC):
         """
         self.title = title
         self.data = None
+        self.page_slot: str = "front"  # 'front' or 'back'
     
     @abstractmethod
     def fetch_data(self):

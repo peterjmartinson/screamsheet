@@ -111,7 +111,7 @@ class TestWeatherSectionLogging:
 
 class TestBrandingFooterYPosition:
     def test_footer_y_position_is_at_least_18_points(self):
-        """Branding footer must be drawn at y ≥ 18 to avoid printer clip."""
+        """Branding footer must be drawn at y == 20 to avoid printer clip (min 18 pts)."""
         from screamsheet.base.screamsheet import BaseScreamsheet
         from screamsheet.base.section import Section
 
@@ -127,7 +127,7 @@ class TestBrandingFooterYPosition:
         s._draw_branding_footer(canvas_mock, MagicMock())
         call_args = canvas_mock.drawCentredString.call_args
         y_coord = call_args[0][1]
-        assert y_coord >= 18, f"Footer Y={y_coord} is too low — risk of printer clip"
+        assert y_coord >= 20, f"Footer Y={y_coord} is too low — risk of printer clip (expected ≥ 20)"
 
 
 # ---------------------------------------------------------------------------

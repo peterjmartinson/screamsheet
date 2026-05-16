@@ -9,7 +9,9 @@ Usage:
 """
 import argparse
 import logging
+import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 from .factory import ScreamsheetFactory
 from .config import load_config
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
@@ -30,7 +32,25 @@ __all__ = [
 ]
 
 
-def _build_sheets(today_str: str) -> list:
+def _copy_to_output_dir(src: str, output_dir: str) -> None:
+    """Copy a generated PDF to the configured output directory.
+
+    No-ops silently when output_dir is empty.  Logs a warning if src is missing.
+    """
+    if not output_dir:
+        return
+    src_path = Path(src)
+    if not src_path.exists():
+        logging.getLogger(__name__).warning(
+            "Output copy skipped — file not found: %s", src
+        )
+        return
+    dest = Path(output_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src_path, dest / src_path.name)
+
+
+def _build_sheets(today_str: str) -> tuple[list, str]:
     """Return the ordered list of (label, callable) pairs for every active screamsheet."""
     today = datetime.strptime(today_str, "%Y%m%d")
     game_date = today - timedelta(days=1)
@@ -41,7 +61,10 @@ def _build_sheets(today_str: str) -> list:
     nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
     mlb_news_names = cfg.mlb.news_names
 
-    return [        (
+    output_dir = cfg.output.directory
+
+    return [
+        (
             "MLB  — " + (cfg.mlb.favorite_teams[0].name if cfg.mlb.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_mlb_screamsheet(
                 output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
@@ -115,16 +138,17 @@ def _build_sheets(today_str: str) -> list:
                 people=cfg.sky.people,
             ),
         ),
-    ]
+    ], output_dir
 
 
-def _run_sheet(label: str, factory_fn) -> None:
+def _run_sheet(label: str, factory_fn, output_dir: str) -> None:
     sheet = factory_fn()
-    sheet.generate()
+    pdf_path = sheet.generate()
+    _copy_to_output_dir(pdf_path, output_dir)
     print(f"Generated: {label}")
 
 
-def _pick_and_run(sheets: list) -> None:
+def _pick_and_run(sheets: list, output_dir: str) -> None:
     """Present an interactive menu, prompt for a selection, and run that one sheet."""
     print("\nAvailable screamsheets:")
     for i, (label, _) in enumerate(sheets, start=1):
@@ -140,7 +164,7 @@ def _pick_and_run(sheets: list) -> None:
 
     label, factory_fn = sheets[choice]
     print()
-    _run_sheet(label, factory_fn)
+    _run_sheet(label, factory_fn, output_dir)
 
 
 def main():
@@ -157,6 +181,14 @@ def main():
         "--single",
         action="store_true",
         help="Interactively select and run a single screamsheet.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        metavar="PATH",
+        help=(
+            "Copy generated PDFs to this directory after generation. "
+            "Overrides output.directory from config.yaml."
+        ),
     )
     parser.add_argument(
         "--date",
@@ -176,13 +208,16 @@ def main():
     else:
         today_str = datetime.now().strftime("%Y%m%d")
 
-    sheets = _build_sheets(today_str)
+    sheets, output_dir = _build_sheets(today_str)
+
+    if args.output_dir:
+        output_dir = args.output_dir
 
     if args.single:
-        _pick_and_run(sheets)
+        _pick_and_run(sheets, output_dir)
     else:
         for label, factory_fn in sheets:
-            _run_sheet(label, factory_fn)
+            _run_sheet(label, factory_fn, output_dir)
 
 
 if __name__ == "__main__":

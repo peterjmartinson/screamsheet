@@ -76,6 +76,12 @@ class SkyConfig:
 
 
 @dataclass
+class OutputConfig:
+    """Output directory configuration for generated PDF files."""
+    directory: str = ""
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
@@ -85,6 +91,13 @@ class ScreamsheetConfig:
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
     branding: str = ""
+    output: OutputConfig = field(default_factory=OutputConfig)
+
+
+def _parse_output(raw: dict) -> OutputConfig:
+    return OutputConfig(
+        directory=str(raw.get("directory", "")),
+    )
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -177,4 +190,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         weather=_parse_weather(raw.get("weather", {})),
         sky=_parse_sky(raw.get("sky", {})),
         branding=str(raw.get("branding", "")),
+        output=_parse_output(raw.get("output", {})),
     )

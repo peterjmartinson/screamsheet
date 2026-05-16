@@ -66,3 +66,10 @@ sky:
   lat: 40.02
   lon: -75.34
   location_name: "Bryn Mawr, PA"
+
+# Output directory: generated PDFs are copied here after generation.
+# Override per-run with: uv run screamsheet --output-dir /path/to/dir
+# In CI, __PRINT_DIR__ is substituted by the deploy workflow using the
+# PRINT_DIR GitHub repository variable.
+output:
+  directory: __PRINT_DIR__

@@ -38,17 +38,21 @@ jobs:
           # We use $GITHUB_WORKSPACE which is where actions/checkout put the code
           rsync -a --exclude='env' --exclude='.venv' --exclude='__pycache__' --exclude='.git' "$GITHUB_WORKSPACE/" "$RELEASE_DIR/"
 
-          # 3. UV Sync
+          # 3. Generate config.yaml from the example, substituting the PRINT_DIR variable.
+          #    This overwrites the developer's local config.yaml that rsync copied above.
+          sed 's|__PRINT_DIR__|${{ vars.PRINT_DIR }}|g' "$RELEASE_DIR/config.yaml.example" > "$RELEASE_DIR/config.yaml"
+
+          # 4. UV Sync
           cd "$RELEASE_DIR"
           uv sync --frozen
 
-          # 4. Set Permissions
+          # 5. Set Permissions
           chmod +x "$RELEASE_DIR/screamsheet.sh"
 
-          # 5. Atomic Switch
+          # 6. Atomic Switch
           ln -snf "$RELEASE_DIR" "$LIVE_PATH"
 
-          # 6. Final Execution
+          # 7. Final Execution
           echo "Executing screamsheet.sh via uv run..."
           uv run ./screamsheet.sh
 

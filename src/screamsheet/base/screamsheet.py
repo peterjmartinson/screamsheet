@@ -1,11 +1,12 @@
 """Base screamsheet class that all screamsheets inherit from."""
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib import colors
 
 from .section import Section
 
@@ -33,8 +34,29 @@ class BaseScreamsheet(ABC):
         self.display_date: datetime = display_date if display_date is not None else self.date
         self.sections: List[Section] = []
         self.styles = getSampleStyleSheet()
+        self.branding: str = self._load_branding()
         self._setup_styles()
         
+    def _load_branding(self) -> str:
+        """Load branding text from config, returning empty string on any failure."""
+        try:
+            from ..config import load_config
+            return load_config().branding
+        except Exception:
+            return ""
+
+    def _draw_branding_footer(self, canvas: Any, doc: Any) -> None:
+        """Draw the branding footer at the bottom of a page via canvas callback."""
+        if not self.branding:
+            return
+        text = self.branding.upper()
+        page_width, _ = letter
+        canvas.saveState()
+        canvas.setFont("Helvetica-Bold", 14)
+        canvas.setFillColor(colors.black)
+        canvas.drawCentredString(page_width / 2, 13, text)
+        canvas.restoreState()
+
     def _setup_styles(self):
         """Setup common paragraph styles used across screamsheets."""
         self.title_style = ParagraphStyle(
@@ -137,7 +159,11 @@ class BaseScreamsheet(ABC):
                 story.append(Spacer(1, 20))
         
         # Build PDF
-        doc.build(story)
+        doc.build(
+            story,
+            onFirstPage=self._draw_branding_footer,
+            onLaterPages=self._draw_branding_footer,
+        )
         
         return self.output_filename
     

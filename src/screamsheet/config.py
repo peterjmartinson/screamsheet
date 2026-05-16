@@ -90,6 +90,7 @@ class ScreamsheetConfig:
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
+    branding: str = ""
     output: OutputConfig = field(default_factory=OutputConfig)
 
 
@@ -188,5 +189,6 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nfl=_parse_sport(raw.get("nfl", {})),
         weather=_parse_weather(raw.get("weather", {})),
         sky=_parse_sky(raw.get("sky", {})),
+        branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
     )

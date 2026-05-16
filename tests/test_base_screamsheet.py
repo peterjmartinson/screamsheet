@@ -95,3 +95,36 @@ class TestBaseScreamshetDisplayDate:
         run_date = datetime(2026, 3, 22)
         s = _ConcreteScreamsheet("output.pdf", date=game_date, display_date=run_date)
         assert s.date == game_date
+
+
+# ---------------------------------------------------------------------------
+# Branding footer
+# ---------------------------------------------------------------------------
+
+class TestBrandingFooter:
+    def test_draw_branding_footer_is_noop_when_branding_empty(self):
+        """_draw_branding_footer must not touch the canvas when branding is empty."""
+        s = _ConcreteScreamsheet("output.pdf")
+        s.branding = ""
+        canvas_mock = MagicMock()
+        s._draw_branding_footer(canvas_mock, MagicMock())
+        canvas_mock.saveState.assert_not_called()
+
+    def test_draw_branding_footer_saves_and_restores_state(self):
+        """Canvas state is always saved and restored around footer drawing."""
+        s = _ConcreteScreamsheet("output.pdf")
+        s.branding = "DISTRACTEDFORTUNE.COM"
+        canvas_mock = MagicMock()
+        s._draw_branding_footer(canvas_mock, MagicMock())
+        canvas_mock.saveState.assert_called_once()
+        canvas_mock.restoreState.assert_called_once()
+
+    def test_draw_branding_footer_draws_centered_text(self):
+        """Footer text is drawn centered and uppercased."""
+        s = _ConcreteScreamsheet("output.pdf")
+        s.branding = "distractedfortune.com"
+        canvas_mock = MagicMock()
+        s._draw_branding_footer(canvas_mock, MagicMock())
+        canvas_mock.drawCentredString.assert_called_once()
+        drawn_text = canvas_mock.drawCentredString.call_args[0][2]
+        assert drawn_text == "DISTRACTEDFORTUNE.COM"

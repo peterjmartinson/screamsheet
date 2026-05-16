@@ -252,26 +252,37 @@ class TestWhiteHouseParseDatete:
 # WhiteHouseProvider — _parse_html (primary selector + fallback)
 # ---------------------------------------------------------------------------
 
-FAKE_HTML_PRIMARY = """
+def _make_fake_html_primary() -> str:
+    ts = _recent_dt().strftime("%Y-%m-%dT%H:%M:%SZ")
+    label = _recent_dt().strftime("%B %-d, %Y")
+    return f"""
 <html><body>
   <li class="wp-block-post">
     <h2 class="wp-block-post-title">
       <a href="/briefings-statements/2026/03/statement-on-trade-policy">Statement on Trade Policy</a>
     </h2>
-    <div class="wp-block-post-date"><time datetime="2026-03-08T10:00:00Z">March 8, 2026</time></div>
+    <div class="wp-block-post-date"><time datetime="{ts}">{label}</time></div>
   </li>
 </body></html>
 """
 
-FAKE_HTML_FALLBACK = """
+
+def _make_fake_html_fallback() -> str:
+    ts = _recent_dt().strftime("%Y-%m-%dT%H:%M:%SZ")
+    label = _recent_dt().strftime("%B %-d, %Y")
+    return f"""
 <html><body>
   <article>
     <h2><a href="/briefing-room/2">Executive Order Signed</a></h2>
-    <time datetime="2026-03-08T09:00:00Z">March 8, 2026</time>
+    <time datetime="{ts}">{label}</time>
     <p>An order was signed today.</p>
   </article>
 </body></html>
 """
+
+
+FAKE_HTML_PRIMARY = _make_fake_html_primary()
+FAKE_HTML_FALLBACK = _make_fake_html_fallback()
 
 FAKE_HTML_OLD = """
 <html><body>

@@ -8,6 +8,8 @@
 # NBA team IDs: use nba_api  (e.g. nba_api.stats.static.teams.get_teams())
 # NFL team IDs: confirm via your NFL data provider
 
+# Branding footer — printed at the bottom of every screamsheet page.
+branding: "DISTRACTEDFORTUNE.COM"
 nhl:
   favorite_teams:
     - id: 4

@@ -51,18 +51,10 @@ class BaseScreamsheet(ABC):
             return
         text = self.branding.upper()
         page_width, _ = letter
-        margin = 36
         canvas.saveState()
-        # Thin rule above the text
-        canvas.setStrokeColor(colors.black)
-        canvas.setLineWidth(0.75)
-        canvas.line(margin, 28, page_width - margin, 28)
-        # Bold text stretched 1.5× horizontally for a "stamp" feel
-        canvas.translate(page_width / 2, 13)
-        canvas.transform(1.5, 0, 0, 1, 0, 0)
-        canvas.setFont("Helvetica-Bold", 13)
+        canvas.setFont("Helvetica-Bold", 14)
         canvas.setFillColor(colors.black)
-        canvas.drawCentredString(0, 0, text)
+        canvas.drawCentredString(page_width / 2, 13, text)
         canvas.restoreState()
 
     def _setup_styles(self):

@@ -8,6 +8,7 @@ from screamsheet.config import (
     ScreamsheetConfig,
     SportConfig,
     MLBConfig,
+    OutputConfig,
     TeamEntry,
     load_config,
 )
@@ -120,3 +121,24 @@ class TestLoadConfigMissingFile:
         missing = tmp_path / "config.yaml"
         with pytest.raises(FileNotFoundError, match="config.yaml.example"):
             load_config(missing)
+
+
+# ---------------------------------------------------------------------------
+# OutputConfig
+# ---------------------------------------------------------------------------
+
+class TestOutputConfig:
+    def test_output_directory_defaults_when_key_missing(self, tmp_path):
+        path = _write_yaml(tmp_path, {})
+        cfg = load_config(path)
+        assert cfg.output.directory == ""
+
+    def test_output_directory_parsed_from_yaml(self, tmp_path):
+        path = _write_yaml(tmp_path, {"output": {"directory": "/tmp/myprint"}})
+        cfg = load_config(path)
+        assert cfg.output.directory == "/tmp/myprint"
+
+    def test_output_config_type(self, tmp_path):
+        path = _write_yaml(tmp_path, {"output": {"directory": "/some/dir"}})
+        cfg = load_config(path)
+        assert isinstance(cfg.output, OutputConfig)

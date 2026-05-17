@@ -9,11 +9,24 @@ Usage:
 """
 import argparse
 import logging
-import shutil
 from datetime import datetime, timedelta
-from pathlib import Path
-from .factory import ScreamsheetFactory
 from .config import load_config
+from .factory import ScreamsheetFactory
+from .order import (
+    MLBNewsOrderOptions,
+    MLBOrderOptions,
+    MLBTradeRumorsOrderOptions,
+    NBAOrderOptions,
+    NHLOrderOptions,
+    OutputOrderOptions,
+    PersonOptions,
+    PresidentialOrderOptions,
+    ScreamsheetOrder,
+    SkyOrderOptions,
+    TeamEntry,
+    WeatherLocationOptions,
+)
+from .runner import _copy_to_output_dir, run_order
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
 from .political import PresidentialScreamsheet
@@ -32,22 +45,6 @@ __all__ = [
 ]
 
 
-def _copy_to_output_dir(src: str, output_dir: str) -> None:
-    """Copy a generated PDF to the configured output directory.
-
-    No-ops silently when output_dir is empty.  Logs a warning if src is missing.
-    """
-    if not output_dir:
-        return
-    src_path = Path(src)
-    if not src_path.exists():
-        logging.getLogger(__name__).warning(
-            "Output copy skipped — file not found: %s", src
-        )
-        return
-    dest = Path(output_dir)
-    dest.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src_path, dest / src_path.name)
 
 
 def _build_sheets(today_str: str) -> tuple[list, str]:
@@ -142,10 +139,73 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
 
 
 def _run_sheet(label: str, factory_fn, output_dir: str) -> None:
+    _log = logging.getLogger(__name__)
     sheet = factory_fn()
     pdf_path = sheet.generate()
-    _copy_to_output_dir(pdf_path, output_dir)
-    print(f"Generated: {label}")
+    _log.info("Generated: %s", pdf_path)
+    if output_dir:
+        from pathlib import Path
+        dest = str(Path(output_dir) / Path(pdf_path).name)
+        _copy_to_output_dir(pdf_path, output_dir)
+        _log.info("Copied to: %s", dest)
+
+
+def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
+    """Translate the on-disk config.yaml into a ScreamsheetOrder.
+
+    Produces an order that mirrors the full set of sheets currently generated
+    by the CLI, preserving existing behaviour exactly.
+    """
+    cfg = load_config()
+    weather_mlb = WeatherLocationOptions(
+        lat=cfg.weather.mlb_news.lat,
+        lon=cfg.weather.mlb_news.lon,
+        location_name=cfg.weather.mlb_news.location_name,
+    )
+    weather_presidential = WeatherLocationOptions(
+        lat=cfg.weather.presidential.lat,
+        lon=cfg.weather.presidential.lon,
+        location_name=cfg.weather.presidential.location_name,
+    )
+    return ScreamsheetOrder(
+        output=OutputOrderOptions(directory=cfg.output.directory),
+        nhl=NHLOrderOptions(
+            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nhl.favorite_teams]
+        ),
+        mlb=MLBOrderOptions(
+            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.mlb.favorite_teams],
+            news_names=cfg.mlb.news_names,
+        ),
+        nba=NBAOrderOptions(
+            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams]
+        ),
+        mlb_news=MLBNewsOrderOptions(
+            news_names=cfg.mlb.news_names,
+            weather=weather_mlb,
+        ),
+        mlb_trade_rumors=MLBTradeRumorsOrderOptions(
+            news_names=cfg.mlb.news_names,
+            weather=weather_mlb,
+        ),
+        presidential=PresidentialOrderOptions(weather=weather_presidential),
+        sky=SkyOrderOptions(
+            lat=cfg.sky.lat,
+            lon=cfg.sky.lon,
+            location_name=cfg.sky.location_name,
+            people=[
+                PersonOptions(
+                    name=p.name,
+                    birth_date=p.birth_date,
+                    birth_time=p.birth_time,
+                    birth_location=p.birth_location,
+                    sun_sign=p.sun_sign,
+                    moon_sign=p.moon_sign,
+                    ascendant=p.ascendant,
+                )
+                for p in cfg.sky.people
+            ],
+        ),
+    )
 
 
 def _pick_and_run(sheets: list, output_dir: str) -> None:
@@ -208,16 +268,18 @@ def main():
     else:
         today_str = datetime.now().strftime("%Y%m%d")
 
-    sheets, output_dir = _build_sheets(today_str)
-
-    if args.output_dir:
-        output_dir = args.output_dir
+    today = datetime.strptime(today_str, "%Y%m%d")
 
     if args.single:
+        sheets, output_dir = _build_sheets(today_str)
+        if args.output_dir:
+            output_dir = args.output_dir
         _pick_and_run(sheets, output_dir)
     else:
-        for label, factory_fn in sheets:
-            _run_sheet(label, factory_fn, output_dir)
+        order = _build_order_from_config(today)
+        if args.output_dir:
+            order.output = OutputOrderOptions(directory=args.output_dir)
+        run_order(order, today=today)
 
 
 if __name__ == "__main__":

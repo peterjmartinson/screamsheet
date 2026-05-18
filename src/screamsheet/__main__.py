@@ -67,7 +67,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "MLB  — " + (cfg.mlb.favorite_teams[0].name if cfg.mlb.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_mlb_screamsheet(
-                output_filename=f'Files/MLB_gamescores_{today_str}.pdf',
+                output_filename=f'Files/MLB_scores_{today_str}.pdf',
                 favorite_teams=mlb_teams,
                 date=game_date,
                 display_date=today,
@@ -76,7 +76,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "MLB Trade Rumors",
             lambda: ScreamsheetFactory.create_mlb_trade_rumors_screamsheet(
-                output_filename=f'Files/MLB_trade_rumors_{today_str}.pdf',
+                output_filename=f'Files/MLB_news_trade_rumors_{today_str}.pdf',
                 favorite_teams=mlb_news_names,
                 max_articles=4,
                 include_weather=True,
@@ -89,7 +89,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "MLB News",
             lambda: ScreamsheetFactory.create_mlb_news_screamsheet(
-                output_filename=f'Files/MLB_NEWS_{today_str}.pdf',
+                output_filename=f'Files/MLB_news_{today_str}.pdf',
                 favorite_teams=mlb_news_names,
                 include_weather=True,
                 weather_lat=cfg.weather.mlb_news.lat,
@@ -101,7 +101,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "NHL  — " + (cfg.nhl.favorite_teams[0].name if cfg.nhl.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_nhl_screamsheet(
-                output_filename=f'Files/NHL_gamescores_{today_str}.pdf',
+                output_filename=f'Files/NHL_scores_{today_str}.pdf',
                 favorite_teams=nhl_teams,
                 date=game_date,
                 display_date=today,
@@ -110,7 +110,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "NBA  — " + (cfg.nba.favorite_teams[0].name if cfg.nba.favorite_teams else ""),
             lambda: ScreamsheetFactory.create_nba_screamsheet(
-                output_filename=f'Files/NBA_gamescores_{today_str}.pdf',
+                output_filename=f'Files/NBA_scores_{today_str}.pdf',
                 favorite_teams=nba_teams,
                 date=game_date,
                 display_date=today,
@@ -119,7 +119,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "Presidential",
             lambda: ScreamsheetFactory.create_presidential_screamsheet(
-                output_filename=f'Files/presidential_screamsheet_{today_str}.pdf',
+                output_filename=f'Files/Presidential_news_{today_str}.pdf',
                 max_articles=4,
                 weather_lat=cfg.weather.presidential.lat,
                 weather_lon=cfg.weather.presidential.lon,
@@ -130,7 +130,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
         (
             "Sky Tonight — " + cfg.sky.location_name,
             lambda: ScreamsheetFactory.create_sky_tonight_screamsheet(
-                output_filename=f'Files/SKY_{today_str}.pdf',
+                output_filename=f'Files/Sky_tonight_{today_str}.pdf',
                 lat=cfg.sky.lat,
                 lon=cfg.sky.lon,
                 location_name=cfg.sky.location_name,

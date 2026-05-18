@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 class SkyTonightScreamsheet(BaseScreamsheet):
     """Generates a two-page PDF summarising tonight's naked-eye sky.
 
-    Front page: zodiac wheel + sky highlights.
-    Back page:  personalized horoscope readings (if people are configured).
+    Front page: zodiac wheel.
+    Back page:  sky highlights + personalized horoscope readings (if people are configured).
 
     Sections:
         1. ZodiacWheelSection  — circular zodiac wheel with planet markers
@@ -77,18 +77,21 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         )
         horoscope_section.page_slot = "back"
 
+        highlights_section = SkyHighlightsSection(
+            title="Sky Highlights",
+            provider=self.provider,
+            date=self.date,
+            location_name=self.location_name,
+        )
+        highlights_section.page_slot = "back"
+
         return [
             ZodiacWheelSection(
                 title="Tonight's Zodiac Wheel",
                 provider=self.provider,
                 date=self.date,
             ),
-            SkyHighlightsSection(
-                title="Sky Highlights",
-                provider=self.provider,
-                date=self.date,
-                location_name=self.location_name,
-            ),
+            highlights_section,
             horoscope_section,
         ]
 

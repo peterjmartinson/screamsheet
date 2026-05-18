@@ -5,10 +5,8 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from reportlab.platypus import (
-    BaseDocTemplate, PageTemplate, Frame,
-    NextPageTemplate, PageBreak, Paragraph, Spacer,
+    Paragraph, Spacer,
 )
-from reportlab.platypus.flowables import KeepInFrame
 from reportlab.lib.pagesizes import letter
 
 logger = logging.getLogger(__name__)
@@ -110,26 +108,12 @@ class SportsScreamsheet(BaseScreamsheet):
     
     def generate(self) -> str:
         """Generate a two-page PDF: front (scores + standings) and back (box score)."""
+        logger.info("Building sections for %s", self.sport_name)
         self.sections = self.build_sections()
+        logger.info("Sections built: %d total", len(self.sections))
 
-        margin = 36
         page_width, page_height = letter
-        frame_w = page_width - 2 * margin
-        frame_h = page_height - 2 * margin
-
-        front_frame = Frame(margin, margin, frame_w, frame_h, id="front_frame")
-        back_frame  = Frame(margin, margin, frame_w, frame_h, id="back_frame")
-
-        doc = BaseDocTemplate(
-            self.output_filename,
-            pagesize=letter,
-            leftMargin=margin, rightMargin=margin,
-            topMargin=margin,  bottomMargin=margin,
-        )
-        doc.addPageTemplates([
-            PageTemplate(id="Front", frames=[front_frame]),
-            PageTemplate(id="Back",  frames=[back_frame],  onPage=self._draw_branding_footer),
-        ])
+        frame_h = page_height - 2 * 36
 
         front_content: List = []
         back_content:  List = []
@@ -148,23 +132,13 @@ class SportsScreamsheet(BaseScreamsheet):
                 if getattr(section, "page_slot", "front") == "back":
                     back_content.extend(elements)
                     back_content.append(Spacer(1, 20))
+                    logger.info("Section '%s' → back page (%d flowables)", section.title, len(elements))
                 else:
                     front_content.extend(elements)
                     front_content.append(Spacer(1, 20))
+                    logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
 
-        story: List = [
-            KeepInFrame(maxWidth=0, maxHeight=frame_h, content=front_content, mode="shrink")
-        ]
-
-        if back_content:
-            story.append(NextPageTemplate("Back"))
-            story.append(PageBreak())
-            story.append(
-                KeepInFrame(maxWidth=0, maxHeight=frame_h, content=back_content, mode="shrink")
-            )
-
-        doc.build(story)
-        return self.output_filename
+        return self._build_two_page_pdf(front_content, back_content)
 
     def build_sections(self) -> List[Section]:
         """Build all sections for the sports screamsheet."""

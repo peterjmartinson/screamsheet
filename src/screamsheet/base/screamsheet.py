@@ -1,14 +1,22 @@
 """Base screamsheet class that all screamsheets inherit from."""
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import Any, List, Optional
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer,
+    BaseDocTemplate, PageTemplate, Frame,
+    NextPageTemplate, PageBreak,
+)
+from reportlab.platypus.flowables import KeepInFrame
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 
 from .section import Section
+
+logger = logging.getLogger(__name__)
 
 
 class BaseScreamsheet(ABC):
@@ -54,8 +62,59 @@ class BaseScreamsheet(ABC):
         canvas.saveState()
         canvas.setFont("Helvetica-Bold", 14)
         canvas.setFillColor(colors.black)
-        canvas.drawCentredString(page_width / 2, 13, text)
+        canvas.drawCentredString(page_width / 2, 20, text)
         canvas.restoreState()
+
+    def _build_two_page_pdf(
+        self,
+        front_content: List,
+        back_content: List,
+    ) -> str:
+        """Build a two-page-max PDF using BaseDocTemplate + KeepInFrame shrink.
+
+        Front content is constrained to page 1 via KeepInFrame(mode='shrink').
+        Back content (if any) flows onto page 2 with the branding footer.
+
+        Args:
+            front_content: ReportLab flowables for page 1.
+            back_content:  ReportLab flowables for page 2 (may be empty).
+
+        Returns:
+            Path to the written PDF file.
+        """
+        margin = 36
+        page_width, page_height = letter
+        frame_w = page_width - 2 * margin
+        frame_h = page_height - 2 * margin
+
+        front_frame = Frame(margin, margin, frame_w, frame_h, id="front_frame")
+        back_frame = Frame(margin, margin, frame_w, frame_h, id="back_frame")
+
+        doc = BaseDocTemplate(
+            self.output_filename,
+            pagesize=letter,
+            leftMargin=margin, rightMargin=margin,
+            topMargin=margin, bottomMargin=margin,
+        )
+        doc.addPageTemplates([
+            PageTemplate(id="Front", frames=[front_frame], onPage=self._draw_branding_footer),
+            PageTemplate(id="Back", frames=[back_frame], onPage=self._draw_branding_footer),
+        ])
+
+        story: List = [
+            KeepInFrame(maxWidth=0, maxHeight=frame_h, content=front_content, mode="shrink")
+        ]
+
+        if back_content:
+            story.append(NextPageTemplate("Back"))
+            story.append(PageBreak())
+            story.append(
+                KeepInFrame(maxWidth=0, maxHeight=frame_h, content=back_content, mode="shrink")
+            )
+
+        doc.build(story)
+        logger.info("PDF written to %s", self.output_filename)
+        return self.output_filename
 
     def _setup_styles(self):
         """Setup common paragraph styles used across screamsheets."""
@@ -121,7 +180,9 @@ class BaseScreamsheet(ABC):
             Path to the generated PDF file
         """
         # Build all sections
+        logger.info("Building sections for %s", self.get_title())
         self.sections = self.build_sections()
+        logger.info("Sections built: %d total", len(self.sections))
         
         # Create PDF
         doc = SimpleDocTemplate(
@@ -158,13 +219,13 @@ class BaseScreamsheet(ABC):
                 story.extend(section.render())
                 story.append(Spacer(1, 20))
         
-        # Build PDF
+        # Build PDF — branding on later pages only (back page only for 2-page docs)
         doc.build(
             story,
-            onFirstPage=self._draw_branding_footer,
             onLaterPages=self._draw_branding_footer,
         )
         
+        logger.info("PDF written to %s", self.output_filename)
         return self.output_filename
     
     def add_section(self, section: Section):

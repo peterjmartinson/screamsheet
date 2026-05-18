@@ -219,9 +219,11 @@ class TestPresidentialScreamsheet:
         mock_section = MagicMock()
         mock_section.has_content.return_value = True
         mock_section.render.return_value = []
+        mock_section.page_slot = "front"
+        mock_section.title = "Mock Section"
 
         with patch.object(sheet, "build_sections", return_value=[mock_section]), \
-             patch("screamsheet.base.screamsheet.SimpleDocTemplate") as MockDoc:
+             patch("screamsheet.base.screamsheet.BaseDocTemplate") as MockDoc:
             mock_builder = MagicMock()
             MockDoc.return_value = mock_builder
             sheet.generate()

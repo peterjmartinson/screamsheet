@@ -68,13 +68,13 @@ class MLBNewsScreamsheet(NewsScreamsheet):
             )
         )
 
-        sections.append(
-            NewsArticlesSection(
-                title="More News",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2,
-            )
+        back_section = NewsArticlesSection(
+            title="More News",
+            provider=self.provider,
+            max_articles=2,
+            start_index=2,
         )
+        back_section.page_slot = "back"
+        sections.append(back_section)
 
         return sections

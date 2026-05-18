@@ -1,4 +1,5 @@
 """News articles section renderer."""
+import logging
 from typing import List, Any
 import os
 from dotenv import load_dotenv
@@ -10,6 +11,8 @@ from ..base import Section, DataProvider
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class NewsArticlesSection(Section):
@@ -59,7 +62,7 @@ class NewsArticlesSection(Section):
         try:
             articles = self.provider.sanitize_articles(articles)
         except Exception as e:
-            print(f"Warning: error during article sanitization: {e}")
+            logger.warning("Error during article sanitization: %s", e)
 
         # Generate summaries using LLM
         try:
@@ -80,8 +83,9 @@ class NewsArticlesSection(Section):
 
             # Store section-local summarized data (render will use this list directly)
             self.data = summarized_slice
+            logger.info("Section '%s' fetched %d articles", self.title, len(self.data))
         except Exception as e:
-            print(f"Error generating article summaries: {e}")
+            logger.error("Error generating article summaries: %s", e)
             import traceback
             traceback.print_exc()
             # Fall back: build minimal summarized-like entries from the sliced
@@ -141,7 +145,7 @@ class NewsArticlesSection(Section):
                     pub_date = datetime.fromtimestamp(time.mktime(entry['published_parsed']))
                     pub_date_str = pub_date.strftime('%B %d, %Y')
             except Exception as e:
-                print(f"Error parsing date for '{title}': {e}")
+                logger.debug("Error parsing date for '%s': %s", title, e)
             
             if has_llm:
                 try:
@@ -158,6 +162,8 @@ class NewsArticlesSection(Section):
                         llm_choice='grok',  # Use grok as in the original implementation
                         data=story_data
                     )
+                    word_count = len(str(llm_summary).split())
+                    logger.info("Article '%s' summarized: %d words", title[:60], word_count)
                     
                     summarized_articles.append({
                         'slot': article['slot'],
@@ -168,7 +174,7 @@ class NewsArticlesSection(Section):
                         'pub_date': pub_date_str,
                     })
                 except Exception as e:
-                    print(f"Error summarizing article '{title}': {e}")
+                    logger.warning("Error summarizing article '%s': %s", title[:60], e)
                     import traceback
                     traceback.print_exc()
                     summarized_articles.append({
@@ -181,7 +187,7 @@ class NewsArticlesSection(Section):
                     })
             else:
                 # No LLM available, use original summary
-                print(f"No LLM available for article '{title}', using original summary")
+                logger.warning("No LLM available for article '%s', using original summary", title[:60])
                 summarized_articles.append({
                     'slot': article['slot'],
                     'id': entry.get('id', entry.get('link', '')),

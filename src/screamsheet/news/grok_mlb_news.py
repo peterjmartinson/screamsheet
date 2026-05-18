@@ -53,11 +53,13 @@ class GrokMLBNewsScreamsheet(NewsScreamsheet):
             start_index=0,
         ))
 
-        sections.append(GrokGeneratedArticlesSection(
+        back_section = GrokGeneratedArticlesSection(
             title='More MLB News',
             provider=self.provider,
             max_articles=2,
             start_index=2,
-        ))
+        )
+        back_section.page_slot = "back"
+        sections.append(back_section)
 
         return sections

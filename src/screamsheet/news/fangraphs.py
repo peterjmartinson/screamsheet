@@ -47,13 +47,13 @@ class FanGraphsScreamsheet(NewsScreamsheet):
             )
         )
 
-        sections.append(
-            NewsArticlesSection(
-                title="More from FanGraphs",
-                provider=self.provider,
-                max_articles=2,
-                start_index=2,
-            )
+        back_section = NewsArticlesSection(
+            title="More from FanGraphs",
+            provider=self.provider,
+            max_articles=2,
+            start_index=2,
         )
+        back_section.page_slot = "back"
+        sections.append(back_section)
 
         return sections

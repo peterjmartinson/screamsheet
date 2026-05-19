@@ -171,13 +171,28 @@ The `--output-dir` flag takes precedence over `config.yaml`. If `output.director
 
 #### CI / deploy setup
 
-`config.yaml.example` contains the placeholder `__PRINT_DIR__`. The deploy workflow substitutes it using the **GitHub repository variable** `PRINT_DIR`:
+`config.yaml.example` contains placeholders that the deploy workflow substitutes using **GitHub repository variables** (Settings → Secrets and variables → Actions → **Variables** tab):
 
-```
-Settings → Secrets and variables → Actions → Variables → New repository variable
-Name:  PRINT_DIR
-Value: /home/peter/PRINT
-```
+| Variable | Description | Example |
+|---|---|---|
+| `PRINT_DIR` | Output directory on the server for generated PDFs | `/home/peter/Print` |
+| `PERSON1_NAME` | Display name for person 1's horoscope column | `Peter` |
+| `PERSON1_SUN_SIGN` | Sun sign for person 1 | `Gemini` |
+| `PERSON1_MOON_SIGN` | Moon sign for person 1 | `Scorpio` |
+| `PERSON1_ASCENDANT` | Ascendant (rising) sign for person 1 | `Sagittarius` |
+| `PERSON2_NAME` | Display name for person 2's horoscope column | `Jane` |
+| `PERSON2_SUN_SIGN` | Sun sign for person 2 | `Pisces` |
+| `PERSON2_MOON_SIGN` | Moon sign for person 2 | `Taurus` |
+| `PERSON2_ASCENDANT` | Ascendant (rising) sign for person 2 | `Cancer` |
+
+Valid zodiac sign values are: `Aries`, `Taurus`, `Gemini`, `Cancer`, `Leo`, `Virgo`, `Libra`, `Scorpio`, `Sagittarius`, `Capricorn`, `Aquarius`, `Pisces`.
+
+Use **Variables**, not **Secrets**, for these values. These sign/name values are not sensitive, and Variables are easier to view and manage.
+
+After setting/updating variables, trigger deploy from the Actions tab:
+
+1. Open **Deploy Scream Sheet**
+2. Click **Run workflow**
 
 No path is hardcoded in the workflow YAML.
 

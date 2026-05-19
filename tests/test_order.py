@@ -10,6 +10,7 @@ from screamsheet.order import (
     NHLOrderOptions,
     MLBOrderOptions,
     OutputOrderOptions,
+    PersonOptions,
     ScreamsheetOrder,
     TeamEntry,
     OrderValidationError,
@@ -86,3 +87,14 @@ class TestRunOrder:
     def test_today_defaults_to_now_when_not_provided(self) -> None:
         order = ScreamsheetOrder()
         assert run_order(order) == "success"
+
+
+class TestPersonOptions:
+    def test_birth_fields_default_to_empty_strings(self) -> None:
+        person = PersonOptions(name="Alice")
+        assert person.birth_date == ""
+        assert person.birth_time == ""
+        assert person.birth_location == ""
+        assert person.sun_sign == ""
+        assert person.moon_sign == ""
+        assert person.ascendant == ""

@@ -40,7 +40,17 @@ jobs:
 
           # 3. Generate config.yaml from the example, substituting the PRINT_DIR variable.
           #    This overwrites the developer's local config.yaml that rsync copied above.
-          sed 's|__PRINT_DIR__|${{ vars.PRINT_DIR }}|g' "$RELEASE_DIR/config.yaml.example" > "$RELEASE_DIR/config.yaml"
+          sed \
+            -e 's|__PRINT_DIR__|${{ vars.PRINT_DIR }}|g' \
+            -e 's|__PERSON1_NAME__|${{ vars.PERSON1_NAME }}|g' \
+            -e 's|__PERSON1_SUN_SIGN__|${{ vars.PERSON1_SUN_SIGN }}|g' \
+            -e 's|__PERSON1_MOON_SIGN__|${{ vars.PERSON1_MOON_SIGN }}|g' \
+            -e 's|__PERSON1_ASCENDANT__|${{ vars.PERSON1_ASCENDANT }}|g' \
+            -e 's|__PERSON2_NAME__|${{ vars.PERSON2_NAME }}|g' \
+            -e 's|__PERSON2_SUN_SIGN__|${{ vars.PERSON2_SUN_SIGN }}|g' \
+            -e 's|__PERSON2_MOON_SIGN__|${{ vars.PERSON2_MOON_SIGN }}|g' \
+            -e 's|__PERSON2_ASCENDANT__|${{ vars.PERSON2_ASCENDANT }}|g' \
+            "$RELEASE_DIR/config.yaml.example" > "$RELEASE_DIR/config.yaml"
 
           # 4. UV Sync
           cd "$RELEASE_DIR"

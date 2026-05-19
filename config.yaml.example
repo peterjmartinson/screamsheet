@@ -66,6 +66,15 @@ sky:
   lat: 40.02
   lon: -75.34
   location_name: "Bryn Mawr, PA"
+  people:
+    - name: "__PERSON1_NAME__"
+      sun_sign: "__PERSON1_SUN_SIGN__"
+      moon_sign: "__PERSON1_MOON_SIGN__"
+      ascendant: "__PERSON1_ASCENDANT__"
+    - name: "__PERSON2_NAME__"
+      sun_sign: "__PERSON2_SUN_SIGN__"
+      moon_sign: "__PERSON2_MOON_SIGN__"
+      ascendant: "__PERSON2_ASCENDANT__"
 
 # Output directory: generated PDFs are copied here after generation.
 # Override per-run with: uv run screamsheet --output-dir /path/to/dir

@@ -46,9 +46,9 @@ class PersonOptions:
     """Birth details for a horoscope reading (used by the Sky Tonight sheet)."""
 
     name: str
-    birth_date: str       # YYYY-MM-DD
-    birth_time: str       # HH:MM (24-hour)
-    birth_location: str
+    birth_date: str = ""       # YYYY-MM-DD
+    birth_time: str = ""       # HH:MM (24-hour)
+    birth_location: str = ""
     sun_sign: str = ""
     moon_sign: str = ""
     ascendant: str = ""

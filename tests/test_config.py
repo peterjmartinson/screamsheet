@@ -9,6 +9,7 @@ from screamsheet.config import (
     SportConfig,
     MLBConfig,
     OutputConfig,
+    PersonConfig,
     TeamEntry,
     load_config,
 )
@@ -162,3 +163,32 @@ class TestOutputConfig:
         path = _write_yaml(tmp_path, {"output": {"directory": "/some/dir"}})
         cfg = load_config(path)
         assert isinstance(cfg.output, OutputConfig)
+
+
+class TestSkyPeopleConfig:
+    def test_sky_person_with_omitted_birth_fields(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "sky": {
+                    "people": [
+                        {
+                            "name": "Alice",
+                            "sun_sign": "Aries",
+                            "moon_sign": "Leo",
+                            "ascendant": "Sagittarius",
+                        }
+                    ]
+                }
+            },
+        )
+        cfg = load_config(path)
+        assert cfg.sky.people[0] == PersonConfig(
+            name="Alice",
+            birth_date="",
+            birth_time="",
+            birth_location="",
+            sun_sign="Aries",
+            moon_sign="Leo",
+            ascendant="Sagittarius",
+        )

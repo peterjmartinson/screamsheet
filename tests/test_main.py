@@ -41,6 +41,16 @@ class TestCopyToOutputDir:
         # Must not raise and must not copy anywhere
         _copy_to_output_dir(str(src), "")
 
+    def test_copy_is_noop_when_source_is_already_in_output_dir(self, tmp_path):
+        dest_dir = tmp_path / "output"
+        dest_dir.mkdir()
+        src = dest_dir / "test.pdf"
+        src.write_bytes(b"%PDF")
+
+        _copy_to_output_dir(str(src), str(dest_dir))
+
+        assert src.read_bytes() == b"%PDF"
+
 
 class TestRunSheet:
     def test_run_sheet_copies_to_output_dir(self, tmp_path):

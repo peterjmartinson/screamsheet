@@ -9,7 +9,9 @@ Usage:
 """
 import argparse
 import logging
+import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 from .config import load_config
 from .factory import ScreamsheetFactory
 from .order import (
@@ -26,7 +28,7 @@ from .order import (
     TeamEntry,
     WeatherLocationOptions,
 )
-from .runner import _copy_to_output_dir, run_order
+from .runner import run_order
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
 from .political import PresidentialScreamsheet
@@ -45,6 +47,25 @@ __all__ = [
 ]
 
 
+
+
+def _copy_to_output_dir(pdf_path: str, output_dir: str) -> None:
+    """Copy a generated PDF into the configured output directory."""
+    if not output_dir:
+        return
+
+    source = Path(pdf_path)
+    if not source.exists():
+        logging.getLogger(__name__).warning("Generated PDF not found for copy: %s", pdf_path)
+        return
+
+    destination_dir = Path(output_dir)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    destination = destination_dir / source.name
+    if source.resolve() == destination.resolve():
+        return
+
+    shutil.copy2(source, destination)
 
 
 def _build_sheets(today_str: str) -> tuple[list, str]:
@@ -144,7 +165,6 @@ def _run_sheet(label: str, factory_fn, output_dir: str) -> None:
     pdf_path = sheet.generate()
     _log.info("Generated: %s", pdf_path)
     if output_dir:
-        from pathlib import Path
         dest = str(Path(output_dir) / Path(pdf_path).name)
         _copy_to_output_dir(pdf_path, output_dir)
         _log.info("Copied to: %s", dest)

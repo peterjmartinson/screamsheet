@@ -140,3 +140,13 @@ class ScreamsheetOrder:
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
+
+
+@dataclass
+class ScreamsheetResult:
+    """Return value of runner.run_order()."""
+
+    subscriber_name: str
+    sheets_generated: list[str] = field(default_factory=list)
+    options_summary: dict[str, list[str]] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)

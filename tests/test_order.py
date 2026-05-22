@@ -12,6 +12,7 @@ from screamsheet.order import (
     OutputOrderOptions,
     PersonOptions,
     ScreamsheetOrder,
+    ScreamsheetResult,
     TeamEntry,
     OrderValidationError,
 )
@@ -41,9 +42,12 @@ class TestTeamEntryValidation:
 
 
 class TestRunOrder:
-    def test_empty_order_returns_success(self) -> None:
+    def test_empty_order_returns_clean_result(self) -> None:
         order = ScreamsheetOrder()
-        assert run_order(order, today=_TODAY) == "success"
+        result = run_order(order, today=_TODAY)
+        assert isinstance(result, ScreamsheetResult)
+        assert result.errors == []
+        assert result.sheets_generated == []
 
     def test_nhl_only_order_calls_only_nhl_handler(self) -> None:
         order = ScreamsheetOrder(
@@ -53,7 +57,7 @@ class TestRunOrder:
         mock_mlb = MagicMock(return_value="/tmp/mlb.pdf")
         with patch("screamsheet.runner._REGISTRY", {"nhl": mock_nhl, "mlb": mock_mlb}):
             result = run_order(order, today=_TODAY)
-        assert result == "success"
+        assert isinstance(result, ScreamsheetResult)
         mock_nhl.assert_called_once()
         mock_mlb.assert_not_called()
 
@@ -62,7 +66,7 @@ class TestRunOrder:
         mock_handler = MagicMock(return_value="/tmp/sheet.pdf")
         with patch("screamsheet.runner._REGISTRY", {"nhl": mock_handler}):
             result = run_order(order, today=_TODAY)
-        assert result == "success"
+        assert isinstance(result, ScreamsheetResult)
         mock_handler.assert_not_called()
 
     def test_unregistered_field_logs_warning_and_does_not_raise(self, caplog) -> None:
@@ -74,7 +78,7 @@ class TestRunOrder:
         with patch("screamsheet.runner._REGISTRY", {}):
             with caplog.at_level(logging.WARNING, logger="screamsheet.runner"):
                 result = run_order(order, today=_TODAY)
-        assert result == "success"
+        assert isinstance(result, ScreamsheetResult)
         assert any("nhl" in r.message for r in caplog.records)
 
     def test_output_field_is_never_dispatched_as_sheet(self) -> None:
@@ -86,7 +90,24 @@ class TestRunOrder:
 
     def test_today_defaults_to_now_when_not_provided(self) -> None:
         order = ScreamsheetOrder()
-        assert run_order(order) == "success"
+        result = run_order(order)
+        assert isinstance(result, ScreamsheetResult)
+
+    def test_sheet_exception_is_captured_in_errors_not_raised(self) -> None:
+        order = ScreamsheetOrder(
+            nhl=NHLOrderOptions(favorite_teams=[TeamEntry(id=4, name="Flyers")])
+        )
+        mock_nhl = MagicMock(side_effect=RuntimeError("network timeout"))
+        with patch("screamsheet.runner._REGISTRY", {"nhl": mock_nhl}):
+            result = run_order(order, today=_TODAY)
+        assert isinstance(result, ScreamsheetResult)
+        assert any("network timeout" in e for e in result.errors)
+        assert result.sheets_generated == []
+
+    def test_subscriber_name_appears_in_result(self) -> None:
+        order = ScreamsheetOrder()
+        result = run_order(order, today=_TODAY, subscriber_name="Peter Martinson")
+        assert result.subscriber_name == "Peter Martinson"
 
 
 class TestPersonOptions:

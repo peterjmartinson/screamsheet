@@ -42,6 +42,7 @@ jobs:
           #    This overwrites the developer's local config.yaml that rsync copied above.
           sed \
             -e 's|__PRINT_DIR__|${{ vars.PRINT_DIR }}|g' \
+            -e 's|__DB_PATH__|${{ vars.DB_PATH }}|g' \
             -e 's|__PERSON1_NAME__|${{ vars.PERSON1_NAME }}|g' \
             -e 's|__PERSON1_SUN_SIGN__|${{ vars.PERSON1_SUN_SIGN }}|g' \
             -e 's|__PERSON1_MOON_SIGN__|${{ vars.PERSON1_MOON_SIGN }}|g' \

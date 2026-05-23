@@ -76,6 +76,13 @@ sky:
       moon_sign: "__PERSON2_MOON_SIGN__"
       ascendant: "__PERSON2_ASCENDANT__"
 
+# Database path for the SQLite team/player cache.
+# The SCREAMSHEET_DB environment variable takes precedence if set.
+# In CI, __DB_PATH__ is substituted by the deploy workflow using the
+# DB_PATH GitHub repository variable.
+database:
+  path: __DB_PATH__
+
 # Output directory: generated PDFs are copied here after generation.
 # Override per-run with: uv run screamsheet --output-dir /path/to/dir
 # In CI, __PRINT_DIR__ is substituted by the deploy workflow using the

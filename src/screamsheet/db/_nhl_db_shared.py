@@ -1,9 +1,16 @@
-"""Shared SQLAlchemy base and DB-path helper for the NHL SQLite cache.
+"""Shared SQLAlchemy base and DB-path helper for the screamsheet SQLite cache.
 
-All ORM models that live in nhl.db import _Base from this module so that
-SQLAlchemy's metadata is unified under one DeclarativeBase instance.
+All ORM models import _Base from this module so that SQLAlchemy's metadata
+is unified under one DeclarativeBase instance.  All tables live in a single
+database file (screamsheet.db).
+
+DB path resolution order:
+    1. SCREAMSHEET_DB environment variable (if set)
+    2. Platform default: ~/database/screamsheet.db  (Linux / macOS)
+                         C:\\database\\screamsheet.db (Windows)
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -15,11 +22,14 @@ class _Base(DeclarativeBase):
 
 
 def get_db_path() -> Path:
-    """Return the platform-appropriate path for the NHL database.
+    """Return the resolved path to the screamsheet SQLite database.
 
-    Linux / macOS:  ~/database/nhl.db
-    Windows:        C:\\database\\nhl.db
+    Checks the SCREAMSHEET_DB environment variable first, then falls back
+    to the platform default (~/database/screamsheet.db).
     """
+    env = os.environ.get("SCREAMSHEET_DB")
+    if env:
+        return Path(env)
     if sys.platform.startswith("win"):
-        return Path("C:/database/nhl.db")
-    return Path.home() / "database" / "nhl.db"
+        return Path("C:/database/screamsheet.db")
+    return Path.home() / "database" / "screamsheet.db"

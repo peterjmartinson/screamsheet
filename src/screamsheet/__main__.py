@@ -290,6 +290,16 @@ def main():
 
     today = datetime.strptime(today_str, "%Y%m%d")
 
+    # Apply database path from config before any DB access.
+    # os.environ.setdefault leaves an already-exported SCREAMSHEET_DB untouched.
+    import os
+    try:
+        _db_cfg = load_config()
+        if _db_cfg.database.path:
+            os.environ.setdefault("SCREAMSHEET_DB", _db_cfg.database.path)
+    except FileNotFoundError:
+        pass  # config.yaml missing — env var / platform default will be used
+
     if args.single:
         sheets, output_dir = _build_sheets(today_str)
         if args.output_dir:

@@ -24,9 +24,8 @@ cd "$SCRIPT_DIR"
 
 # Directories and dated log file
 mkdir -p ./logfiles
-DB_DIR="${SCRIPT_DIR}/src/screamsheet/db"
-mkdir -p "$DB_DIR"
-DB_PATH="${DB_DIR}/nhl.db"
+DB_PATH="${HOME}/database/screamsheet.db"
+mkdir -p "$(dirname "$DB_PATH")"
 DATE=$(date +%Y%m%d)
 LOG_FILE="./logfiles/update_db_log_${DATE}.txt"
 

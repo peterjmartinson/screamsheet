@@ -23,6 +23,10 @@ import requests
 
 from .nhl_teams_db import init_db, upsert_teams
 from ._nhl_db_shared import get_db_path
+from .team_lookup_db import (
+    init_db as _canonical_init_db,
+    upsert_teams as _canonical_upsert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,35 @@ def full_sync_teams(db_path: Optional[Path] = None) -> int:
     logger.info("full_sync_teams: fetched %d teams", len(teams))
     count = upsert_teams(teams, db_path)
     logger.info("full_sync_teams: complete — %d teams upserted", count)
+    return count
+
+
+def full_sync_canonical_teams(db_path: Optional[Path] = None) -> int:
+    """Fetch all NHL teams and upsert them into the canonical nhl_teams table.
+
+    Uses the same standings data as full_sync_teams() but writes to the
+    nhl_teams table (id, team_id, full_name, abbrev, last_synced) instead
+    of the legacy teams table.
+
+    Args:
+        db_path: Path to the SQLite file.  Defaults to get_db_path().
+
+    Returns:
+        Number of rows upserted.
+    """
+    _canonical_init_db("nhl", db_path)
+    raw_teams = fetch_teams_from_standings()
+    canonical = [
+        {
+            "team_id":  t["team_id"],
+            "full_name": f"{t['city']} {t['team_full_name']}".strip(),
+            "abbrev":   t["team"],
+        }
+        for t in raw_teams
+    ]
+    logger.info("full_sync_canonical_teams: fetched %d teams", len(canonical))
+    count = _canonical_upsert("nhl", canonical, db_path)
+    logger.info("full_sync_canonical_teams: complete — %d teams upserted", count)
     return count
 
 

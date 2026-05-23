@@ -82,6 +82,17 @@ class OutputConfig:
 
 
 @dataclass
+class DbConfig:
+    """Database path configuration.
+
+    Leave ``path`` empty to use the platform default (~/database/screamsheet.db).
+    Set it to override, e.g. for a non-standard deployment location.
+    The SCREAMSHEET_DB environment variable takes precedence over this setting.
+    """
+    path: str = ""
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
@@ -92,12 +103,17 @@ class ScreamsheetConfig:
     sky: SkyConfig = field(default_factory=SkyConfig)
     branding: str = ""
     output: OutputConfig = field(default_factory=OutputConfig)
+    database: DbConfig = field(default_factory=DbConfig)
 
 
 def _parse_output(raw: dict) -> OutputConfig:
     return OutputConfig(
         directory=str(raw.get("directory", "")),
     )
+
+
+def _parse_db(raw: dict) -> DbConfig:
+    return DbConfig(path=str(raw.get("path", "")))
 
 
 def _parse_sport(raw: dict) -> SportConfig:
@@ -191,4 +207,5 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         sky=_parse_sky(raw.get("sky", {})),
         branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
+        database=_parse_db(raw.get("database", {})),
     )

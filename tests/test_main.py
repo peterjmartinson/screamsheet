@@ -41,6 +41,18 @@ class TestCopyToOutputDir:
         # Must not raise and must not copy anywhere
         _copy_to_output_dir(str(src), "")
 
+    def test_copy_noop_when_source_in_output_dir(self, tmp_path):
+        dest_dir = tmp_path / "output"
+        dest_dir.mkdir()
+        src = dest_dir / "test.pdf"
+        src.write_bytes(b"%PDF")
+
+        with patch("screamsheet.__main__.shutil.copy2") as copy2:
+            _copy_to_output_dir(str(src), str(dest_dir))
+
+        copy2.assert_not_called()
+        assert src.read_bytes() == b"%PDF"
+
 
 class TestRunSheet:
     def test_run_sheet_copies_to_output_dir(self, tmp_path):

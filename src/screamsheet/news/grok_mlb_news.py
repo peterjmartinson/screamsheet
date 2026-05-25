@@ -31,7 +31,7 @@ class GrokMLBNewsScreamsheet(NewsScreamsheet):
             include_weather=include_weather,
             date=date,
         )
-        self.favorite_teams = favorite_teams or ['Phillies', 'Padres', 'Yankees']
+        self.favorite_teams = favorite_teams or []
         self.max_articles = max_articles
         # Provider is instantiated once; both renderers share it so articles
         # are fetched in a single pass and cached on self.provider._articles.

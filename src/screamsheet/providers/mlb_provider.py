@@ -2,7 +2,7 @@
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 
 from ..base import DataProvider
 
@@ -147,6 +147,34 @@ class MLBDataProvider(DataProvider):
             return self._get_game_pk(team_id, date) is not None
         except Exception:
             return False
+
+    def get_all_teams_for_date(self, date: datetime) -> List[Tuple[int, str]]:
+        """Return (team_id, team_name) for all completed games on date."""
+        game_date = date.strftime("%Y-%m-%d")
+        url = (
+            f"{self.base_url}/api/v1/schedule"
+            f"?sportId=1"
+            f"&startDate={game_date}"
+            f"&endDate={game_date}"
+        )
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching MLB schedule for fallback: {e}")
+            return []
+
+        teams: List[Tuple[int, str]] = []
+        for date_data in data.get("dates", []):
+            for game in date_data.get("games", []):
+                if "Final" not in game["status"]["detailedState"]:
+                    continue
+                away = game["teams"]["away"]["team"]
+                home = game["teams"]["home"]["team"]
+                teams.append((int(away["id"]), str(away["name"])))
+                teams.append((int(home["id"]), str(home["name"])))
+        return teams
 
     def get_box_score(self, team_id: int, date: datetime) -> Optional[Any]:
         """

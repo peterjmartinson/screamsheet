@@ -1,6 +1,6 @@
 """Data provider interface for fetching data from various sources."""
 from abc import ABC, abstractmethod
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 from datetime import datetime
 import re
 import html
@@ -96,6 +96,23 @@ class DataProvider(ABC):
             True if a completed game exists for this team on this date.
         """
         return True
+
+    def get_all_teams_for_date(self, date: datetime) -> List[Tuple[int, str]]:
+        """Return (team_id, team_name) for all completed non-preseason games on date.
+
+        Used as a fallback when no favourite team played: the caller picks a
+        random entry from the returned list.  The base implementation returns
+        an empty list, preserving behaviour for providers that have not yet
+        implemented this method.
+
+        Args:
+            date: The date to query.
+
+        Returns:
+            List of (team_id, team_name) tuples, two entries per game
+            (home and away team), filtered to FINAL/completed non-preseason games.
+        """
+        return []
 
     # --- News provider helpers -------------------------------------------
     def _sanitize_text(self, text: str) -> str:

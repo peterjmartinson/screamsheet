@@ -23,13 +23,23 @@ class TestMLBNewsScreamsheeetTitle:
 
 
 class TestMLBNewsScreamsheeetDefaults:
-    def test_default_favorite_teams(self) -> None:
+    def test_default_favorite_teams_is_empty(self) -> None:
         s = MLBNewsScreamsheet("out.pdf")
-        assert s.favorite_teams == ["Phillies", "Padres", "Yankees"]
+        assert s.favorite_teams == []
 
     def test_output_filename_stored(self) -> None:
         s = MLBNewsScreamsheet("myfile.pdf")
         assert s.output_filename == "myfile.pdf"
+
+    def test_no_favorites_uses_general_feed_via_provider(self) -> None:
+        """With no favorites, the provider's team list is empty so it falls
+        through to the general MLB RSS feed."""
+        s = MLBNewsScreamsheet("out.pdf")
+        assert s.provider.favorite_teams == []
+
+    def test_empty_favorites_uses_general_feed_via_provider(self) -> None:
+        s = MLBNewsScreamsheet("out.pdf", favorite_teams=[])
+        assert s.provider.favorite_teams == []
 
 
 # ---------------------------------------------------------------------------

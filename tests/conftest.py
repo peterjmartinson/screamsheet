@@ -301,6 +301,37 @@ def nws_forecast_response():
 
 
 # ---------------------------------------------------------------------------
+# MLB schedule with team IDs (for get_all_teams_for_date tests)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mlb_final_games_response():
+    """MLB /schedule response with one Final game and full team ID fields."""
+    return {
+        "dates": [
+            {
+                "games": [
+                    {
+                        "gameDate": "2025-03-15T18:05:00Z",
+                        "teams": {
+                            "away": {
+                                "team": {"id": 121, "name": "New York Mets"},
+                                "score": 3,
+                            },
+                            "home": {
+                                "team": {"id": 143, "name": "Philadelphia Phillies"},
+                                "score": 5,
+                            },
+                        },
+                        "status": {"detailedState": "Final"},
+                    }
+                ]
+            }
+        ]
+    }
+
+
+# ---------------------------------------------------------------------------
 # RSS / feedparser payloads
 # ---------------------------------------------------------------------------
 

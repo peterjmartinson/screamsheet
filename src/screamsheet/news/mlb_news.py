@@ -33,7 +33,7 @@ class MLBNewsScreamsheet(NewsScreamsheet):
             include_weather=include_weather,
             date=date,
         )
-        self.favorite_teams: List[str] = favorite_teams or ["Phillies", "Padres", "Yankees"]
+        self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon

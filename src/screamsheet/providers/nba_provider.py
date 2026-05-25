@@ -3,7 +3,7 @@ import logging
 import math
 import pandas as pd
 from datetime import datetime
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 
 from ..base import DataProvider
 
@@ -198,6 +198,25 @@ class NBADataProvider(DataProvider):
         result = self._get_game_id(team_id, date) is not None
         logger.info("has_game(team_id=%s, date=%s) -> %s", team_id, date.strftime("%Y-%m-%d"), result)
         return result
+
+    def get_all_teams_for_date(self, date: datetime) -> List[Tuple[int, str]]:
+        """Return (team_id, team_name) for all completed games on date."""
+        date_str = date.strftime("%Y-%m-%d")
+        try:
+            finder = leaguegamefinder.LeagueGameFinder(
+                date_from_nullable=date_str,
+                date_to_nullable=date_str,
+            )
+            df = finder.get_data_frames()[0]
+            if df.empty:
+                return []
+            return [
+                (int(row["TEAM_ID"]), str(row["TEAM_NAME"]))
+                for _, row in df.iterrows()
+            ]
+        except Exception:
+            logger.exception("Error fetching NBA teams for date %s", date_str)
+            return []
 
     def get_box_score(self, team_id: int, date: datetime) -> Optional[Dict[str, Any]]:
         """

@@ -15,6 +15,7 @@ from pathlib import Path
 from .config import load_config
 from .factory import ScreamsheetFactory
 from .order import (
+    FrenchMLBNewsOrderOptions,
     MLBNewsOrderOptions,
     MLBOrderOptions,
     MLBTradeRumorsOrderOptions,
@@ -30,7 +31,7 @@ from .order import (
 )
 from .runner import run_order
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 
@@ -42,6 +43,7 @@ __all__ = [
     'NBAScreamsheet',
     'MLBTradeRumorsScreamsheet',
     'MLBNewsScreamsheet',
+    'FrenchMLBNewsScreamsheet',
     'PresidentialScreamsheet',
     'SkyTonightScreamsheet',
 ]
@@ -78,6 +80,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
     nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
     mlb_news_names = cfg.mlb.news_names
+    french_mlb_news_names = cfg.french_mlb.news_names
 
     output_dir = cfg.output.directory
 
@@ -113,6 +116,14 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lat=cfg.weather.mlb_news.lat,
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
+                date=today,
+            ),
+        ),
+        (
+            "MLB News (Français)",
+            lambda: ScreamsheetFactory.create_french_mlb_news_screamsheet(
+                output_filename=f'Files/french_mlb_news_{today_str}.pdf',
+                favorite_teams=french_mlb_news_names,
                 date=today,
             ),
         ),
@@ -206,6 +217,9 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         mlb_trade_rumors=MLBTradeRumorsOrderOptions(
             news_names=cfg.mlb.news_names,
             weather=weather_mlb,
+        ),
+        french_mlb_news=FrenchMLBNewsOrderOptions(
+            news_names=cfg.french_mlb.news_names,
         ),
         presidential=PresidentialOrderOptions(weather=weather_presidential),
         sky=SkyOrderOptions(

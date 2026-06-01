@@ -97,7 +97,7 @@ class BaseScreamsheet(ABC):
             topMargin=margin, bottomMargin=margin,
         )
         doc.addPageTemplates([
-            PageTemplate(id="Front", frames=[front_frame], onPage=self._draw_branding_footer),
+            PageTemplate(id="Front", frames=[front_frame]),
             PageTemplate(id="Back", frames=[back_frame], onPage=self._draw_branding_footer),
         ])
 

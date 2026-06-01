@@ -1,5 +1,6 @@
 """Back-page French MLB lexicon renderer."""
 from typing import Any, List
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -43,28 +44,28 @@ class FrenchLexiconSection(Section):
             name="LexiconTableHeader",
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
-            fontSize=9,
+            fontSize=11,
         )
         self._cell_style = ParagraphStyle(
             name="LexiconCell",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=9,
-            leading=12,
+            fontSize=11,
+            leading=14,
         )
         self._idiom_label_style = ParagraphStyle(
             name="IdiomLabel",
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
-            fontSize=9,
+            fontSize=11,
             spaceAfter=2,
         )
         self._idiom_detail_style = ParagraphStyle(
             name="IdiomDetail",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=9,
-            leading=12,
+            fontSize=11,
+            leading=14,
             leftIndent=12,
             spaceAfter=6,
         )
@@ -110,9 +111,9 @@ class FrenchLexiconSection(Section):
         for entry in vocab:
             rows.append(
                 [
-                    Paragraph(entry.get("french_lemma", ""), self._cell_style),
-                    Paragraph(entry.get("part_of_speech", ""), self._cell_style),
-                    Paragraph(entry.get("english_translation", ""), self._cell_style),
+                    Paragraph(_xml_escape(entry.get("french_lemma", "")), self._cell_style),
+                    Paragraph(_xml_escape(entry.get("part_of_speech", "")), self._cell_style),
+                    Paragraph(_xml_escape(entry.get("english_translation", "")), self._cell_style),
                 ]
             )
 
@@ -154,19 +155,19 @@ class FrenchLexiconSection(Section):
                 literal = entry.get("literal_translation", "")
                 contextual = entry.get("contextual_meaning", "")
                 flowables.append(
-                    Paragraph(f"\u00ab\u00a0{phrase}\u00a0\u00bb", self._idiom_label_style)
+                    Paragraph(f"\u00ab\u00a0{_xml_escape(phrase)}\u00a0\u00bb", self._idiom_label_style)
                 )
                 if literal:
                     flowables.append(
                         Paragraph(
-                            f"<i>Litt\u00e9ralement\u00a0:</i> {literal}",
+                            f"<i>Litt\u00e9ralement\u00a0:</i> {_xml_escape(literal)}",
                             self._idiom_detail_style,
                         )
                     )
                 if contextual:
                     flowables.append(
                         Paragraph(
-                            f"<i>Sens\u00a0:</i> {contextual}",
+                            f"<i>Sens\u00a0:</i> {_xml_escape(contextual)}",
                             self._idiom_detail_style,
                         )
                     )

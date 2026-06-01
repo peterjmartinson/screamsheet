@@ -124,9 +124,9 @@ class TestSkyTonightGenerateTwoPage:
 # Branding footer — sky tonight screamsheet
 # ---------------------------------------------------------------------------
 
-class TestSkyTonightBrandingOnBackOnly:
-    def test_front_page_template_has_no_branding_callback(self):
-        """The Sky Tonight Front PageTemplate must not fire the branding callback."""
+class TestSkyTonightBrandingOnBothPages:
+    def test_front_page_template_has_branding_callback(self):
+        """The Sky Tonight Front PageTemplate must fire the branding callback on every page."""
         from unittest.mock import patch
         from reportlab.platypus import BaseDocTemplate
 
@@ -159,4 +159,4 @@ class TestSkyTonightBrandingOnBackOnly:
         canvas_mock = MagicMock()
         if callable(front_page_cb):
             front_page_cb(canvas_mock, MagicMock())
-        canvas_mock.drawCentredString.assert_not_called()
+        canvas_mock.drawCentredString.assert_called_once()

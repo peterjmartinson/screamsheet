@@ -1,5 +1,6 @@
 """Two-column French MLB article renderer (Lane A left, Lane B right)."""
 from typing import Any, List
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -32,7 +33,7 @@ class FrenchArticlesSection(Section):
             name="FrenchColumnHeader",
             parent=styles["h3"],
             fontName="Helvetica-Bold",
-            fontSize=11,
+            fontSize=14,
             spaceBefore=4,
             spaceAfter=6,
         )
@@ -40,8 +41,8 @@ class FrenchArticlesSection(Section):
             name="FrenchArticleBody",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=9,
-            leading=13,
+            fontSize=11,
+            leading=15,
             spaceAfter=4,
         )
 
@@ -63,11 +64,11 @@ class FrenchArticlesSection(Section):
         a2_header = Paragraph("Niveau A2", self._header_style)
         b2_header = Paragraph("Niveau B2\u2013C1", self._header_style)
 
-        lane_a_text = self._content.lane_a or ""
-        lane_b_text = self._content.lane_b or ""
+        lane_a_text = _xml_escape(self._content.lane_a or "").replace("\n", "<br/>")
+        lane_b_text = _xml_escape(self._content.lane_b or "").replace("\n", "<br/>")
 
-        a2_body = Paragraph(lane_a_text.replace("\n", "<br/>"), self._body_style)
-        b2_body = Paragraph(lane_b_text.replace("\n", "<br/>"), self._body_style)
+        a2_body = Paragraph(lane_a_text, self._body_style)
+        b2_body = Paragraph(lane_b_text, self._body_style)
 
         table_data = [
             [a2_header, b2_header],

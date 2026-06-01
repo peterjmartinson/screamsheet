@@ -116,9 +116,9 @@ class TestNewsScreamshetGenerateTwoPage:
 # Branding footer — news screamsheet
 # ---------------------------------------------------------------------------
 
-class TestNewsScreamshetBrandingOnBackOnly:
-    def test_branding_callback_not_on_front_page_template(self):
-        """The Front PageTemplate must not have an onPage branding callback."""
+class TestNewsScreamshetBrandingOnBothPages:
+    def test_branding_callback_on_front_page_template(self):
+        """The Front PageTemplate must fire the branding callback on every page."""
         from reportlab.platypus import BaseDocTemplate
         captured_templates = []
 
@@ -148,7 +148,7 @@ class TestNewsScreamshetBrandingOnBackOnly:
         canvas_mock = MagicMock()
         if callable(front_page_cb):
             front_page_cb(canvas_mock, MagicMock())
-        canvas_mock.drawCentredString.assert_not_called()
+        canvas_mock.drawCentredString.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

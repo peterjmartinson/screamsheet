@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from .factory import ScreamsheetFactory
 from .order import (
+    FrenchMLBNewsOrderOptions,
     MLBNewsOrderOptions,
     MLBOrderOptions,
     MLBTradeRumorsOrderOptions,
@@ -144,6 +145,17 @@ def _run_mlb_trade_rumors(
     return sheet.generate()
 
 
+def _run_french_mlb_news(
+    options: FrenchMLBNewsOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    sheet = ScreamsheetFactory.create_french_mlb_news_screamsheet(
+        output_filename=_output_path(output_dir, f"french_mlb_news_{today_str}.pdf"),
+        favorite_teams=options.news_names,
+        date=today,
+    )
+    return sheet.generate()
+
+
 def _run_presidential(
     options: PresidentialOrderOptions, today: datetime, today_str: str, output_dir: str
 ) -> str:
@@ -185,6 +197,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "nfl":              _run_nfl,
     "mlb_news":         _run_mlb_news,
     "mlb_trade_rumors": _run_mlb_trade_rumors,
+    "french_mlb_news":  _run_french_mlb_news,
     "presidential":     _run_presidential,
     "sky":              _run_sky,
 }

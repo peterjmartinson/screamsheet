@@ -3,7 +3,7 @@ from typing import Optional, List, Tuple
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 
@@ -274,6 +274,37 @@ class ScreamsheetFactory:
             max_articles=max_articles,
             include_weather=include_weather,
             date=date
+        )
+
+    @staticmethod
+    def create_french_mlb_news_screamsheet(
+        output_filename: str,
+        favorite_teams: Optional[List[str]] = None,
+        grok_api_key: Optional[str] = None,
+        date: Optional[datetime] = None,
+    ) -> FrenchMLBNewsScreamsheet:
+        """
+        Create a French MLB News screamsheet.
+
+        Scrapes RDS.ca and TVA Sports for French-language MLB articles,
+        rewrites them at CEFR A2 and B2/C1 via Grok, and compiles a
+        back-page vocabulary lexicon.
+
+        Args:
+            output_filename: Path to save the PDF.
+            favorite_teams:  Short team names used to prioritise articles
+                             (e.g. ``["Blue Jays", "Phillies"]``).
+            grok_api_key:    xAI API key (defaults to ``GROK_API_KEY`` env var).
+            date:            Target date (defaults to today).
+
+        Returns:
+            FrenchMLBNewsScreamsheet instance.
+        """
+        return FrenchMLBNewsScreamsheet(
+            output_filename=output_filename,
+            favorite_teams=favorite_teams,
+            grok_api_key=grok_api_key,
+            date=date,
         )
 
     @staticmethod

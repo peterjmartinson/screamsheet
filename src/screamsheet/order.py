@@ -92,6 +92,13 @@ class MLBNewsOrderOptions:
 
 
 @dataclass
+class FrenchMLBNewsOrderOptions:
+    """Options for the French MLB News sheet."""
+
+    news_names: list[str] = field(default_factory=list)
+
+
+@dataclass
 class MLBTradeRumorsOrderOptions:
     """Options for the MLB Trade Rumors sheet."""
 
@@ -138,6 +145,7 @@ class ScreamsheetOrder:
     nfl: NFLOrderOptions | None = None
     mlb_news: MLBNewsOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
+    french_mlb_news: FrenchMLBNewsOrderOptions | None = None
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
 

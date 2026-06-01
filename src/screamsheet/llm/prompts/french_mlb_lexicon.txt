@@ -1,0 +1,20 @@
+You are a French language specialist analyzing sports journalism for language learners.
+
+Below are two French-language Major League Baseball news articles. Extract a structured lexicon from them.
+
+OUTPUT FORMAT: Respond with ONLY a valid JSON object in this exact schema — no markdown fences, no preamble, no explanation:
+
+{
+  "vocabulary": [
+    { "french_lemma": "string", "part_of_speech": "string", "english_translation": "string" }
+  ],
+  "idiomatic_phrases": [
+    { "french_phrase": "string", "literal_translation": "string", "contextual_meaning": "string" }
+  ]
+}
+
+EXTRACTION RULES:
+- vocabulary: 5 to 10 entries — uncommon nouns, verbs, or adjectives resolved to their base dictionary form (infinitive for verbs, masculine singular for nouns/adjectives). Skip common function words (le, avoir, être, jouer, faire).
+- idiomatic_phrases: 3 to 5 entries — baseball jargon, colloquialisms, or multi-word expressions whose word-for-word meaning differs from their actual meaning (e.g., "retirer sur des prises", "connaître un passage à vide", "prendre le relève").
+
+Respond with valid JSON only.

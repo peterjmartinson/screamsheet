@@ -22,9 +22,9 @@ class MLBTradeRumorsProvider(DataProvider):
         'Best of', 'MLBTR Chat', 'Front Office'
     ]
     
-    def __init__(self, favorite_teams: List[str] = None, max_articles: int = 4, **config):
+    def __init__(self, favorite_teams: Optional[List[str]] = None, max_articles: int = 4, **config):
         super().__init__(**config)
-        self.favorite_teams = favorite_teams or ['Phillies', 'Padres', 'Yankees']
+        self.favorite_teams = favorite_teams if favorite_teams is not None else []
         self.max_articles = max_articles
         self.team_priority = {team: i for i, team in enumerate(self.favorite_teams)}
     

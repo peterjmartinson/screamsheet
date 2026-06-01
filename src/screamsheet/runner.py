@@ -111,7 +111,7 @@ def _run_mlb_news(
 ) -> str:
     kwargs: dict[str, Any] = {
         "output_filename": _output_path(output_dir, f"MLB_NEWS_{today_str}.pdf"),
-        "favorite_teams": options.news_names or None,
+        "favorite_teams": options.news_names,
         "date": today,
     }
     if options.weather:
@@ -130,7 +130,7 @@ def _run_mlb_trade_rumors(
 ) -> str:
     kwargs: dict[str, Any] = {
         "output_filename": _output_path(output_dir, f"MLB_trade_rumors_{today_str}.pdf"),
-        "favorite_teams": options.news_names or None,
+        "favorite_teams": options.news_names,
         "date": today,
     }
     if options.weather:

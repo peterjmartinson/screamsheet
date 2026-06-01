@@ -283,3 +283,38 @@ class TestGetBoxScore:
         names = [p["name"] for p in result["player_stats"]]
         assert "Joel Embiid" in names
         assert "Paul George" not in names, "DNP player with NaN MIN must be excluded"
+
+
+# ---------------------------------------------------------------------------
+# get_all_teams_for_date
+# ---------------------------------------------------------------------------
+
+class TestNBAGetAllTeamsForDate:
+    def test_returns_both_teams_from_completed_game(self):
+        df = _make_gamefinder_df(
+            game_id="0022500001",
+            home_team="Philadelphia 76ers",
+            away_team="Boston Celtics",
+            home_score=110,
+            away_score=105,
+            home_matchup="PHI vs. BOS",
+            away_matchup="BOS @ PHI",
+        )
+        with patch(
+            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
+        ) as mock_finder:
+            mock_finder.return_value.get_data_frames.return_value = [df]
+            provider = NBADataProvider()
+            result = provider.get_all_teams_for_date(datetime(2026, 5, 3))
+
+        assert (1610612755, "Philadelphia 76ers") in result
+        assert (1610612738, "Boston Celtics") in result
+
+    def test_returns_empty_when_no_games(self):
+        with patch(
+            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
+        ) as mock_finder:
+            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+            provider = NBADataProvider()
+            result = provider.get_all_teams_for_date(datetime(2026, 5, 3))
+        assert result == []

@@ -4,7 +4,7 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 
 from ..base import DataProvider
 
@@ -243,6 +243,35 @@ class NHLDataProvider(DataProvider):
     def has_game(self, team_id: int, date: datetime) -> bool:
         """Return True if the team played a completed game on the given date."""
         return self._get_game_pk(team_id, date) is not None
+
+    def get_all_teams_for_date(self, date: datetime) -> List[Tuple[int, str]]:
+        """Return (team_id, team_name) for all completed non-preseason games on date."""
+        game_date = date.strftime("%Y-%m-%d")
+        url = f"{self.base_url}/schedule/{game_date}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching NHL schedule for fallback: {e}")
+            return []
+
+        teams: List[Tuple[int, str]] = []
+        for day in data.get("gameWeek", []):
+            for game in day.get("games", []):
+                game_state = game.get("gameState", "")
+                game_type = game.get("gameType", 2)
+                if game_state not in ("FINAL", "OFF"):
+                    continue
+                if game_type == 1:  # preseason
+                    continue
+                away = game["awayTeam"]
+                home = game["homeTeam"]
+                away_name = f"{away['placeName']['default']} {away['commonName']['default']}"
+                home_name = f"{home['placeName']['default']} {home['commonName']['default']}"
+                teams.append((int(away["id"]), away_name))
+                teams.append((int(home["id"]), home_name))
+        return teams
 
     def _get_game_pk(self, team_id: int, date: datetime) -> Optional[int]:
         """

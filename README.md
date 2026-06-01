@@ -32,11 +32,40 @@ Each screamsheet is a self-contained PDF covering one topic: sports scores, spor
 
 | Sheet | Output file | What's on it |
 |---|---|---|
-| MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, Phillies box score + AI narrative |
-| MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from MLB Trade Rumors |
-| MLB News | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com RSS feeds |
-| NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, Flyers box score |
+| MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score + AI narrative |
+| MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from MLB Trade Rumors, prioritised by favourite teams |
+| MLB News | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com RSS feeds, prioritised by favourite teams |
+| NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
+| NBA game scores | `Files/NBA_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
+| NFL game scores | `Files/NFL_gamescores_YYYYMMDD.pdf` | Scores, standings |
 | Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political stories from 7 RSS feeds + WhiteHouse.gov |
+| Sky Tonight | `Files/SKY_YYYYMMDD.pdf` | Tonight's sky highlights + horoscopes |
+
+### Favourite teams & fallback
+
+Each sports scores sheet features a box score and narrative for one team. Configure your preferred teams in priority order in `config.yaml`:
+
+```yaml
+mlb:
+  favorite_teams:
+    - id: 143
+      name: "Philadelphia Phillies"
+    - id: 147
+      name: "New York Yankees"
+```
+
+The sheet checks teams in order. If none of your favourites played on a given day, it automatically selects a random completed game instead — so the featured section is never blank.
+
+MLB news sheets (`MLB_trade_rumors`, `MLB_NEWS`) use short team names to prioritise articles. Configure them under `mlb.news_names`:
+
+```yaml
+mlb:
+  news_names:
+    - "Phillies"
+    - "Yankees"
+```
+
+If no matching articles are found for any listed team, remaining slots are filled from the general MLB feed. If `news_names` is empty or omitted, all slots come from the general feed.
 
 Run them all at once:
 

@@ -39,9 +39,10 @@ class TestSportsScreamseetBuildSections:
         types = [type(sec) for sec in sections]
         assert StandingsSection in types
 
-    def test_no_box_score_when_no_team(self):
+    def test_no_box_score_when_no_team_and_no_games_on_date(self):
         s = MLBScreamsheet("out.pdf")
-        sections = s.build_sections()
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+            sections = s.build_sections()
         types = [type(sec) for sec in sections]
         assert BoxScoreSection not in types
 
@@ -52,9 +53,10 @@ class TestSportsScreamseetBuildSections:
         types = [type(sec) for sec in sections]
         assert BoxScoreSection in types
 
-    def test_section_count_without_team(self):
+    def test_section_count_without_team_and_no_games_on_date(self):
         s = MLBScreamsheet("out.pdf")
-        sections = s.build_sections()
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+            sections = s.build_sections()
         assert len(sections) == 2
 
     def test_section_count_with_team(self):
@@ -154,24 +156,45 @@ class TestResolveFeaturedTeam:
             result = s._resolve_featured_team()
         assert result == (7, "Buffalo Sabres")
 
-    def test_returns_none_when_no_team_has_game(self):
+    def test_returns_none_when_no_team_has_game_and_no_games_on_date(self):
         s = NHLScreamsheet(
             "out.pdf",
             favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
         )
         with patch.object(s.provider, "has_game", return_value=False):
+            with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+                result = s._resolve_featured_team()
+        assert result is None
+
+    def test_returns_none_when_list_is_empty_and_no_games_on_date(self):
+        s = NHLScreamsheet("out.pdf", favorite_teams=[])
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
             result = s._resolve_featured_team()
         assert result is None
 
-    def test_returns_none_when_list_is_empty(self):
-        s = NHLScreamsheet("out.pdf", favorite_teams=[])
-        result = s._resolve_featured_team()
+    def test_returns_none_when_no_teams_set_and_no_games_on_date(self):
+        s = NHLScreamsheet("out.pdf")
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+            result = s._resolve_featured_team()
         assert result is None
 
-    def test_returns_none_when_no_teams_set(self):
-        s = NHLScreamsheet("out.pdf")
-        result = s._resolve_featured_team()
-        assert result is None
+    def test_falls_back_to_random_team_when_no_favorite_played(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
+        )
+        fallback_teams = [(10, "Toronto Maple Leafs"), (12, "Carolina Hurricanes")]
+        with patch.object(s.provider, "has_game", return_value=False):
+            with patch.object(s.provider, "get_all_teams_for_date", return_value=fallback_teams):
+                result = s._resolve_featured_team()
+        assert result in fallback_teams
+
+    def test_falls_back_when_favorites_empty(self):
+        s = NHLScreamsheet("out.pdf", favorite_teams=[])
+        fallback_teams = [(10, "Toronto Maple Leafs")]
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=fallback_teams):
+            result = s._resolve_featured_team()
+        assert result == (10, "Toronto Maple Leafs")
 
 
 class TestFavoriteTeamsBuildSections:
@@ -195,15 +218,28 @@ class TestFavoriteTeamsBuildSections:
         bs = next(sec for sec in sections if isinstance(sec, BoxScoreSection))
         assert bs.team_id == 7
 
-    def test_no_box_score_when_no_team_has_game(self):
+    def test_no_box_score_when_no_favorite_played_and_no_games_on_date(self):
         s = NHLScreamsheet(
             "out.pdf",
             favorite_teams=[(4, "Philadelphia Flyers"), (7, "Buffalo Sabres")],
         )
         with patch.object(s.provider, "has_game", return_value=False):
-            sections = s.build_sections()
+            with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+                sections = s.build_sections()
         types = [type(sec) for sec in sections]
         assert BoxScoreSection not in types
+
+    def test_box_score_added_when_fallback_team_found(self):
+        s = NHLScreamsheet(
+            "out.pdf",
+            favorite_teams=[(4, "Philadelphia Flyers")],
+        )
+        with patch.object(s.provider, "has_game", return_value=False):
+            with patch.object(s.provider, "get_all_teams_for_date",
+                              return_value=[(10, "Toronto Maple Leafs")]):
+                sections = s.build_sections()
+        types = [type(sec) for sec in sections]
+        assert BoxScoreSection in types
 
 
 class TestBackwardCompatSingleTeam:
@@ -222,6 +258,25 @@ class TestBackwardCompatSingleTeam:
     def test_team_name_stored_on_sheet(self):
         s = NHLScreamsheet("out.pdf", team_id=4, team_name="Philadelphia Flyers")
         assert s.team_name == "Philadelphia Flyers"
+
+
+# ---------------------------------------------------------------------------
+# _pick_random_team
+# ---------------------------------------------------------------------------
+
+class TestPickRandomTeam:
+    def test_returns_none_when_provider_has_no_games(self):
+        s = NHLScreamsheet("out.pdf")
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
+            result = s._pick_random_team()
+        assert result is None
+
+    def test_returns_a_team_from_provider_list(self):
+        s = NHLScreamsheet("out.pdf")
+        teams = [(10, "Toronto Maple Leafs"), (12, "Carolina Hurricanes")]
+        with patch.object(s.provider, "get_all_teams_for_date", return_value=teams):
+            result = s._pick_random_team()
+        assert result in teams
 
     def test_subtitle_shows_display_date_not_game_date(self):
         """get_date_string() returns display_date when set, not game date."""

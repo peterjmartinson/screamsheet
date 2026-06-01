@@ -1,5 +1,6 @@
 """Base class for all sports screamsheets."""
 import logging
+import random
 from abc import abstractmethod
 from typing import List, Optional, Tuple
 from datetime import datetime
@@ -89,11 +90,34 @@ class SportsScreamsheet(BaseScreamsheet):
         """Get the main title for this screamsheet."""
         return f"{self.sport_name} Screamsheet"
 
+    def _pick_random_team(self) -> Optional[Tuple[int, str]]:
+        """Return a random (team_id, team_name) from completed games on self.date.
+
+        Used as a fallback when no favourite team played.  Returns None when
+        the provider reports no completed games for the date.
+        """
+        teams = self.provider.get_all_teams_for_date(self.date)
+        if not teams:
+            logger.warning(
+                "No completed games found for %s on %s — back page will be skipped",
+                self.sport_name,
+                self.date.strftime("%Y-%m-%d"),
+            )
+            return None
+        chosen = random.choice(teams)
+        logger.info(
+            "Fallback team selected at random: %s (id=%s)", chosen[1], chosen[0]
+        )
+        return chosen
+
     def _resolve_featured_team(self) -> Optional[Tuple[int, str]]:
         """Return the first team in the priority list that played on self.date.
 
+        If no favourite played, falls back to a random completed game via
+        _pick_random_team().  Returns None only if no games were played at all.
+
         Returns:
-            (team_id, team_name) tuple, or None if no team played (or no list set).
+            (team_id, team_name) tuple, or None if no games found.
         """
         date_str = self.date.strftime("%Y-%m-%d")
         logger.info("Resolving featured team for %s on %s (%d candidates)", self.sport_name, date_str, len(self.favorite_teams))
@@ -103,8 +127,8 @@ class SportsScreamsheet(BaseScreamsheet):
             if played:
                 logger.info("Featured team selected: %s (id=%s)", tname, tid)
                 return (tid, tname)
-        logger.warning("No favorite team played on %s — back page will be skipped", date_str)
-        return None
+        logger.info("No favourite team played on %s — falling back to random game", date_str)
+        return self._pick_random_team()
     
     def generate(self) -> str:
         """Generate a two-page PDF: front (scores + standings) and back (box score)."""

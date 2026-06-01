@@ -272,3 +272,64 @@ class TestNHLHasGame:
     def test_returns_false_when_no_game(self, provider, sample_date):
         with patch.object(provider, "_get_game_pk", return_value=None):
             assert provider.has_game(team_id=4, date=sample_date) is False
+
+
+# ---------------------------------------------------------------------------
+# get_all_teams_for_date
+# ---------------------------------------------------------------------------
+
+class TestNHLGetAllTeamsForDate:
+    def test_returns_both_teams_from_final_game(
+        self, provider, nhl_schedule_response, sample_date
+    ):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = nhl_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert (4, "Philadelphia Flyers") in result
+        assert (1, "New Jersey Devils") in result
+
+    def test_excludes_preseason_game_type(self, provider, sample_date):
+        """game_type == 1 (preseason) must be excluded."""
+        preseason_response = {
+            "gameWeek": [{"games": [{
+                "gameType": 1,
+                "gameState": "OFF",
+                "startTimeUTC": "2025-03-15T23:00:00Z",
+                "awayTeam": {"id": 4, "placeName": {"default": "Philadelphia"},
+                             "commonName": {"default": "Flyers"}, "score": 2},
+                "homeTeam": {"id": 1, "placeName": {"default": "New Jersey"},
+                             "commonName": {"default": "Devils"}, "score": 3},
+            }]}]
+        }
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = preseason_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert result == []
+
+    def test_excludes_non_final_game_state(self, provider, sample_date):
+        """Games with state LIVE or PREVIEW must be excluded."""
+        live_response = {
+            "gameWeek": [{"games": [{
+                "gameType": 2,
+                "gameState": "LIVE",
+                "startTimeUTC": "2025-03-15T23:00:00Z",
+                "awayTeam": {"id": 4, "placeName": {"default": "Philadelphia"},
+                             "commonName": {"default": "Flyers"}, "score": 1},
+                "homeTeam": {"id": 1, "placeName": {"default": "New Jersey"},
+                             "commonName": {"default": "Devils"}, "score": 1},
+            }]}]
+        }
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = live_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert result == []
+
+    def test_returns_empty_when_no_games(self, provider, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"gameWeek": [{"games": []}]}
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert result == []

@@ -70,7 +70,7 @@ class MLBNewsRssProvider(DataProvider):
         **config: object,
     ) -> None:
         super().__init__(**config)
-        self.favorite_teams: List[str] = favorite_teams or ["Phillies", "Padres", "Yankees"]
+        self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
 
     # ------------------------------------------------------------------

@@ -39,9 +39,9 @@ class TestMLBNewsRssProviderFeedUrls:
 
 
 class TestMLBNewsRssProviderDefaults:
-    def test_default_priority_order(self) -> None:
+    def test_default_favorite_teams_is_empty(self) -> None:
         p = MLBNewsRssProvider()
-        assert p.favorite_teams == ["Phillies", "Padres", "Yankees"]
+        assert p.favorite_teams == []
 
     def test_default_max_articles_is_four(self) -> None:
         p = MLBNewsRssProvider()

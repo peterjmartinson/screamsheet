@@ -136,3 +136,44 @@ class TestMLBHasGame:
     def test_returns_false_on_exception(self, provider, sample_date):
         with patch.object(provider, "_get_game_pk", side_effect=Exception("network error")):
             assert provider.has_game(team_id=143, date=sample_date) is False
+
+
+# ---------------------------------------------------------------------------
+# get_all_teams_for_date
+# ---------------------------------------------------------------------------
+
+class TestMLBGetAllTeamsForDate:
+    def test_returns_both_teams_from_final_game(
+        self, provider, mlb_final_games_response, sample_date
+    ):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_final_games_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert (143, "Philadelphia Phillies") in result
+        assert (121, "New York Mets") in result
+
+    def test_excludes_non_final_game(self, provider, sample_date):
+        """In-progress or scheduled games must be excluded."""
+        in_progress = {
+            "dates": [{"games": [{
+                "gameDate": "2025-03-15T18:05:00Z",
+                "teams": {
+                    "away": {"team": {"id": 121, "name": "New York Mets"}, "score": 1},
+                    "home": {"team": {"id": 143, "name": "Philadelphia Phillies"}, "score": 2},
+                },
+                "status": {"detailedState": "In Progress"},
+            }]}]
+        }
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = in_progress
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert result == []
+
+    def test_returns_empty_when_no_dates(self, provider, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"dates": []}
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_all_teams_for_date(sample_date)
+        assert result == []

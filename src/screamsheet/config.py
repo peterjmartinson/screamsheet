@@ -36,6 +36,12 @@ class MLBConfig(SportConfig):
 
 
 @dataclass
+class FrenchMLBConfig:
+    """French MLB news-filter names."""
+    news_names: List[str] = field(default_factory=list)
+
+
+@dataclass
 class WeatherLocationConfig:
     """Lat/lon and display name for a weather location."""
     lat: float
@@ -97,6 +103,7 @@ class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: SportConfig = field(default_factory=SportConfig)
     mlb: MLBConfig = field(default_factory=MLBConfig)
+    french_mlb: FrenchMLBConfig = field(default_factory=FrenchMLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
@@ -125,6 +132,11 @@ def _parse_mlb(raw: dict) -> MLBConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
     return MLBConfig(favorite_teams=teams, news_names=news_names)
+
+
+def _parse_french_mlb(raw: dict) -> FrenchMLBConfig:
+    news_names = raw.get("news_names", [])
+    return FrenchMLBConfig(news_names=news_names)
 
 
 def _parse_weather_location(
@@ -201,6 +213,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     return ScreamsheetConfig(
         nhl=_parse_sport(raw.get("nhl", {})),
         mlb=_parse_mlb(raw.get("mlb", {})),
+        french_mlb=_parse_french_mlb(raw.get("french_mlb", {})),
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
         weather=_parse_weather(raw.get("weather", {})),

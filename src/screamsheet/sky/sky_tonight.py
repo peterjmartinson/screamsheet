@@ -83,7 +83,6 @@ class SkyTonightScreamsheet(BaseScreamsheet):
             date=self.date,
             location_name=self.location_name,
         )
-        highlights_section.page_slot = "back"
 
         return [
             ZodiacWheelSection(

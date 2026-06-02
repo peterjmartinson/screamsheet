@@ -351,3 +351,91 @@ class NBAFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+# ---------------------------------------------------------------------------
+# French MLB summarizers (Issue 90)
+# ---------------------------------------------------------------------------
+
+
+class FrenchMLBA2Summarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Rewrites an MLB news article in CEFR A2 French for young readers.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``title`` str — article headline
+    - ``body``  str — article body text
+    """
+
+    _PROMPT_FILE = Path("french_mlb_a2.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
+class FrenchMLBB2C1Summarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Rewrites an MLB news article in CEFR B2/C1 French for advanced readers.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``title`` str — article headline
+    - ``body``  str — article body text
+    """
+
+    _PROMPT_FILE = Path("french_mlb_b2c1.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
+class FrenchMLBLexiconSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Extracts a JSON vocabulary/idiom lexicon from two French MLB articles.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``article_1_title`` str
+    - ``article_1_body``  str
+    - ``article_2_title`` str
+    - ``article_2_body``  str
+
+    Output is a JSON string matching the schema defined in
+    ``llm/prompts/french_mlb_lexicon.txt``.
+    """
+
+    _PROMPT_FILE = Path("french_mlb_lexicon.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

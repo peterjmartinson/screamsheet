@@ -60,6 +60,14 @@ weather:
     lon: -75.34
     location_name: "Bryn Mawr, PA"
 
+# French MLB News screamsheet.
+# Scrapes RDS.ca and TVA Sports; rewrites articles via Grok at two CEFR levels.
+# Requires GROK_API_KEY environment variable.
+french_mlb:
+  news_names:
+    - "Blue Jays"
+    - "Phillies"
+
 # Sky Tonight location.
 # Find lat/lon for your city at https://www.latlong.net/
 sky:

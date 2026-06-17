@@ -51,6 +51,16 @@ class TestLoadConfigValid:
         assert cfg.nhl.favorite_teams[0] == TeamEntry(id=4, name="Philadelphia Flyers")
         assert cfg.nhl.favorite_teams[1] == TeamEntry(id=7, name="Buffalo Sabres")
 
+    def test_nhl_news_names_parsed(self, tmp_path):
+        path = _write_yaml(tmp_path, {
+            "nhl": {
+                "favorite_teams": [{"id": 4, "name": "Philadelphia Flyers"}],
+                "news_names": ["Flyers", "Sabres"],
+            },
+        })
+        cfg = load_config(path)
+        assert cfg.nhl.news_names == ["Flyers", "Sabres"]
+
     def test_mlb_teams_parsed(self, tmp_path):
         path = _write_yaml(tmp_path, {
             "mlb": {"favorite_teams": [{"id": 143, "name": "Philadelphia Phillies"}],
@@ -99,6 +109,13 @@ class TestLoadConfigDefaults:
         })
         cfg = load_config(path)
         assert cfg.mlb.news_names == []
+
+    def test_missing_nhl_news_names_defaults_to_empty(self, tmp_path):
+        path = _write_yaml(tmp_path, {
+            "nhl": {"favorite_teams": [{"id": 4, "name": "Philadelphia Flyers"}]},
+        })
+        cfg = load_config(path)
+        assert cfg.nhl.news_names == []
 
     def test_empty_yaml_file_returns_empty_config(self, tmp_path):
         cfg_file = tmp_path / "config.yaml"

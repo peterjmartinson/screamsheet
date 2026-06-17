@@ -412,14 +412,12 @@ class FrenchMLBB2C1Summarizer(FilePromptMixin, BaseGameSummaryGenerator):
 
 class FrenchMLBLexiconSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
-    Extracts a JSON vocabulary/idiom lexicon from two French MLB articles.
+    Extracts a JSON vocabulary/idiom lexicon from two generated French MLB articles.
 
     Expected ``data`` keys
     ----------------------
-    - ``article_1_title`` str
-    - ``article_1_body``  str
-    - ``article_2_title`` str
-    - ``article_2_body``  str
+    - ``a2_text``    str  — generated CEFR A2 French article (Lane A output)
+    - ``b2c1_text``  str  — generated CEFR B2/C1 French article (Lane B output)
 
     Output is a JSON string matching the schema defined in
     ``llm/prompts/french_mlb_lexicon.txt``.

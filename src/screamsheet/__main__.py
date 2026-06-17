@@ -21,6 +21,7 @@ from .order import (
     MLBTradeRumorsOrderOptions,
     NBAOrderOptions,
     NHLOrderOptions,
+    NHLNewsOrderOptions,
     OutputOrderOptions,
     PersonOptions,
     PresidentialOrderOptions,
@@ -31,7 +32,7 @@ from .order import (
 )
 from .runner import run_order
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, FrenchMLBNewsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 
@@ -43,6 +44,7 @@ __all__ = [
     'NBAScreamsheet',
     'MLBTradeRumorsScreamsheet',
     'MLBNewsScreamsheet',
+    'NHLNewsScreamsheet',
     'FrenchMLBNewsScreamsheet',
     'PresidentialScreamsheet',
     'SkyTonightScreamsheet',
@@ -79,6 +81,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
     mlb_teams = [(t.id, t.name) for t in cfg.mlb.favorite_teams]
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
     nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
+    nhl_news_names = cfg.nhl.news_names
     mlb_news_names = cfg.mlb.news_names
     french_mlb_news_names = cfg.french_mlb.news_names
 
@@ -134,6 +137,18 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 favorite_teams=nhl_teams,
                 date=game_date,
                 display_date=today,
+            ),
+        ),
+        (
+            "NHL News",
+            lambda: ScreamsheetFactory.create_nhl_news_screamsheet(
+                output_filename=f'Files/NHL_NEWS_{today_str}.pdf',
+                favorite_teams=nhl_news_names,
+                include_weather=True,
+                weather_lat=cfg.weather.nhl_news.lat,
+                weather_lon=cfg.weather.nhl_news.lon,
+                weather_location_name=cfg.weather.nhl_news.location_name,
+                date=today,
             ),
         ),
         (
@@ -193,6 +208,11 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         lon=cfg.weather.mlb_news.lon,
         location_name=cfg.weather.mlb_news.location_name,
     )
+    weather_nhl = WeatherLocationOptions(
+        lat=cfg.weather.nhl_news.lat,
+        lon=cfg.weather.nhl_news.lon,
+        location_name=cfg.weather.nhl_news.location_name,
+    )
     weather_presidential = WeatherLocationOptions(
         lat=cfg.weather.presidential.lat,
         lon=cfg.weather.presidential.lon,
@@ -202,6 +222,10 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         output=OutputOrderOptions(directory=cfg.output.directory),
         nhl=NHLOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nhl.favorite_teams]
+        ),
+        nhl_news=NHLNewsOrderOptions(
+            news_names=cfg.nhl.news_names,
+            weather=weather_nhl,
         ),
         mlb=MLBOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.mlb.favorite_teams],

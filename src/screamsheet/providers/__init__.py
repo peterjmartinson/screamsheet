@@ -5,6 +5,7 @@ from .nfl_provider import NFLDataProvider
 from .nba_provider import NBADataProvider
 from .mlb_trade_rumors_provider import MLBTradeRumorsProvider
 from .mlb_news_rss_provider import MLBNewsRssProvider
+from .nhl_news_rss_provider import NHLNewsRssProvider
 from .players_tribune_provider import PlayersTribuneProvider
 from .fangraphs_provider import FanGraphsProvider
 from .weather_provider import WeatherProvider
@@ -16,6 +17,7 @@ __all__ = [
     'NBADataProvider',
     'MLBTradeRumorsProvider',
     'MLBNewsRssProvider',
+    'NHLNewsRssProvider',
     'PlayersTribuneProvider',
     'FanGraphsProvider',
     'WeatherProvider',

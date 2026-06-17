@@ -3,7 +3,7 @@ from typing import Optional, List, Tuple
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
-from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 
@@ -241,6 +241,41 @@ class ScreamsheetFactory:
             MLBNewsScreamsheet instance
         """
         return MLBNewsScreamsheet(
+            output_filename=output_filename,
+            favorite_teams=favorite_teams,
+            include_weather=include_weather,
+            weather_lat=weather_lat,
+            weather_lon=weather_lon,
+            weather_location_name=weather_location_name,
+            date=date,
+        )
+
+    @staticmethod
+    def create_nhl_news_screamsheet(
+        output_filename: str,
+        favorite_teams: Optional[list] = None,
+        include_weather: bool = True,
+        weather_lat: float = 40.02,
+        weather_lon: float = -75.34,
+        weather_location_name: str = "Bryn Mawr, PA",
+        date: Optional[datetime] = None,
+    ) -> NHLNewsScreamsheet:
+        """
+        Create an NHL News screamsheet sourced from NHL.com team RSS feeds.
+
+        Args:
+            output_filename: Path to save the PDF.
+            favorite_teams: Teams to feature first.
+            include_weather: Include weather report (default: True).
+            weather_lat: Latitude for weather location.
+            weather_lon: Longitude for weather location.
+            weather_location_name: Display name for weather location.
+            date: Target date (defaults to today).
+
+        Returns:
+            NHLNewsScreamsheet instance
+        """
+        return NHLNewsScreamsheet(
             output_filename=output_filename,
             favorite_teams=favorite_teams,
             include_weather=include_weather,

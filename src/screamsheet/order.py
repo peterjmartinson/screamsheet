@@ -92,6 +92,14 @@ class MLBNewsOrderOptions:
 
 
 @dataclass
+class NHLNewsOrderOptions:
+    """Options for the NHL News sheet."""
+
+    news_names: list[str] = field(default_factory=list)
+    weather: WeatherLocationOptions | None = None
+
+
+@dataclass
 class FrenchMLBNewsOrderOptions:
     """Options for the French MLB News sheet."""
 
@@ -140,6 +148,7 @@ class ScreamsheetOrder:
 
     output: OutputOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
+    nhl_news: NHLNewsOrderOptions | None = None
     mlb: MLBOrderOptions | None = None
     nba: NBAOrderOptions | None = None
     nfl: NFLOrderOptions | None = None

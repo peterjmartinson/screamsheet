@@ -35,6 +35,7 @@ Each screamsheet is a self-contained PDF covering one topic: sports scores, spor
 | MLB game scores | `Files/MLB_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score + AI narrative |
 | MLB Trade Rumors | `Files/MLB_trade_rumors_YYYYMMDD.pdf` | Top 4 articles from MLB Trade Rumors, prioritised by favourite teams |
 | MLB News | `Files/MLB_NEWS_YYYYMMDD.pdf` | Top 4 articles from MLB.com RSS feeds, prioritised by favourite teams |
+| NHL News | `Files/NHL_NEWS_YYYYMMDD.pdf` | Top 4 articles from NHL.com RSS feeds, prioritised by favourite teams |
 | NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
 | NBA game scores | `Files/NBA_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
 | NFL game scores | `Files/NFL_gamescores_YYYYMMDD.pdf` | Scores, standings |
@@ -66,6 +67,17 @@ mlb:
 ```
 
 If no matching articles are found for any listed team, remaining slots are filled from the general MLB feed. If `news_names` is empty or omitted, all slots come from the general feed.
+
+NHL news sheets (`NHL_NEWS`) use short team names to prioritise articles. Configure them under `nhl.news_names`:
+
+```yaml
+nhl:
+  news_names:
+    - "Flyers"
+    - "Golden Knights"
+```
+
+If no matching articles are found for any listed team, remaining slots are filled from the general NHL feed. If `news_names` is empty or omitted, all slots come from the general feed.
 
 Run them all at once:
 

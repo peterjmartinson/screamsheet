@@ -8,6 +8,7 @@ import pytest
 
 from screamsheet.order import (
     NHLOrderOptions,
+    NHLNewsOrderOptions,
     MLBOrderOptions,
     OutputOrderOptions,
     PersonOptions,
@@ -15,6 +16,7 @@ from screamsheet.order import (
     ScreamsheetResult,
     TeamEntry,
     OrderValidationError,
+    WeatherLocationOptions,
 )
 from screamsheet.runner import run_order
 
@@ -60,6 +62,21 @@ class TestRunOrder:
         assert isinstance(result, ScreamsheetResult)
         mock_nhl.assert_called_once()
         mock_mlb.assert_not_called()
+
+    def test_nhl_news_only_order_calls_only_nhl_news_handler(self) -> None:
+        order = ScreamsheetOrder(
+            nhl_news=NHLNewsOrderOptions(
+                news_names=["Flyers"],
+                weather=WeatherLocationOptions(40.0, -75.0, "Bryn Mawr, PA"),
+            )
+        )
+        mock_nhl_news = MagicMock(return_value="/tmp/nhl_news.pdf")
+        mock_nhl = MagicMock(return_value="/tmp/nhl.pdf")
+        with patch("screamsheet.runner._REGISTRY", {"nhl_news": mock_nhl_news, "nhl": mock_nhl}):
+            result = run_order(order, today=_TODAY)
+        assert isinstance(result, ScreamsheetResult)
+        mock_nhl_news.assert_called_once()
+        mock_nhl.assert_not_called()
 
     def test_no_sheet_keys_produces_zero_handler_calls(self) -> None:
         order = ScreamsheetOrder(output=OutputOrderOptions(directory="/tmp"))

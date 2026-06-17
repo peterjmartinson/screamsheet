@@ -10,6 +10,11 @@ nhl:
       name: "Vegas Golden Knights"
     - id: 5
       name: "Pittsburgh Penguins"
+  # Short names used by the NHL news sheet to filter articles.
+  news_names:
+    - "Flyers"
+    - "Golden Knights"
+    - "Penguins"
 
 mlb:
   favorite_teams:
@@ -48,6 +53,10 @@ nfl:
 
 weather:
   presidential:
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"
+  nhl_news:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"

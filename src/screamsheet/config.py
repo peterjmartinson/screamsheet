@@ -36,6 +36,12 @@ class MLBConfig(SportConfig):
 
 
 @dataclass
+class NHLConfig(SportConfig):
+    """NHL-specific configuration, which adds short news-filter names."""
+    news_names: List[str] = field(default_factory=list)
+
+
+@dataclass
 class FrenchMLBConfig:
     """French MLB news-filter names."""
     news_names: List[str] = field(default_factory=list)
@@ -56,6 +62,9 @@ class WeatherConfig:
         default_factory=lambda: WeatherLocationConfig(38.8951, -77.0364, "Washington, DC")
     )
     mlb_news: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
+    nhl_news: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
 
@@ -101,7 +110,7 @@ class DbConfig:
 @dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
-    nhl: SportConfig = field(default_factory=SportConfig)
+    nhl: NHLConfig = field(default_factory=NHLConfig)
     mlb: MLBConfig = field(default_factory=MLBConfig)
     french_mlb: FrenchMLBConfig = field(default_factory=FrenchMLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
@@ -134,6 +143,12 @@ def _parse_mlb(raw: dict) -> MLBConfig:
     return MLBConfig(favorite_teams=teams, news_names=news_names)
 
 
+def _parse_nhl(raw: dict) -> NHLConfig:
+    teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
+    news_names = raw.get("news_names", [])
+    return NHLConfig(favorite_teams=teams, news_names=news_names)
+
+
 def _parse_french_mlb(raw: dict) -> FrenchMLBConfig:
     news_names = raw.get("news_names", [])
     return FrenchMLBConfig(news_names=news_names)
@@ -159,6 +174,9 @@ def _parse_weather(raw: dict) -> WeatherConfig:
         ),
         mlb_news=_parse_weather_location(
             raw.get("mlb_news", {}), 40.02, -75.34, "Bryn Mawr, PA"
+        ),
+        nhl_news=_parse_weather_location(
+            raw.get("nhl_news", {}), 40.02, -75.34, "Bryn Mawr, PA"
         ),
     )
 
@@ -211,7 +229,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         raw = {}
 
     return ScreamsheetConfig(
-        nhl=_parse_sport(raw.get("nhl", {})),
+        nhl=_parse_nhl(raw.get("nhl", {})),
         mlb=_parse_mlb(raw.get("mlb", {})),
         french_mlb=_parse_french_mlb(raw.get("french_mlb", {})),
         nba=_parse_sport(raw.get("nba", {})),

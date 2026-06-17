@@ -174,6 +174,15 @@ class TestNewsArticlesSectionPageSlot:
         assert len(news_sections) >= 2
         assert news_sections[1].page_slot == "back"
 
+    def test_nhl_news_second_section_is_back_page(self):
+        """NHLNewsScreamsheet: second NewsArticlesSection has page_slot='back'."""
+        from screamsheet.news.nhl_news import NHLNewsScreamsheet
+        sheet = NHLNewsScreamsheet("out.pdf", include_weather=False)
+        sections = sheet.build_sections()
+        news_sections = [s for s in sections if isinstance(s, NewsArticlesSection)]
+        assert len(news_sections) >= 2
+        assert news_sections[1].page_slot == "back"
+
     def test_presidential_second_section_is_back_page(self):
         """PresidentialScreamsheet: second NewsArticlesSection has page_slot='back'."""
         from screamsheet.political.screamsheet import PresidentialScreamsheet

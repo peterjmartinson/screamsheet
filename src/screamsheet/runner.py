@@ -22,6 +22,7 @@ from .order import (
     NBAOrderOptions,
     NFLOrderOptions,
     NHLOrderOptions,
+    NHLNewsOrderOptions,
     PresidentialOrderOptions,
     ScreamsheetOrder,
     ScreamsheetResult,
@@ -49,7 +50,7 @@ def _options_summary_entry(field_name: str, options: Any) -> list[str]:
     """Extract a human-readable summary list from a sheet options object."""
     if field_name in ("nhl", "mlb", "nba", "nfl"):
         return [t.name for t in getattr(options, "favorite_teams", [])]
-    if field_name in ("mlb_news", "mlb_trade_rumors", "presidential"):
+    if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "presidential"):
         weather = getattr(options, "weather", None)
         return [weather.location_name] if weather else []
     return []
@@ -126,6 +127,25 @@ def _run_mlb_news(
     return sheet.generate()
 
 
+def _run_nhl_news(
+    options: NHLNewsOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    kwargs: dict[str, Any] = {
+        "output_filename": _output_path(output_dir, f"NHL_NEWS_{today_str}.pdf"),
+        "favorite_teams": options.news_names,
+        "date": today,
+    }
+    if options.weather:
+        kwargs.update(
+            include_weather=True,
+            weather_lat=options.weather.lat,
+            weather_lon=options.weather.lon,
+            weather_location_name=options.weather.location_name,
+        )
+    sheet = ScreamsheetFactory.create_nhl_news_screamsheet(**kwargs)
+    return sheet.generate()
+
+
 def _run_mlb_trade_rumors(
     options: MLBTradeRumorsOrderOptions, today: datetime, today_str: str, output_dir: str
 ) -> str:
@@ -192,6 +212,7 @@ def _run_sky(options: SkyOrderOptions, today: datetime, today_str: str, output_d
 
 _REGISTRY: dict[str, Callable[..., str]] = {
     "nhl":              _run_nhl,
+    "nhl_news":         _run_nhl_news,
     "mlb":              _run_mlb,
     "nba":              _run_nba,
     "nfl":              _run_nfl,

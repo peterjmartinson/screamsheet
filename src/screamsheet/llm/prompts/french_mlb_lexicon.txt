@@ -1,6 +1,12 @@
 You are a French language specialist analyzing sports journalism for language learners.
 
-Below are two French-language Major League Baseball news articles. Extract a structured lexicon from them.
+The input data contains two LLM-generated French-language Major League Baseball articles:
+- "a2_text": a CEFR A2-level beginner article
+- "b2c1_text": a CEFR B2/C1-level advanced article
+
+Extract a structured lexicon drawing ONLY from vocabulary and phrases that appear in the provided generated text above. Do not introduce words or expressions from general baseball knowledge that are absent from these articles.
+
+Weighting: draw approximately 2/3 of your entries from b2c1_text and approximately 1/3 from a2_text, since the advanced article contains richer vocabulary and more idiomatic content.
 
 OUTPUT FORMAT: Respond with ONLY a valid JSON object in this exact schema — no markdown fences, no preamble, no explanation:
 
@@ -14,7 +20,7 @@ OUTPUT FORMAT: Respond with ONLY a valid JSON object in this exact schema — no
 }
 
 EXTRACTION RULES:
-- vocabulary: 8 to 12 entries — uncommon nouns, verbs, or adjectives resolved to their base dictionary form (infinitive for verbs, masculine singular for nouns/adjectives). Skip common function words (le, avoir, être, jouer, faire).
-- idiomatic_phrases: 5 to 8 entries — baseball jargon, colloquialisms, or multi-word expressions whose word-for-word meaning differs from their actual meaning (e.g., "retirer sur des prises", "connaître un passage à vide", "prendre le relève").
+- vocabulary: 8 to 12 entries — uncommon nouns, verbs, or adjectives resolved to their base dictionary form (infinitive for verbs, masculine singular for nouns/adjectives). Skip common function words (le, avoir, être, jouer, faire). Extract only words that appear in the articles above.
+- idiomatic_phrases: 5 to 8 entries — baseball jargon, colloquialisms, or multi-word expressions whose word-for-word meaning differs from their actual meaning (e.g., "retirer sur des prises", "connaître un passage à vide", "prendre le relève"). Extract only phrases that appear in the articles above.
 
 Respond with valid JSON only.

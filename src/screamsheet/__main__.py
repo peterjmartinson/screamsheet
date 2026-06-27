@@ -31,7 +31,7 @@ from .order import (
     WeatherLocationOptions,
 )
 from .runner import run_order
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -180,6 +180,13 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 location_name=cfg.sky.location_name,
                 date=today,
                 people=cfg.sky.people,
+            ),
+        ),
+        (
+            "FIFA World Cup 2026",
+            lambda: ScreamsheetFactory.create_worldcup_screamsheet(
+                output_filename=f'Files/WORLD_CUP_{today_str}.pdf',
+                date=game_date,
             ),
         ),
     ], output_dir

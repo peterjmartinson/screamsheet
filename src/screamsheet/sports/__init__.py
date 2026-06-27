@@ -4,6 +4,7 @@ from .mlb import MLBScreamsheet
 from .nhl import NHLScreamsheet
 from .nfl import NFLScreamsheet
 from .nba import NBAScreamsheet
+from .worldcup import FIFAWorldCupScreamsheet
 
 __all__ = [
     'SportsScreamsheet',
@@ -11,4 +12,5 @@ __all__ = [
     'NHLScreamsheet',
     'NFLScreamsheet',
     'NBAScreamsheet',
+    'FIFAWorldCupScreamsheet',
 ]

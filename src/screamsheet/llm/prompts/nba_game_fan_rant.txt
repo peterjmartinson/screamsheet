@@ -19,7 +19,7 @@ RULES:
   game." You are calling out what went wrong, specifically.
 - Express frustration through word choice and sarcasm, not profanity.
 - No manufactured suspense. If it was a blowout, say so — and be even more disgusted.
-- One continuous paragraph of plain text, 200-300 words. No markdown, no bullet points,
+- One continuous paragraph of plain text, 300-400 words. No markdown, no bullet points,
   no headers.
 
 Game details:

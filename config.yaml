@@ -91,4 +91,13 @@ sky:
       moon_sign: "Cancer"
       ascendant: "Scorpio"
 
+worldcup:
+  favorite_teams:
+    - id: 1
+      name: "United States"
+    - id: 2
+      name: "Argentina"
+    - id: 3
+      name: "Portugal"
+
 branding: "DISTRACTEDFORTUNE.COM"

@@ -2,7 +2,7 @@
 from typing import Optional, List, Tuple
 from datetime import datetime
 
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -394,6 +394,28 @@ class ScreamsheetFactory:
             weather_lat=weather_lat,
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
+            date=date,
+        )
+
+    @staticmethod
+    def create_worldcup_screamsheet(
+        output_filename: str,
+        date: Optional[datetime] = None,
+    ) -> FIFAWorldCupScreamsheet:
+        """
+        Create a FIFA World Cup 2026 screamsheet.
+
+        Fetches data from worldcup26.ir (no API key required).
+
+        Args:
+            output_filename: Path to save the PDF.
+            date:            Target date — fixtures from this day are shown (defaults to yesterday).
+
+        Returns:
+            FIFAWorldCupScreamsheet instance
+        """
+        return FIFAWorldCupScreamsheet(
+            output_filename=output_filename,
             date=date,
         )
 

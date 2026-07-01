@@ -1,0 +1,9 @@
+Write a punchy 3–4 sentence FIFA World Cup match recap in the style of a newspaper sportswriter.
+Be specific about key moments. Stay under 120 words. End with one sentence of tournament context.
+
+Match: {round_label} — {away_team} {away_score} – {home_score} {home_team}{status_label}
+
+Goals:
+{goals_timeline}
+{penalty_section}
+NOTE: Player names may be approximate (transliterated from non-Latin script). Use them exactly as written.

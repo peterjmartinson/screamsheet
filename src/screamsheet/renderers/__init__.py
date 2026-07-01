@@ -7,6 +7,9 @@ from .weather import WeatherSection
 from .news_articles import NewsArticlesSection
 from .zodiac_wheel import ZodiacWheelSection
 from .sky_highlights import SkyHighlightsSection
+from .worldcup_game_scores import WorldCupGameScoresSection
+from .worldcup_standings import WorldCupStandingsSection
+from .worldcup_box_score import WorldCupBoxScoreSection
 
 __all__ = [
     'GameScoresSection',
@@ -17,4 +20,7 @@ __all__ = [
     'NewsArticlesSection',
     'ZodiacWheelSection',
     'SkyHighlightsSection',
+    'WorldCupGameScoresSection',
+    'WorldCupStandingsSection',
+    'WorldCupBoxScoreSection',
 ]

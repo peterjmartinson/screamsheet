@@ -83,6 +83,14 @@ class WorldCupBoxScoreSection(Section):
         self.players: List[Dict[str, Any]] = self.provider.get_fixture_lineups(self.fixture_id)
         self.events: List[Dict[str, Any]] = self.provider.get_fixture_events(self.fixture_id)
         self.stats: Dict[str, Dict[str, Any]] = self.provider.get_fixture_statistics(self.fixture_id)
+        # Fetch penalty-shootout detail when available (WorldCup26Provider only)
+        _get_penalty = getattr(self.provider, "get_penalty_detail", None)
+        self.penalty_detail: Optional[Dict[str, Any]] = (
+            _get_penalty(self.fixture_id) if callable(_get_penalty) else None
+        )
+        # Set self.data so the base Section.has_content() returns True.
+        # The actual content is stored in self.players/events/stats above.
+        self.data = {"fetched": True}
 
     def render(self) -> List[Any]:
         if not hasattr(self, "players"):
@@ -125,7 +133,12 @@ class WorldCupBoxScoreSection(Section):
         players = getattr(self, "players", [])
         if not players:
             # Fall back to a goals-event table when lineup data is unavailable
-            return self._render_goals_table(getattr(self, "events", []))
+            fallback: List[Any] = self._render_goals_table(getattr(self, "events", []))
+            penalty_detail = getattr(self, "penalty_detail", None)
+            if penalty_detail is not None:
+                fallback.append(Spacer(1, 8))
+                fallback.extend(self._render_penalty_shootout_table(penalty_detail))
+            return fallback
 
         # Group players by team
         teams: Dict[str, List[Dict[str, Any]]] = {}
@@ -168,6 +181,31 @@ class WorldCupBoxScoreSection(Section):
             rows.append([f"{elapsed}'", f"{player}{suffix}", team])
         t = self._styled_table(rows, col_widths=[30, 120, 90])
         return [Paragraph("Goals", self.team_header_style), t]
+
+    def _render_penalty_shootout_table(self, detail: Dict[str, Any]) -> List[Any]:
+        """Render a penalty-shootout summary table."""
+        home = detail.get("home_team", "")
+        away = detail.get("away_team", "")
+        h_pen = detail.get("home_penalty_score", "")
+        a_pen = detail.get("away_penalty_score", "")
+
+        elements: List[Any] = [
+            Paragraph(
+                f"Penalty Shootout — {home} {h_pen}  ·  {a_pen} {away}",
+                self.team_header_style,
+            )
+        ]
+
+        rows: List[List[str]] = [["Team", "Scored", "Missed"]]
+        h_scored = ", ".join(detail.get("home_scorers", [])) or "—"
+        h_missed = ", ".join(detail.get("home_misses", [])) or "—"
+        a_scored = ", ".join(detail.get("away_scorers", [])) or "—"
+        a_missed = ", ".join(detail.get("away_misses", [])) or "—"
+        rows.append([home, h_scored, h_missed])
+        rows.append([away, a_scored, a_missed])
+
+        elements.append(self._styled_table(rows, col_widths=[60, 110, 70]))
+        return elements
 
     def _build_outfield_table(self, players: List[Dict[str, Any]]) -> Table:
         header = ["Player", "MP", "G", "A", "S/SOT", "C"]

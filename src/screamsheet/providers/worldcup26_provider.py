@@ -63,6 +63,35 @@ def _parse_scorers(scorers_str: str, team_name: str) -> List[Dict[str, Any]]:
     return events
 
 
+def _parse_penalty_score(raw_val: Any) -> Optional[int]:
+    """Convert a raw penalty-score field value to int or None.
+
+    Handles: None → None, "" → None, "null" → None, "3" → 3.
+    """
+    if raw_val is None:
+        return None
+    s = str(raw_val).strip()
+    if not s or s.lower() == "null":
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def _parse_set_literal_names(raw_str: str) -> List[str]:
+    """Parse a set-literal string of names into a plain Python list.
+
+    Input:  '{"Name One","Name Two"}'
+    Output: ['Name One', 'Name Two']
+    """
+    if not raw_str or str(raw_str).strip().lower() == "null":
+        return []
+    inner = str(raw_str).strip().lstrip("{").rstrip("}")
+    parts = re.split(r'","', inner)
+    return [p.strip().strip('"').strip("'") for p in parts if p.strip()]
+
+
 class WorldCup26Provider(DataProvider):
     BASE_URL = "https://worldcup26.ir"
     COMPLETED_STATUSES = {"FT", "AET", "PEN"}
@@ -154,6 +183,9 @@ class WorldCup26Provider(DataProvider):
                 away_score = int(g.get("away_score", 0))
             except (ValueError, TypeError):
                 home_score = away_score = 0
+            home_pen = _parse_penalty_score(g.get("home_penalty_score"))
+            away_pen = _parse_penalty_score(g.get("away_penalty_score"))
+            status = "PEN" if home_pen is not None else "FT"
             out.append(
                 {
                     "fixture_id": int(g.get("id", 0)),
@@ -161,9 +193,10 @@ class WorldCup26Provider(DataProvider):
                     "away_team": g.get("away_team_name_en") or "",
                     "home_score": home_score,
                     "away_score": away_score,
-                    "home_penalty": None,  # not in API schema
-                    "away_penalty": None,
-                    "status_short": "FT",
+                    "home_penalty": home_pen,
+                    "away_penalty": away_pen,
+                    "status_short": status,
+                    "round_type": g.get("type", "group"),
                     "raw": g,
                 }
             )
@@ -233,30 +266,145 @@ class WorldCup26Provider(DataProvider):
         """worldcup26.ir has no lineup endpoint — returns empty."""
         return []
 
+    def get_penalty_detail(self, fixture_id: int) -> Optional[Dict[str, Any]]:
+        """Return penalty-shootout detail for a fixture, or None if not a PEN game.
+
+        Output dict keys: home_team, away_team, home_penalty_score,
+        away_penalty_score, home_scorers, away_scorers, home_misses, away_misses.
+        """
+        all_games = self._load_games()
+        game = next(
+            (g for g in all_games if str(g.get("id")) == str(fixture_id)), None
+        )
+        if not game:
+            return None
+        home_pen = _parse_penalty_score(game.get("home_penalty_score"))
+        if home_pen is None:
+            return None  # not a penalty game
+        return {
+            "home_team": game.get("home_team_name_en") or "",
+            "away_team": game.get("away_team_name_en") or "",
+            "home_penalty_score": home_pen,
+            "away_penalty_score": _parse_penalty_score(game.get("away_penalty_score")),
+            "home_scorers": _parse_set_literal_names(game.get("home_penalty_scorers") or ""),
+            "away_scorers": _parse_set_literal_names(game.get("away_penalty_scorers") or ""),
+            "home_misses": _parse_set_literal_names(game.get("home_penalty_misses") or ""),
+            "away_misses": _parse_set_literal_names(game.get("away_penalty_misses") or ""),
+        }
+
     def get_game_summary(
         self, team_id: int, date: datetime, is_primary_favorite: bool = False
     ) -> Optional[str]:
-        """Return a plain-text goal timeline for the featured fixture."""
+        """Return an LLM-generated match recap, falling back to a plain-text goal
+        timeline when no LLM API key is configured or an error occurs.
+        """
+        import json
+        import os
+        from ..llm.summarizers import WorldCupGameSummarizer
+
         games = self.get_game_scores(date)
         featured = next((g for g in games if g.get("fixture_id") == team_id), None)
         if featured is None:
             return None
+
         away = featured.get("away_team") or ""
         home = featured.get("home_team") or ""
         events = self.get_fixture_events(int(team_id))
-        lines: List[str] = [
-            f"{away}  {featured.get('away_score', '-')}  –  {featured.get('home_score', '-')}  {home}",
-            "",
-        ]
+        status = featured.get("status_short", "FT")
+        round_type = featured.get("round_type", "group")
+
+        # Human-readable round label
+        _round_labels: Dict[str, str] = {
+            "group": "Group Stage", "r32": "Round of 32", "r16": "Round of 16",
+            "qf": "Quarterfinal", "sf": "Semifinal", "final": "Final",
+            "third": "Third-Place Match",
+        }
+        round_label = _round_labels.get(round_type, round_type.upper())
+
+        # Build goals timeline
+        goal_lines: List[str] = []
         for ev in events:
             elapsed = ev["time"]["elapsed"]
             team_name = ev["team"]["name"]
             player = ev["player"]["name"]
             suffix = " (pen)" if ev.get("detail") else ""
-            lines.append(f"  {elapsed}'  {player}{suffix}  ({team_name})")
-        if len(lines) == 2:
-            lines.append("  No goal events recorded.")
-        return "\n".join(lines)
+            goal_lines.append(f"  {elapsed}'  {player}{suffix}  ({team_name})")
+        goals_timeline = "\n".join(goal_lines) if goal_lines else "  No goals recorded."
+
+        # Build penalty section
+        penalty_detail = self.get_penalty_detail(int(team_id))
+        status_label = ""
+        penalty_section = ""
+        if status == "PEN" and penalty_detail:
+            status_label = " (on penalties)"
+            h_pen = penalty_detail["home_penalty_score"]
+            a_pen = penalty_detail["away_penalty_score"]
+            h_scored = ", ".join(penalty_detail["home_scorers"]) or "none"
+            h_missed = ", ".join(penalty_detail["home_misses"]) or "none"
+            a_scored = ", ".join(penalty_detail["away_scorers"]) or "none"
+            a_missed = ", ".join(penalty_detail["away_misses"]) or "none"
+            penalty_section = (
+                f"\nPenalty Shootout: {home} {h_pen} – {a_pen} {away}\n"
+                f"  {home} scored: {h_scored}\n"
+                f"  {home} missed: {h_missed}\n"
+                f"  {away} scored: {a_scored}\n"
+                f"  {away} missed: {a_missed}"
+            )
+
+        # Log minified JSON payload for downstream use
+        payload: Dict[str, Any] = {
+            "match": f"{away} {featured.get('away_score')} – {featured.get('home_score')} {home}",
+            "status": status,
+            "round": round_label,
+            "goals": [
+                {
+                    "min": e["time"]["elapsed"],
+                    "player": e["player"]["name"],
+                    "team": e["team"]["name"],
+                    "pen": bool(e.get("detail")),
+                }
+                for e in events
+            ],
+        }
+        if penalty_detail:
+            payload["penalties"] = penalty_detail
+        logger.info("World Cup game JSON: %s", json.dumps(payload, ensure_ascii=False))
+
+        # Plain-text fallback (used when no LLM key is configured)
+        fallback_lines: List[str] = [
+            f"{away}  {featured.get('away_score', '-')}  –  "
+            f"{featured.get('home_score', '-')}  {home}{status_label}",
+            "",
+        ]
+        fallback_lines.extend(goal_lines if goal_lines else ["  No goal events recorded."])
+        if penalty_section:
+            fallback_lines += ["", penalty_section]
+        plain_text = "\n".join(fallback_lines)
+
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        grok_key = os.getenv("GROK_API_KEY")
+        if not (gemini_key or grok_key):
+            return plain_text
+
+        extracted_info: Dict[str, Any] = {
+            "home_team": home,
+            "away_team": away,
+            "home_score": str(featured.get("home_score", 0)),
+            "away_score": str(featured.get("away_score", 0)),
+            "status_label": status_label,
+            "round_label": round_label,
+            "goals_timeline": goals_timeline,
+            "penalty_section": penalty_section,
+        }
+        try:
+            summarizer = WorldCupGameSummarizer(
+                gemini_api_key=gemini_key,
+                grok_api_key=grok_key,
+            )
+            return summarizer.generate_summary(llm_choice="gemini", data=extracted_info)
+        except Exception as exc:
+            logger.warning("LLM summary failed, using plain text: %s", exc)
+            return plain_text
 
     def has_game(self, team_id: int, date: datetime) -> bool:
         if team_id < 0 or team_id >= len(PRIORITY_TEAM_NAMES):

@@ -158,8 +158,9 @@ class NewsArticlesSection(Section):
                         'summary': summary_text,
                         'link': link,
                     }
+                    _llm_choice = 'gemini' if summarizer.llm_gemini is not None else 'grok'
                     llm_summary = summarizer.generate_summary(
-                        llm_choice='grok',  # Use grok as in the original implementation
+                        llm_choice=_llm_choice,
                         data=story_data
                     )
                     word_count = len(str(llm_summary).split())

@@ -132,6 +132,13 @@ class SkyOrderOptions:
 
 
 @dataclass
+class WorldCupOrderOptions:
+    """Options for the FIFA World Cup sheet."""
+
+    favorite_teams: list[TeamEntry] = field(default_factory=list)
+
+
+@dataclass
 class OutputOrderOptions:
     """Destination directory for generated PDFs."""
 
@@ -147,16 +154,19 @@ class ScreamsheetOrder:
     """
 
     output: OutputOrderOptions | None = None
-    nhl: NHLOrderOptions | None = None
-    nhl_news: NHLNewsOrderOptions | None = None
+    # --- active batch sheets (generated in this order) ---
     mlb: MLBOrderOptions | None = None
-    nba: NBAOrderOptions | None = None
-    nfl: NFLOrderOptions | None = None
     mlb_news: MLBNewsOrderOptions | None = None
-    mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
-    french_mlb_news: FrenchMLBNewsOrderOptions | None = None
+    nhl_news: NHLNewsOrderOptions | None = None
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
+    worldcup: WorldCupOrderOptions | None = None
+    # --- inactive / on-demand sheets (set to None in batch, available via --single) ---
+    nhl: NHLOrderOptions | None = None
+    nba: NBAOrderOptions | None = None
+    nfl: NFLOrderOptions | None = None
+    mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
+    french_mlb_news: FrenchMLBNewsOrderOptions | None = None
 
 
 @dataclass

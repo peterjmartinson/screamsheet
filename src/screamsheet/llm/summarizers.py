@@ -437,3 +437,35 @@ class FrenchMLBLexiconSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class WorldCupGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a newspaper-style FIFA World Cup match recap.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``       str  — full team name
+    - ``away_team``       str  — full team name
+    - ``home_score``      str  — goals scored in regulation/AET
+    - ``away_score``      str
+    - ``status_label``    str  — e.g. " (on penalties)" or ""
+    - ``round_label``     str  — e.g. "Round of 32", "Group Stage"
+    - ``goals_timeline``  str  — formatted goal-event lines
+    - ``penalty_section`` str  — penalty shootout detail or ""
+    """
+
+    _PROMPT_FILE = Path("worldcup_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )

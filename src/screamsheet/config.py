@@ -42,6 +42,12 @@ class NHLConfig(SportConfig):
 
 
 @dataclass
+class WorldCupConfig(SportConfig):
+    """WorldCup-specific configuration, which adds short news-filter names."""
+    news_names: List[str] = field(default_factory=list)
+
+
+@dataclass
 class FrenchMLBConfig:
     """French MLB news-filter names."""
     news_names: List[str] = field(default_factory=list)
@@ -112,6 +118,7 @@ class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: NHLConfig = field(default_factory=NHLConfig)
     mlb: MLBConfig = field(default_factory=MLBConfig)
+    worldcup: WorldCupConfig = field(default_factory=WorldCupConfig)
     french_mlb: FrenchMLBConfig = field(default_factory=FrenchMLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
@@ -141,6 +148,11 @@ def _parse_mlb(raw: dict) -> MLBConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
     return MLBConfig(favorite_teams=teams, news_names=news_names)
+
+
+def _parse_worldcup(raw: dict) -> WorldCupConfig:
+    teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
+    return WorldCupConfig(favorite_teams=teams)
 
 
 def _parse_nhl(raw: dict) -> NHLConfig:
@@ -234,6 +246,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         french_mlb=_parse_french_mlb(raw.get("french_mlb", {})),
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
+        worldcup=_parse_worldcup(raw.get("worldcup", {})),
         weather=_parse_weather(raw.get("weather", {})),
         sky=_parse_sky(raw.get("sky", {})),
         branding=str(raw.get("branding", "")),

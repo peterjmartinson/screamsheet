@@ -7,6 +7,8 @@ from screamsheet.providers.worldcup26_provider import (
     WorldCup26Provider,
     PRIORITY_TEAM_NAMES,
     _parse_scorers,
+    _parse_penalty_score,
+    _parse_set_literal_names,
 )
 
 
@@ -196,3 +198,185 @@ class TestGetAllTeamsForDate:
         with patch("requests.get", return_value=_mock(GAMES)):
             pairs = provider.get_all_teams_for_date(sample_date)
         assert all(isinstance(fid, int) for fid, _ in pairs)
+
+
+# ---------------------------------------------------------------------------
+# Penalty support test data
+# ---------------------------------------------------------------------------
+
+PEN_DATE = datetime(2026, 6, 29)
+
+PEN_GAMES_PAYLOAD = {
+    "games": [{
+        "id": "74",
+        "home_score": "1", "away_score": "1",
+        "home_scorers": '{\"Kai Havertz 54\'\"}',
+        "away_scorers": '{\"K. Ansisv 42\'\"}',
+        "local_date": "06/29/2026 16:30",
+        "finished": "TRUE", "type": "r32",
+        "home_team_name_en": "Germany",
+        "away_team_name_en": "Paraguay",
+        "home_penalty_score": "3",
+        "away_penalty_score": "4",
+        "home_penalty_scorers": '{"Kimish","Musiala","Amiri"}',
+        "away_penalty_scorers": '{"Gomez","Galarza","Medina","Dominguez"}',
+        "home_penalty_misses": '{"Havertz","Tah"}',
+        "away_penalty_misses": '{"Sanabria"}',
+    }]
+}
+
+FT_KO_DATE = datetime(2026, 6, 30)
+
+FT_KO_GAMES_PAYLOAD = {
+    "games": [{
+        "id": "77",
+        "home_score": "3", "away_score": "0",
+        "home_scorers": "null", "away_scorers": "null",
+        "local_date": "06/30/2026 17:00",
+        "finished": "TRUE", "type": "r32",
+        "home_team_name_en": "France",
+        "away_team_name_en": "Sweden",
+        "home_penalty_score": "null",
+        "away_penalty_score": "null",
+        "home_penalty_scorers": "null",
+        "away_penalty_scorers": "null",
+        "home_penalty_misses": "null",
+        "away_penalty_misses": "null",
+    }]
+}
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: helper function tests
+# ---------------------------------------------------------------------------
+
+class TestParsePenaltyScore:
+    def test_numeric_string_returns_int(self):
+        assert _parse_penalty_score("4") == 4
+
+    def test_zero_string_returns_zero(self):
+        assert _parse_penalty_score("0") == 0
+
+    def test_null_string_returns_none(self):
+        assert _parse_penalty_score("null") is None
+
+    def test_none_returns_none(self):
+        assert _parse_penalty_score(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert _parse_penalty_score("") is None
+
+
+class TestParseSetLiteralNames:
+    def test_multiple_names(self):
+        raw = '{"Kimish","Musiala","Amiri"}'
+        assert _parse_set_literal_names(raw) == ["Kimish", "Musiala", "Amiri"]
+
+    def test_single_name(self):
+        assert _parse_set_literal_names('{"Havertz"}') == ["Havertz"]
+
+    def test_null_string_returns_empty(self):
+        assert _parse_set_literal_names("null") == []
+
+    def test_empty_string_returns_empty(self):
+        assert _parse_set_literal_names("") == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: penalty data in get_game_scores()
+# ---------------------------------------------------------------------------
+
+class TestPenaltyDataInGameScores:
+    """get_game_scores() correctly extracts penalty data from KO-round games."""
+
+    def test_pen_game_sets_status_PEN(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            results = provider.get_game_scores(PEN_DATE)
+        assert len(results) == 1
+        assert results[0]["status_short"] == "PEN"
+
+    def test_pen_game_extracts_penalty_scores(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            results = provider.get_game_scores(PEN_DATE)
+        g = results[0]
+        assert g["home_penalty"] == 3
+        assert g["away_penalty"] == 4
+
+    def test_null_string_penalty_yields_FT(self, provider):
+        with patch("requests.get", return_value=_mock(FT_KO_GAMES_PAYLOAD)):
+            results = provider.get_game_scores(FT_KO_DATE)
+        assert len(results) == 1
+        assert results[0]["status_short"] == "FT"
+        assert results[0]["home_penalty"] is None
+        assert results[0]["away_penalty"] is None
+
+    def test_round_type_included(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            results = provider.get_game_scores(PEN_DATE)
+        assert results[0]["round_type"] == "r32"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: get_penalty_detail()
+# ---------------------------------------------------------------------------
+
+class TestGetPenaltyDetail:
+    """get_penalty_detail() returns shootout data for PEN games, None otherwise."""
+
+    def test_pen_game_returns_detail(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            detail = provider.get_penalty_detail(74)
+        assert detail is not None
+        assert detail["home_team"] == "Germany"
+        assert detail["away_team"] == "Paraguay"
+        assert detail["home_penalty_score"] == 3
+        assert detail["away_penalty_score"] == 4
+
+    def test_pen_detail_includes_scorer_and_miss_lists(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            detail = provider.get_penalty_detail(74)
+        assert "Kimish" in detail["home_scorers"]
+        assert "Sanabria" in detail["away_misses"]
+
+    def test_non_pen_game_returns_none(self, provider):
+        with patch("requests.get", return_value=_mock(FT_KO_GAMES_PAYLOAD)):
+            assert provider.get_penalty_detail(77) is None
+
+    def test_unknown_fixture_returns_none(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            assert provider.get_penalty_detail(9999) is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: get_game_summary() — LLM integration
+# ---------------------------------------------------------------------------
+
+class TestGetGameSummaryLLM:
+    """get_game_summary() uses LLM when key configured; plain text otherwise."""
+
+    def test_returns_none_when_fixture_not_found(self, provider, sample_date):
+        with patch("requests.get", return_value=_mock(GAMES)):
+            result = provider.get_game_summary(9999, sample_date)
+        assert result is None
+
+    def test_falls_back_to_plain_text_when_no_keys(self, provider):
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            with patch("os.getenv", return_value=None):
+                result = provider.get_game_summary(74, PEN_DATE)
+        assert result is not None
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_calls_llm_when_gemini_key_configured(self, provider):
+        def _mock_getenv(key, *args):
+            return "test-key" if key == "GEMINI_API_KEY" else None
+
+        with patch("requests.get", return_value=_mock(PEN_GAMES_PAYLOAD)):
+            with patch("os.getenv", side_effect=_mock_getenv):
+                with patch(
+                    "screamsheet.llm.summarizers.WorldCupGameSummarizer"
+                ) as MockSumm:
+                    MockSumm.return_value.generate_summary.return_value = "Great match recap"
+                    result = provider.get_game_summary(74, PEN_DATE)
+        MockSumm.assert_called_once()
+        assert result == "Great match recap"

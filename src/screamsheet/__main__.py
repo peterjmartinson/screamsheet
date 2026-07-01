@@ -29,6 +29,7 @@ from .order import (
     SkyOrderOptions,
     TeamEntry,
     WeatherLocationOptions,
+    WorldCupOrderOptions,
 )
 from .runner import run_order
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
@@ -206,8 +207,13 @@ def _run_sheet(label: str, factory_fn, output_dir: str) -> None:
 def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
     """Translate the on-disk config.yaml into a ScreamsheetOrder.
 
-    Produces an order that mirrors the full set of sheets currently generated
-    by the CLI, preserving existing behaviour exactly.
+    Batch sheets (in run order):
+      1. MLB scores
+      2. MLB news
+      3. NHL news
+      4. Presidential news
+      5. Sky Tonight
+      6. FIFA World Cup
     """
     cfg = load_config()
     weather_mlb = WeatherLocationOptions(
@@ -227,30 +233,17 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
     )
     return ScreamsheetOrder(
         output=OutputOrderOptions(directory=cfg.output.directory),
-        nhl=NHLOrderOptions(
-            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nhl.favorite_teams]
-        ),
-        nhl_news=NHLNewsOrderOptions(
-            news_names=cfg.nhl.news_names,
-            weather=weather_nhl,
-        ),
         mlb=MLBOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.mlb.favorite_teams],
             news_names=cfg.mlb.news_names,
-        ),
-        nba=NBAOrderOptions(
-            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams]
         ),
         mlb_news=MLBNewsOrderOptions(
             news_names=cfg.mlb.news_names,
             weather=weather_mlb,
         ),
-        mlb_trade_rumors=MLBTradeRumorsOrderOptions(
-            news_names=cfg.mlb.news_names,
-            weather=weather_mlb,
-        ),
-        french_mlb_news=FrenchMLBNewsOrderOptions(
-            news_names=cfg.french_mlb.news_names,
+        nhl_news=NHLNewsOrderOptions(
+            news_names=cfg.nhl.news_names,
+            weather=weather_nhl,
         ),
         presidential=PresidentialOrderOptions(weather=weather_presidential),
         sky=SkyOrderOptions(
@@ -269,6 +262,9 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
                 )
                 for p in cfg.sky.people
             ],
+        ),
+        worldcup=WorldCupOrderOptions(
+            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.worldcup.favorite_teams]
         ),
     )
 

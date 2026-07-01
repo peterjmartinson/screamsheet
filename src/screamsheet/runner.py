@@ -27,6 +27,7 @@ from .order import (
     ScreamsheetOrder,
     ScreamsheetResult,
     SkyOrderOptions,
+    WorldCupOrderOptions,
 )
 
 logger = logging.getLogger(__name__)
@@ -206,6 +207,17 @@ def _run_sky(options: SkyOrderOptions, today: datetime, today_str: str, output_d
     return sheet.generate()
 
 
+def _run_worldcup(
+    options: WorldCupOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    game_date = today - timedelta(days=1)
+    sheet = ScreamsheetFactory.create_worldcup_screamsheet(
+        output_filename=_output_path(output_dir, f"WORLD_CUP_{today_str}.pdf"),
+        date=game_date,
+    )
+    return sheet.generate()
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps ScreamsheetOrder field names to their handler functions.
 # ---------------------------------------------------------------------------
@@ -221,6 +233,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "french_mlb_news":  _run_french_mlb_news,
     "presidential":     _run_presidential,
     "sky":              _run_sky,
+    "worldcup":         _run_worldcup,
 }
 
 

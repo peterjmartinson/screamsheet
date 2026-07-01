@@ -299,7 +299,8 @@ class MLBDataProvider(DataProvider):
                 )
                 data = extracted  # type: ignore[assignment]
 
-            return summarizer.generate_summary(llm_choice="gemini", data=data)
+            llm_choice = "gemini" if os.getenv("GEMINI_API_KEY") else "grok"
+            return summarizer.generate_summary(llm_choice=llm_choice, data=data)
         except Exception as e:
             print(f"Error getting MLB game summary: {e}")
             return None

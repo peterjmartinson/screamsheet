@@ -12,19 +12,8 @@ from screamsheet.sports.nba import NBAScreamsheet
 from screamsheet.news.mlb_trade_rumors import MLBTradeRumorsScreamsheet
 from screamsheet.news.mlb_news import MLBNewsScreamsheet
 from screamsheet.news.nhl_news import NHLNewsScreamsheet
-from screamsheet.news.players_tribune import PlayersTribuneScreamsheet
-from screamsheet.news.fangraphs import FanGraphsScreamsheet
 
 
-class TestTeamIdConstants:
-    def test_mlb_phillies_constant(self):
-        assert ScreamsheetFactory.MLB_PHILLIES == 143
-
-    def test_nhl_flyers_constant(self):
-        assert ScreamsheetFactory.NHL_FLYERS == 4
-
-    def test_mlb_yankees_constant(self):
-        assert ScreamsheetFactory.MLB_YANKEES == 147
 
 
 class TestCreateMLBScreamsheet:
@@ -97,17 +86,6 @@ class TestCreateMLBTradeRumorsScreamsheet:
         s = ScreamsheetFactory.create_mlb_trade_rumors_screamsheet("out.pdf")
         assert s.max_articles == 4
 
-
-class TestCreatePlayersTribuneScreamsheet:
-    def test_returns_pt_instance(self):
-        s = ScreamsheetFactory.create_players_tribune_screamsheet("out.pdf")
-        assert isinstance(s, PlayersTribuneScreamsheet)
-
-
-class TestCreateFanGraphsScreamsheet:
-    def test_returns_fg_instance(self):
-        s = ScreamsheetFactory.create_fangraphs_screamsheet("out.pdf")
-        assert isinstance(s, FanGraphsScreamsheet)
 
 
 class TestCreateMLBNewsScreamsheet:

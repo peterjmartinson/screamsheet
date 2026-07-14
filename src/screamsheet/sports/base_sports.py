@@ -130,40 +130,6 @@ class SportsScreamsheet(BaseScreamsheet):
         logger.info("No favourite team played on %s — falling back to random game", date_str)
         return self._pick_random_team()
     
-    def generate(self) -> str:
-        """Generate a two-page PDF: front (scores + standings) and back (box score)."""
-        logger.info("Building sections for %s", self.sport_name)
-        self.sections = self.build_sections()
-        logger.info("Sections built: %d total", len(self.sections))
-
-        page_width, page_height = letter
-        frame_h = page_height - 2 * 36
-
-        front_content: List = []
-        back_content:  List = []
-
-        # Header always lives on the front page
-        front_content.append(Paragraph(self.get_title(), self.title_style))
-        subtitle = self.get_subtitle()
-        if subtitle:
-            front_content.append(Paragraph(f"<i>{subtitle}</i>", self.subtitle_style))
-        front_content.append(Paragraph(self.get_date_string(), self.subtitle_style))
-        front_content.append(Spacer(1, 12))
-
-        for section in self.sections:
-            if section.has_content():
-                elements = section.render()
-                if getattr(section, "page_slot", "front") == "back":
-                    back_content.extend(elements)
-                    back_content.append(Spacer(1, 20))
-                    logger.info("Section '%s' → back page (%d flowables)", section.title, len(elements))
-                else:
-                    front_content.extend(elements)
-                    front_content.append(Spacer(1, 20))
-                    logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
-
-        return self._build_two_page_pdf(front_content, back_content)
-
     def build_sections(self) -> List[Section]:
         """Build all sections for the sports screamsheet."""
         sections = []

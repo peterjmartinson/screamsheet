@@ -174,7 +174,8 @@ class BaseScreamsheet(ABC):
     
     def generate(self) -> str:
         """
-        Generate the complete screamsheet PDF.
+        Generate the complete screamsheet PDF, distributing sections between
+        front and back pages.
         
         Returns:
             Path to the generated PDF file
@@ -184,49 +185,32 @@ class BaseScreamsheet(ABC):
         self.sections = self.build_sections()
         logger.info("Sections built: %d total", len(self.sections))
         
-        # Create PDF
-        doc = SimpleDocTemplate(
-            self.output_filename,
-            pagesize=letter,
-            rightMargin=36,
-            leftMargin=36,
-            topMargin=36,
-            bottomMargin=36
-        )
-        
-        # Build story (content)
-        story = []
-        
-        # Add title
-        title = Paragraph(self.get_title(), self.title_style)
-        story.append(title)
-        
-        # Add subtitle if present (e.g., news source)
+        front_content: List = []
+        back_content: List = []
+
+        # Add title, subtitle, date to front page header
+        front_content.append(Paragraph(self.get_title(), self.title_style))
         subtitle = self.get_subtitle()
         if subtitle:
-            # Use italic style for subtitle
-            subtitle_para = Paragraph(f"<i>{subtitle}</i>", self.subtitle_style)
-            story.append(subtitle_para)
-        
-        # Add date
-        date_para = Paragraph(self.get_date_string(), self.subtitle_style)
-        story.append(date_para)
-        story.append(Spacer(1, 12))
-        
-        # Add each section
+            front_content.append(Paragraph(f"<i>{subtitle}</i>", self.subtitle_style))
+        front_content.append(Paragraph(self.get_date_string(), self.subtitle_style))
+        front_content.append(Spacer(1, 12))
+
+        # Render and distribute sections
         for section in self.sections:
             if section.has_content():
-                story.extend(section.render())
-                story.append(Spacer(1, 20))
-        
-        # Build PDF — branding on later pages only (back page only for 2-page docs)
-        doc.build(
-            story,
-            onLaterPages=self._draw_branding_footer,
-        )
-        
-        logger.info("PDF written to %s", self.output_filename)
-        return self.output_filename
+                elements = section.render()
+                if getattr(section, "page_slot", "front") == "back":
+                    back_content.extend(elements)
+                    back_content.append(Spacer(1, 20))
+                    logger.info("Section '%s' → back page (%d flowables)", section.title, len(elements))
+                else:
+                    front_content.extend(elements)
+                    front_content.append(Spacer(1, 20))
+                    logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
+
+        return self._build_two_page_pdf(front_content, back_content)
+
     
     def add_section(self, section: Section):
         """Add a section to the screamsheet."""

@@ -121,25 +121,3 @@ class FIFAWorldCupScreamsheet(BaseScreamsheet):
     # PDF generation
     # ------------------------------------------------------------------
 
-    def generate(self) -> str:
-        logger.info("Generating World Cup screamsheet for %s", self.date.strftime("%Y-%m-%d"))
-        self.sections = self.build_sections()
-
-        front_content: List[Any] = []
-        back_content: List[Any] = []
-
-        front_content.append(Paragraph(self.get_title(), self.title_style))
-        front_content.append(Paragraph(self.get_date_string(), self.subtitle_style))
-        front_content.append(Spacer(1, 12))
-
-        for section in self.sections:
-            if section.has_content():
-                elements = section.render()
-                if getattr(section, "page_slot", "front") == "back":
-                    back_content.extend(elements)
-                    back_content.append(Spacer(1, 20))
-                else:
-                    front_content.extend(elements)
-                    front_content.append(Spacer(1, 20))
-
-        return self._build_two_page_pdf(front_content, back_content)

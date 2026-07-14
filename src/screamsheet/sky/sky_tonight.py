@@ -94,33 +94,3 @@ class SkyTonightScreamsheet(BaseScreamsheet):
             horoscope_section,
         ]
 
-    def generate(self) -> str:
-        """Generate a two-page PDF: zodiac wheel + highlights on front, horoscopes on back."""
-        logger.info("Building sections for %s", self.get_title())
-        self.sections = self.build_sections()
-        logger.info("Sections built: %d total", len(self.sections))
-
-        front_content: List = []
-        back_content: List = []
-
-        # Header
-        front_content.append(Paragraph(self.get_title(), self.title_style))
-        subtitle = self.get_subtitle()
-        if subtitle:
-            front_content.append(Paragraph(f"<i>{subtitle}</i>", self.subtitle_style))
-        front_content.append(Paragraph(self.get_date_string(), self.subtitle_style))
-        front_content.append(Spacer(1, 12))
-
-        for section in self.sections:
-            if section.has_content():
-                elements = section.render()
-                if getattr(section, "page_slot", "front") == "back":
-                    back_content.extend(elements)
-                    back_content.append(Spacer(1, 20))
-                    logger.info("Section '%s' → back page (%d flowables)", section.title, len(elements))
-                else:
-                    front_content.extend(elements)
-                    front_content.append(Spacer(1, 20))
-                    logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
-
-        return self._build_two_page_pdf(front_content, back_content)

@@ -304,3 +304,277 @@ class MLBDataProvider(DataProvider):
         except Exception as e:
             print(f"Error getting MLB game summary: {e}")
             return None
+
+    def get_derby_game_pk(self, date: datetime) -> Optional[int]:
+        """
+        Get the gamePk for the MLB Home Run Derby on or around a specific date.
+        If no Derby is found on the exact date, searches recent days or the month of July.
+        
+        Args:
+            date: The date to search for the Home Run Derby event
+            
+        Returns:
+            The event id / gamePk if found, or None
+        """
+        headers = {"User-Agent": "Mozilla/5.0"}
+
+        def _check_url(url: str) -> Optional[int]:
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                for date_data in data.get("dates", []):
+                    for event in date_data.get("events", []):
+                        name = event.get("name", "")
+                        if "Home Run Derby" in name and "Testing" not in name and "Batting Practice" not in name:
+                            return int(event["id"])
+                    for game in date_data.get("games", []):
+                        description = game.get("description", "")
+                        if "Home Run Derby" in description:
+                            return int(game["gamePk"])
+            except Exception as e:
+                print(f"Error checking schedule URL {url}: {e}")
+            return None
+
+        # 1. Check exact date
+        game_date = date.strftime("%Y-%m-%d")
+        found = _check_url(f"{self.base_url}/api/v1/schedule?sportId=1&date={game_date}&scheduleTypes=events")
+        if found:
+            return found
+
+        # 2. Check yesterday and two days ago (common when running morning reports after the Derby)
+        for d in (1, 2):
+            prev_date = (date - timedelta(days=d)).strftime("%Y-%m-%d")
+            found = _check_url(f"{self.base_url}/api/v1/schedule?sportId=1&date={prev_date}&scheduleTypes=events")
+            if found:
+                return found
+
+        # 3. Search the month of July for the target year (Derby is always mid-July)
+        year = date.year
+        found = _check_url(f"{self.base_url}/api/v1/schedule?sportId=1&startDate={year}-07-01&endDate={year}-07-31&scheduleTypes=events")
+        if found:
+            return found
+
+        # 4. If no event found in target year (or running before July), check previous year or fallback to 2024 Derby (773161)
+        if year > 2024:
+            found = _check_url(f"{self.base_url}/api/v1/schedule?sportId=1&startDate={year-1}-07-01&endDate={year-1}-07-31&scheduleTypes=events")
+            if found:
+                return found
+
+        # Default fallback to 2024 Home Run Derby if no future Derby is scheduled yet
+        return 773161
+
+    def fetch_derby_bracket(self, game_pk: int) -> Optional[Dict[str, Any]]:
+        """
+        Fetch and parse bracket data for the Home Run Derby.
+        
+        Args:
+            game_pk: The Home Run Derby event gamePk
+            
+        Returns:
+            Parsed bracket structure including rounds, matchups, champion, and runner-up
+        """
+        url = f"{self.base_url}/api/v1/homeRunDerby/{game_pk}/bracket"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            
+            rounds_summary = []
+            champion = None
+            runner_up = None
+            
+            def _parse_seed_hits(seed: Any) -> int:
+                if not isinstance(seed, dict):
+                    return 0
+                for key in ("numHomeRuns", "numPoints", "homeRuns"):
+                    if key in seed and seed[key] is not None:
+                        try:
+                            return int(seed[key])
+                        except (ValueError, TypeError):
+                            pass
+                val = seed.get("hits")
+                if isinstance(val, dict):
+                    for k in ("total", "hits", "homeRuns"):
+                        if k in val and val[k] is not None:
+                            try:
+                                return int(val[k])
+                            except (ValueError, TypeError):
+                                pass
+                elif isinstance(val, list):
+                    hr_count = sum(1 for h in val if isinstance(h, dict) and (h.get("homeRun") is True or h.get("isHomeRun") is True))
+                    if hr_count > 0:
+                        return hr_count
+                    return len(val)
+                elif val is not None:
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        pass
+                return 0
+
+            rounds = data.get("rounds", [])
+            for rnd in rounds:
+                round_obj = rnd.get("round", "")
+                if isinstance(round_obj, dict):
+                    round_name = round_obj.get("name", str(round_obj))
+                else:
+                    round_name = f"Round {round_obj}" if str(round_obj).isdigit() else str(round_obj)
+                    if round_obj == 1:
+                        round_name = "Round 1"
+                    elif round_obj == 2:
+                        round_name = "Semifinals"
+                    elif round_obj == 3:
+                        round_name = "Finals"
+                
+                matchups_list = []
+                for m in rnd.get("matchups", []):
+                    top = m.get("topSeed", {})
+                    bot = m.get("bottomSeed", {})
+                    
+                    top_player = top.get("player", {}).get("fullName", "TBD") if isinstance(top.get("player"), dict) else str(top.get("player", "TBD"))
+                    top_hits = _parse_seed_hits(top)
+                    
+                    bot_player = bot.get("player", {}).get("fullName", "TBD") if isinstance(bot.get("player"), dict) else str(bot.get("player", "TBD"))
+                    bot_hits = _parse_seed_hits(bot)
+                    
+                    top_is_winner = top.get("isWinner", top.get("winner")) is True
+                    bot_is_winner = bot.get("isWinner", bot.get("winner")) is True
+                    winner_obj = m.get("winner")
+
+                    if top_is_winner and not bot_is_winner:
+                        winner_name = top_player
+                    elif bot_is_winner and not top_is_winner:
+                        winner_name = bot_player
+                    elif isinstance(winner_obj, dict):
+                        winner_name = winner_obj.get("fullName", "TBD")
+                    elif isinstance(winner_obj, str) and winner_obj and winner_obj != "TBD":
+                        winner_name = winner_obj
+                    elif top_hits > bot_hits:
+                        winner_name = top_player
+                    elif bot_hits > top_hits:
+                        winner_name = bot_player
+                    else:
+                        winner_name = "TBD"
+                    
+                    matchups_list.append({
+                        "top_seed": {"player": top_player, "hits": top_hits},
+                        "bottom_seed": {"player": bot_player, "hits": bot_hits},
+                        "winner": winner_name
+                    })
+                
+                rounds_summary.append({
+                    "round_name": round_name,
+                    "matchups": matchups_list
+                })
+            
+            if rounds_summary and rounds_summary[-1]["matchups"]:
+                final_matchup = rounds_summary[-1]["matchups"][-1]
+                top_s = final_matchup["top_seed"]
+                bot_s = final_matchup["bottom_seed"]
+                winner_name = final_matchup["winner"]
+                
+                if winner_name == top_s["player"]:
+                    champion = top_s
+                    runner_up = bot_s
+                elif winner_name == bot_s["player"]:
+                    champion = bot_s
+                    runner_up = top_s
+                else:
+                    if top_s["hits"] >= bot_s["hits"]:
+                        champion = top_s
+                        runner_up = bot_s
+                    else:
+                        champion = bot_s
+                        runner_up = top_s
+                        
+            return {
+                "rounds": rounds_summary,
+                "champion": champion,
+                "runner_up": runner_up
+            }
+        except Exception as e:
+            print(f"Error fetching MLB Home Run Derby bracket: {e}")
+            return None
+
+    def fetch_derby_statcast(self, game_pk: int) -> Optional[Dict[str, Any]]:
+        """
+        Fetch and parse Statcast pool data for the Home Run Derby.
+        
+        Args:
+            game_pk: The Home Run Derby event gamePk
+            
+        Returns:
+            Parsed Statcast highlights including longest home run and hardest hit ball
+        """
+        url = f"{self.base_url}/api/v1/homeRunDerby/{game_pk}/pool"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            
+            longest_dist = 0
+            longest_player = "N/A"
+            hardest_vel = 0.0
+            hardest_player = "N/A"
+            
+            for rnd in data.get("rounds", []):
+                for b in rnd.get("batters", []):
+                    pname = b.get("player", {}).get("fullName", "Unknown")
+                    for hit in b.get("hits", []):
+                        if not hit.get("isHomeRun", False):
+                            continue
+                        hd = hit.get("hitData", {})
+                        dist = hd.get("totalDistance", 0)
+                        vel = hd.get("launchSpeed", 0.0)
+                        if dist > longest_dist:
+                            longest_dist = dist
+                            longest_player = pname
+                        if vel > hardest_vel:
+                            hardest_vel = vel
+                            hardest_player = pname
+                            
+            return {
+                "longest_hr": {"player": longest_player, "distance": longest_dist},
+                "hardest_hit": {"player": hardest_player, "exit_velocity": hardest_vel}
+            }
+        except Exception as e:
+            print(f"Error fetching MLB Home Run Derby Statcast pool: {e}")
+            return None
+
+    def get_home_run_derby_summary(self, date: datetime, game_pk: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Get comprehensive Home Run Derby summary including bracket and Statcast highlights.
+        
+        Args:
+            date: The target date
+            game_pk: Optional explicit gamePk (useful for historical testing)
+            
+        Returns:
+            Combined dictionary of Derby data or None if unavailable
+        """
+        if game_pk is None:
+            game_pk = self.get_derby_game_pk(date)
+            if game_pk is None:
+                return None
+                
+        bracket_data = self.fetch_derby_bracket(game_pk)
+        statcast_data = self.fetch_derby_statcast(game_pk)
+        
+        if not bracket_data and not statcast_data:
+            return None
+            
+        return {
+            "game_pk": game_pk,
+            "date": date.strftime("%Y-%m-%d"),
+            "bracket": bracket_data or {},
+            "statcast": statcast_data or {}
+        }
+

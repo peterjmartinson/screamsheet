@@ -139,6 +139,13 @@ class WorldCupOrderOptions:
 
 
 @dataclass
+class HomeRunDerbyOrderOptions:
+    """Options for the MLB Home Run Derby sheet."""
+
+    game_pk: int | None = None
+
+
+@dataclass
 class OutputOrderOptions:
     """Destination directory for generated PDFs."""
 
@@ -167,6 +174,7 @@ class ScreamsheetOrder:
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     french_mlb_news: FrenchMLBNewsOrderOptions | None = None
+    home_run_derby: HomeRunDerbyOrderOptions | None = None
 
 
 @dataclass

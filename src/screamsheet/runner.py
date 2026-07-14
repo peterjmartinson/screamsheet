@@ -16,6 +16,7 @@ from typing import Any, Callable
 from .factory import ScreamsheetFactory
 from .order import (
     FrenchMLBNewsOrderOptions,
+    HomeRunDerbyOrderOptions,
     MLBNewsOrderOptions,
     MLBOrderOptions,
     MLBTradeRumorsOrderOptions,
@@ -218,6 +219,17 @@ def _run_worldcup(
     return sheet.generate()
 
 
+def _run_home_run_derby(
+    options: HomeRunDerbyOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    sheet = ScreamsheetFactory.create_home_run_derby_screamsheet(
+        output_filename=_output_path(output_dir, f"Home_Run_Derby_{today_str}.pdf"),
+        date=today,
+        game_pk=options.game_pk,
+    )
+    return sheet.generate()
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps ScreamsheetOrder field names to their handler functions.
 # ---------------------------------------------------------------------------
@@ -234,6 +246,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "presidential":     _run_presidential,
     "sky":              _run_sky,
     "worldcup":         _run_worldcup,
+    "home_run_derby":   _run_home_run_derby,
 }
 
 

@@ -134,6 +134,12 @@ class NewsScorer:
                 total += weight
                 already_matched.append(keyword)
 
+        # Apply a +10 relevance bonus for articles from the White House
+        source = entry.get("source") or ""
+        link = entry.get("link") or ""
+        if source == "White House" or "whitehouse.gov" in link:
+            total += 10
+
         return total
 
 

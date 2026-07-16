@@ -16,7 +16,7 @@ LOG_FILE="./logfiles/screamsheet_log_${DATE}.txt"
 echo "--- Execution Started: $(date) ---" >> "$LOG_FILE"
 
 echo "[$(date +%T)] Generating screamsheets..." >> "$LOG_FILE"
-uv run python -m screamsheet >> "$LOG_FILE" 2>&1
+uv run python -m screamsheet "$@" >> "$LOG_FILE" 2>&1
 RC=$?
 
 if [[ $RC -ne 0 ]]; then

@@ -32,7 +32,7 @@ from .order import (
     WorldCupOrderOptions,
 )
 from .runner import run_order
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, HomeRunDerbyScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -40,6 +40,7 @@ from .sky.sky_tonight import SkyTonightScreamsheet
 __all__ = [
     'ScreamsheetFactory',
     'MLBScreamsheet',
+    'MLBAllStarScreamsheet',
     'NHLScreamsheet',
     'NFLScreamsheet',
     'NBAScreamsheet',
@@ -95,6 +96,14 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
             lambda: ScreamsheetFactory.create_mlb_screamsheet(
                 output_filename=f'Files/MLB_scores_{today_str}.pdf',
                 favorite_teams=mlb_teams,
+                date=game_date,
+                display_date=today,
+            ),
+        ),
+        (
+            "MLB All-Star Game",
+            lambda: ScreamsheetFactory.create_mlb_allstar_screamsheet(
+                output_filename=f'Files/MLB_AllStar_{today_str}.pdf',
                 date=game_date,
                 display_date=today,
             ),
@@ -308,8 +317,10 @@ def main():
     )
     parser.add_argument(
         "--single",
-        action="store_true",
-        help="Interactively select and run a single screamsheet.",
+        nargs="?",
+        const=True,
+        default=False,
+        help="Interactively select or specify a single screamsheet (e.g. --single mlb-allstar).",
     )
     parser.add_argument(
         "--output-dir",
@@ -353,7 +364,22 @@ def main():
         sheets, output_dir = _build_sheets(today_str)
         if args.output_dir:
             output_dir = args.output_dir
-        _pick_and_run(sheets, output_dir)
+        if isinstance(args.single, str):
+            query = args.single.lower().replace("-", "_").replace(" ", "_")
+            chosen = None
+            for label, factory_fn in sheets:
+                label_norm = label.lower().replace("-", "_").replace(" ", "_")
+                if query in label_norm or (query == "mlb_allstar" and "all_star" in label_norm):
+                    chosen = (label, factory_fn)
+                    break
+            if chosen:
+                print(f"\nRunning selected screamsheet: {chosen[0]}\n")
+                _run_sheet(chosen[0], chosen[1], output_dir)
+            else:
+                print(f"\nNo screamsheet matched '{args.single}'. Opening interactive selection...")
+                _pick_and_run(sheets, output_dir)
+        else:
+            _pick_and_run(sheets, output_dir)
     else:
         order = _build_order_from_config(today)
         if args.output_dir:

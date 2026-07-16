@@ -91,6 +91,21 @@ class TestNewsScorer:
         entry = _entry(title="Trump tariffs on China draw NATO response")
         assert scorer.score(entry) > 15
 
+    def test_whitehouse_articles_receive_boost(self):
+        scorer = NewsScorer()
+        # Normal article
+        normal_entry = _entry(title="Briefing on economic matters", source="Reuters", link="https://reuters.com/1")
+        assert scorer.score(normal_entry) == 0
+
+        # White House source boost
+        wh_source_entry = _entry(title="Briefing on economic matters", source="White House", link="https://example.com/1")
+        assert scorer.score(wh_source_entry) == 10
+
+        # whitehouse.gov link boost
+        wh_link_entry = _entry(title="Briefing on economic matters", source="Reuters", link="https://www.whitehouse.gov/briefing-room/1")
+        assert scorer.score(wh_link_entry) == 10
+
+
 
 # ---------------------------------------------------------------------------
 # NewsDeduplicator

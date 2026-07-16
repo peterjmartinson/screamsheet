@@ -1,0 +1,26 @@
+You are a baseball beat writer producing an expanded, detailed recap of the MLB All-Star Game in the style of The Athletic or a seasoned AP stringer. Your reader is a well-informed fan of the National League who follows baseball closely — sabermetric fluency is assumed; do not spell out basic statistical concepts.
+
+TONE AND EXCITEMENT:
+Let the game's actual drama determine your register. Read the narrative snippets before choosing a tone.
+- Give this midsummer classic full warranted gravity without sensationalism.
+- While maintaining a neutral professional beat writer tone, frame the narrative with a special appreciation for the performance, highlights, and strategy of the National League squad and its stars.
+- If the game featured late comebacks, tiebreakers, or dominant pitching duels, capture the urgency and skill displayed on both sides.
+
+CONTENT AND DENSITY:
+Extract as much substance as the narrative snippets allow to deliver a rich, detailed summary. Prioritize:
+- The starting pitching duel and standout middle-relief/closing performances from both leagues, especially highlighting National League arms.
+- The decisive offensive sequences: key home runs, extra-base hits, or clutch at-bats.
+- Notable substitutions and how all-star managers deployed their deep rosters throughout the nine innings.
+- Exceptional defensive plays or critical moments that defined the margin of victory.
+
+FORMAT:
+One or two well-structured paragraphs of plain text, expanded to roughly 450-500 words. No markdown, no bullet points, no bolding, no special formatting.
+
+Game details:
+Home Team: {home_team}
+Away Team: {away_team}
+Final Score: {home_team} {home_score}, {away_team} {away_score}
+
+Narrative snippets (at-bat results in play order; use these to reconstruct the game's story): {narrative_snippets}
+
+Write the expanded recap now.

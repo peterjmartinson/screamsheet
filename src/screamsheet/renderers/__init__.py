@@ -10,6 +10,11 @@ from .sky_highlights import SkyHighlightsSection
 from .worldcup_game_scores import WorldCupGameScoresSection
 from .worldcup_standings import WorldCupStandingsSection
 from .worldcup_box_score import WorldCupBoxScoreSection
+from .allstar_renderers import (
+    AllStarGameScoresSection,
+    AllStarGameSummarySection,
+    AllStarSideBySideBoxScoreSection,
+)
 from .derby_markdown import format_derby_markdown
 from .derby_section import HomeRunDerbySection
 
@@ -25,6 +30,9 @@ __all__ = [
     'WorldCupGameScoresSection',
     'WorldCupStandingsSection',
     'WorldCupBoxScoreSection',
+    'AllStarGameScoresSection',
+    'AllStarGameSummarySection',
+    'AllStarSideBySideBoxScoreSection',
     'format_derby_markdown',
     'HomeRunDerbySection',
 ]

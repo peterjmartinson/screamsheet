@@ -64,8 +64,8 @@ jobs:
           ln -snf "$RELEASE_DIR" "$LIVE_PATH"
 
           # 7. Final Execution
-          echo "Executing screamsheet.sh via uv run..."
-          uv run ./screamsheet.sh
+          echo "Executing screamsheet.sh via uv run with email output override..."
+          uv run ./screamsheet.sh --output-dir /home/peter/EMAIL/
 
       - name: Cleanup Old Releases
         run: |

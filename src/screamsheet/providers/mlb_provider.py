@@ -135,10 +135,29 @@ class MLBDataProvider(DataProvider):
 
         if 'dates' in schedule_data and schedule_data['dates']:
             for game in schedule_data['dates'][0]['games']:
-                if game['status']['statusCode'] == 'F':
+                status = game.get('status', {})
+                if status.get('abstractGameCode') == 'F' or 'Final' in status.get('detailedState', ''):
                     if (game['teams']['away']['team']['id'] == team_id or
                             game['teams']['home']['team']['id'] == team_id):
                         return game['gamePk']
+        return None
+
+    def _get_game_pk_by_type(self, game_type: str, date: datetime) -> Optional[int]:
+        """Return the gamePk for a completed game of a specific gameType on date, or None."""
+        game_date = date.strftime("%Y-%m-%d")
+        schedule_url = f"{self.base_url}/api/v1/schedule"
+        params = {'sportId': 1, 'gameType': game_type, 'date': game_date}
+        try:
+            schedule_response = requests.get(schedule_url, params=params)
+            schedule_response.raise_for_status()
+            schedule_data = schedule_response.json()
+            if 'dates' in schedule_data and schedule_data['dates']:
+                for game in schedule_data['dates'][0]['games']:
+                    status = game.get('status', {})
+                    if status.get('abstractGameCode') == 'F' or 'Final' in status.get('detailedState', ''):
+                        return game['gamePk']
+        except Exception as e:
+            print(f"Error getting gamePk for type {game_type}: {e}")
         return None
 
     def has_game(self, team_id: int, date: datetime) -> bool:
@@ -305,6 +324,133 @@ class MLBDataProvider(DataProvider):
             print(f"Error getting MLB game summary: {e}")
             return None
 
+    def get_allstar_game_scores(self, date: datetime) -> list:
+        """Get MLB All-Star game scores (`gameType='A'`) for a specific date."""
+        game_date = date.strftime("%Y-%m-%d")
+        url = (
+            f"{self.base_url}/api/v1/schedule"
+            f"?sportId=1"
+            f"&gameType=A"
+            f"&startDate={game_date}"
+            f"&endDate={game_date}"
+        )
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            print(f"Error fetching All-Star schedule: {e}")
+            return []
+
+        games = []
+        for date_data in data.get("dates", []):
+            for game in date_data.get("games", []):
+                if game.get("gameType") != "A":
+                    continue
+                game_info = {
+                    "gameDate": game.get("gameDate"),
+                    "away_team": game["teams"]["away"]["team"]["name"],
+                    "home_team": game["teams"]["home"]["team"]["name"],
+                    "away_score": game["teams"]["away"].get("score"),
+                    "home_score": game["teams"]["home"].get("score"),
+                    "status": game["status"]["detailedState"],
+                    "away_id": game["teams"]["away"]["team"]["id"],
+                    "home_id": game["teams"]["home"]["team"]["id"],
+                }
+                games.append(game_info)
+        return games
+
+    def get_allstar_box_scores(self, date: datetime) -> Optional[Dict[str, Any]]:
+        """Get side-by-side box scores for AL (id 159) and NL (id 160) for a given date."""
+        game_pk = self._get_game_pk_by_type("A", date)
+        if not game_pk:
+            game_pk = self._get_game_pk(160, date) or self._get_game_pk(159, date)
+        if not game_pk:
+            print(f"No completed All-Star game found on {date.strftime('%Y-%m-%d')}.")
+            return None
+
+        try:
+            boxscore_url = f"{self.base_url}/api/v1/game/{game_pk}/boxscore"
+            boxscore_response = requests.get(boxscore_url)
+            boxscore_response.raise_for_status()
+            boxscore_data = boxscore_response.json()
+            if not boxscore_data:
+                return None
+
+            result = {}
+            for t_key in ['away', 'home']:
+                t_info = boxscore_data['teams'][t_key]
+                t_id = t_info['team']['id']
+                t_name = t_info['team']['name']
+                players = t_info['players']
+
+                batting_stats = []
+                pitching_stats = []
+
+                for player_data in players.values():
+                    p_name = player_data['person']['fullName']
+                    bs = player_data['stats'].get('batting', {})
+                    ps = player_data['stats'].get('pitching', {})
+
+                    if bs.get('atBats', 0) > 0 or bs.get('plateAppearances', 0) > 0 or bs.get('runs', 0) > 0 or bs.get('rbi', 0) > 0:
+                        batting_stats.append({
+                            'name': p_name,
+                            'AB': bs.get('atBats', 0),
+                            'R': bs.get('runs', 0),
+                            'H': bs.get('hits', 0),
+                            'HR': bs.get('homeRuns', 0),
+                            'RBI': bs.get('rbi', 0),
+                            'BB': bs.get('baseOnBalls', 0),
+                            'SO': bs.get('strikeOuts', 0),
+                        })
+
+                    if ps.get('inningsPitched', '0.0') != '0.0' or ps.get('battersFaced', 0) > 0:
+                        pitching_stats.append({
+                            'name': p_name,
+                            'IP': ps.get('inningsPitched', '0.0'),
+                            'H': ps.get('hits', 0),
+                            'R': ps.get('runs', 0),
+                            'ER': ps.get('earnedRuns', 0),
+                            'BB': ps.get('baseOnBalls', 0),
+                            'SO': ps.get('strikeOuts', 0),
+                        })
+
+                league_key = "AL" if t_id == 159 or "American" in t_name else "NL"
+                result[league_key] = {
+                    'team_name': t_name,
+                    'batting_stats': batting_stats,
+                    'pitching_stats': pitching_stats,
+                }
+
+            return result
+        except Exception as e:
+            print(f"Error getting All-Star box score: {e}")
+            return None
+
+    def get_allstar_game_summary(self, date: datetime) -> Optional[str]:
+        """Get ~500-word regular game summary for the All-Star game from NL perspective."""
+        try:
+            import os
+            from .extractors import MLBGameExtractor
+            from ..llm.summary import MLBAllStarGameSummarizer
+            date_str = date.strftime("%Y-%m-%d")
+            extractor = MLBGameExtractor()
+            raw = extractor.fetch_raw_data(160, date_str)
+            if not raw:
+                raw = extractor.fetch_raw_data(159, date_str)
+            extracted = extractor.extract_key_info(raw)
+            if isinstance(extracted, str):
+                return extracted
+
+            summarizer = MLBAllStarGameSummarizer(
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                grok_api_key=os.getenv("GROK_API_KEY"),
+            )
+            llm_choice = "gemini" if os.getenv("GEMINI_API_KEY") else "grok"
+            return summarizer.generate_summary(llm_choice=llm_choice, data=extracted)
+        except Exception as e:
+            print(f"Error getting All-Star game summary: {e}")
+            return None
     def get_derby_game_pk(self, date: datetime) -> Optional[int]:
         """
         Get the gamePk for the MLB Home Run Derby on or around a specific date.

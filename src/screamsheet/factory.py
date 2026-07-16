@@ -2,7 +2,7 @@
 from typing import Optional, List, Tuple
 from datetime import datetime
 
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
+from .sports import MLBScreamsheet, MLBAllStarScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -83,6 +83,33 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
         )
+
+    @staticmethod
+    def create_mlb_allstar_screamsheet(
+        output_filename: str,
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
+        favorite_teams: Optional[List[Tuple[int, str]]] = None,
+    ) -> MLBAllStarScreamsheet:
+        """
+        Create an MLB All-Star Game screamsheet.
+
+        Args:
+            output_filename: Path to save the PDF
+            date: Target date for game data lookups (defaults to yesterday)
+            display_date: Date shown in the subtitle header (defaults to date)
+            favorite_teams: Optional list of (team_id, team_name) tuples.
+
+        Returns:
+            MLBAllStarScreamsheet instance
+        """
+        return MLBAllStarScreamsheet(
+            output_filename=output_filename,
+            date=date,
+            display_date=display_date,
+            favorite_teams=favorite_teams,
+        )
+
     
     @staticmethod
     def create_nhl_screamsheet(

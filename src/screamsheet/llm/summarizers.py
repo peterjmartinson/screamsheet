@@ -170,6 +170,35 @@ class MLBFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+class MLBAllStarGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an expanded ~500-word recap for the MLB All-Star Game from an NL beat writer perspective.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``          str
+    - ``away_team``          str
+    - ``home_score``         int
+    - ``away_score``         int
+    - ``narrative_snippets`` str  — space-joined play descriptions
+    """
+
+    _PROMPT_FILE = Path("mlb_allstar_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
 class NewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates a lively news-article summary.

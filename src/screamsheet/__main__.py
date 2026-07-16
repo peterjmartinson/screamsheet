@@ -32,7 +32,7 @@ from .order import (
     WorldCupOrderOptions,
 )
 from .runner import run_order
-from .sports import MLBScreamsheet, MLBAllStarScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -50,6 +50,7 @@ __all__ = [
     'FrenchMLBNewsScreamsheet',
     'PresidentialScreamsheet',
     'SkyTonightScreamsheet',
+    'HomeRunDerbyScreamsheet',
 ]
 
 
@@ -197,6 +198,13 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
             lambda: ScreamsheetFactory.create_worldcup_screamsheet(
                 output_filename=f'Files/WORLD_CUP_{today_str}.pdf',
                 date=game_date,
+            ),
+        ),
+        (
+            "MLB Home Run Derby",
+            lambda: ScreamsheetFactory.create_home_run_derby_screamsheet(
+                output_filename=f'Files/Home_Run_Derby_{today_str}.pdf',
+                date=today,
             ),
         ),
     ], output_dir

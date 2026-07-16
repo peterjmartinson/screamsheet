@@ -2,8 +2,8 @@
 from typing import Optional, List, Tuple
 from datetime import datetime
 
-from .sports import MLBScreamsheet, MLBAllStarScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
-from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, PlayersTribuneScreamsheet, FanGraphsScreamsheet, FrenchMLBNewsScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
+from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 
@@ -16,42 +16,7 @@ class ScreamsheetFactory:
     having to import and instantiate them directly.
     """
     
-    # Team ID constants for convenience
-    # MLB Teams
-    MLB_ANGELS = 108
-    MLB_ASTROS = 117
-    MLB_ATHLETICS = 133
-    MLB_BLUEJAYS = 141
-    MLB_BRAVES = 144
-    MLB_BREWERS = 158
-    MLB_CARDINALS = 138
-    MLB_CUBS = 112
-    MLB_DIAMONDBACKS = 109
-    MLB_DODGERS = 119
-    MLB_GIANTS = 137
-    MLB_GUARDIANS = 114
-    MLB_MARINERS = 136
-    MLB_MARLINS = 146
-    MLB_METS = 121
-    MLB_NATIONALS = 120
-    MLB_ORIOLES = 110
-    MLB_PADRES = 135
-    MLB_PHILLIES = 143
-    MLB_PIRATES = 134
-    MLB_RANGERS = 140
-    MLB_RAYS = 139
-    MLB_REDSOX = 111
-    MLB_REDS = 113
-    MLB_ROCKIES = 115
-    MLB_ROYALS = 118
-    MLB_TIGERS = 116
-    MLB_TWINS = 142
-    MLB_WHITESOX = 145
-    MLB_YANKEES = 147
-    
-    # NHL Teams (add more as needed)
-    NHL_FLYERS = 4
-    
+
     @staticmethod
     def create_mlb_screamsheet(
         output_filename: str,
@@ -313,32 +278,6 @@ class ScreamsheetFactory:
         )
 
     @staticmethod
-    def create_players_tribune_screamsheet(
-        output_filename: str,
-        max_articles: int = 4,
-        include_weather: bool = True,
-        date: Optional[datetime] = None
-    ) -> PlayersTribuneScreamsheet:
-        """
-        Create a Players' Tribune news screamsheet.
-        
-        Args:
-            output_filename: Path to save the PDF
-            max_articles: Maximum number of articles (default: 4)
-            include_weather: Include weather report (default: True)
-            date: Target date (defaults to today)
-            
-        Returns:
-            PlayersTribuneScreamsheet instance
-        """
-        return PlayersTribuneScreamsheet(
-            output_filename=output_filename,
-            max_articles=max_articles,
-            include_weather=include_weather,
-            date=date
-        )
-
-    @staticmethod
     def create_french_mlb_news_screamsheet(
         output_filename: str,
         favorite_teams: Optional[List[str]] = None,
@@ -366,23 +305,6 @@ class ScreamsheetFactory:
             output_filename=output_filename,
             favorite_teams=favorite_teams,
             grok_api_key=grok_api_key,
-            date=date,
-        )
-
-    @staticmethod
-    def create_fangraphs_screamsheet(
-        output_filename: str,
-        max_articles: int = 4,
-        include_weather: bool = True,
-        date: Optional[datetime] = None,
-    ) -> FanGraphsScreamsheet:
-        """
-        Create a FanGraphs Blogs news screamsheet.
-        """
-        return FanGraphsScreamsheet(
-            output_filename=output_filename,
-            max_articles=max_articles,
-            include_weather=include_weather,
             date=date,
         )
 
@@ -481,3 +403,30 @@ class ScreamsheetFactory:
             date=date,
             people=people or [],
         )
+
+    @staticmethod
+    def create_home_run_derby_screamsheet(
+        output_filename: str,
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
+        game_pk: Optional[int] = None,
+    ) -> HomeRunDerbyScreamsheet:
+        """
+        Create an MLB Home Run Derby PDF screamsheet.
+        
+        Args:
+            output_filename: Path to save the generated PDF
+            date: Target date of the event
+            display_date: Date shown in the header
+            game_pk: Optional explicit MLB API event ID
+            
+        Returns:
+            HomeRunDerbyScreamsheet instance
+        """
+        return HomeRunDerbyScreamsheet(
+            output_filename=output_filename,
+            date=date,
+            display_date=display_date,
+            game_pk=game_pk,
+        )
+

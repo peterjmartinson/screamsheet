@@ -15,6 +15,8 @@ from .allstar_renderers import (
     AllStarGameSummarySection,
     AllStarSideBySideBoxScoreSection,
 )
+from .derby_markdown import format_derby_markdown
+from .derby_section import HomeRunDerbySection
 
 __all__ = [
     'GameScoresSection',
@@ -31,4 +33,6 @@ __all__ = [
     'AllStarGameScoresSection',
     'AllStarGameSummarySection',
     'AllStarSideBySideBoxScoreSection',
+    'format_derby_markdown',
+    'HomeRunDerbySection',
 ]

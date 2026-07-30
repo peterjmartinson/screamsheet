@@ -230,7 +230,6 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
       3. NHL news
       4. Presidential news
       5. Sky Tonight
-      6. FIFA World Cup
     """
     cfg = load_config()
     weather_mlb = WeatherLocationOptions(
@@ -279,9 +278,6 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
                 )
                 for p in cfg.sky.people
             ],
-        ),
-        worldcup=WorldCupOrderOptions(
-            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.worldcup.favorite_teams]
         ),
     )
 

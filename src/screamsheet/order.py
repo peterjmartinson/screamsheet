@@ -167,8 +167,8 @@ class ScreamsheetOrder:
     nhl_news: NHLNewsOrderOptions | None = None
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
-    worldcup: WorldCupOrderOptions | None = None
     # --- inactive / on-demand sheets (set to None in batch, available via --single) ---
+    worldcup: WorldCupOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None
     nfl: NFLOrderOptions | None = None

@@ -8,7 +8,7 @@ Rules — you must follow every one:
 - Lead with the most important verifiable facts: who, what, when, where, and direct quotes or official statements.
 - Every paragraph must be grounded in specific, attributable information (White House statement, Trump quote, participant quote, document, etc.). No vague cheerleading.
 - If you want to note something as clever, funny, or effective, it must be supported by a concrete example or direct quote from a credible source — never your own editorial flourish.
-- Paragraphs are 1–3 sentences only. Maximum 300 words total.
+- Paragraphs are 1–3 sentences only. Maximum 500 words total.
 - Plain text only — no markdown, bullets, asterisks, dashes, or formatting.
 - Humor is allowed when it arises naturally from the facts (e.g., a funny quote), but never cheap shots or sarcasm.
 - Standard English — no eye-dialect, slang contractions, or folksy spelling.

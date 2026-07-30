@@ -52,9 +52,11 @@ def _options_summary_entry(field_name: str, options: Any) -> list[str]:
     """Extract a human-readable summary list from a sheet options object."""
     if field_name in ("nhl", "mlb", "nba", "nfl"):
         return [t.name for t in getattr(options, "favorite_teams", [])]
-    if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "presidential"):
+    if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "french_mlb_news", "presidential"):
         weather = getattr(options, "weather", None)
-        return [weather.location_name] if weather else []
+        if weather:
+            return [weather.location_name]
+        return getattr(options, "news_names", [])
     return []
 
 

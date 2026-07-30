@@ -227,9 +227,10 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
     Batch sheets (in run order):
       1. MLB scores
       2. MLB news
-      3. NHL news
-      4. Presidential news
-      5. Sky Tonight
+      3. French MLB news
+      4. NHL news
+      5. Presidential news
+      6. Sky Tonight
     """
     cfg = load_config()
     weather_mlb = WeatherLocationOptions(
@@ -256,6 +257,9 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         mlb_news=MLBNewsOrderOptions(
             news_names=cfg.mlb.news_names,
             weather=weather_mlb,
+        ),
+        french_mlb_news=FrenchMLBNewsOrderOptions(
+            news_names=cfg.french_mlb.news_names,
         ),
         nhl_news=NHLNewsOrderOptions(
             news_names=cfg.nhl.news_names,

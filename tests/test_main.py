@@ -91,3 +91,21 @@ class TestRunSheet:
 
         assert (cli_dir / "sheet.pdf").exists()
         assert not (config_dir / "sheet.pdf").exists()
+
+
+class TestBuildOrderFromConfig:
+    def test_worldcup_not_in_batch_order(self):
+        from datetime import datetime
+        from screamsheet.__main__ import _build_order_from_config
+
+        order = _build_order_from_config(datetime(2026, 7, 29))
+        assert order.worldcup is None
+
+    def test_french_mlb_news_in_batch_order(self):
+        from datetime import datetime
+        from screamsheet.__main__ import _build_order_from_config
+
+        order = _build_order_from_config(datetime(2026, 7, 29))
+        assert order.french_mlb_news is not None
+        assert isinstance(order.french_mlb_news.news_names, list)
+

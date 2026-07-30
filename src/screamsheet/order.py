@@ -164,16 +164,16 @@ class ScreamsheetOrder:
     # --- active batch sheets (generated in this order) ---
     mlb: MLBOrderOptions | None = None
     mlb_news: MLBNewsOrderOptions | None = None
+    french_mlb_news: FrenchMLBNewsOrderOptions | None = None
     nhl_news: NHLNewsOrderOptions | None = None
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
-    worldcup: WorldCupOrderOptions | None = None
     # --- inactive / on-demand sheets (set to None in batch, available via --single) ---
+    worldcup: WorldCupOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
-    french_mlb_news: FrenchMLBNewsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None
 
 

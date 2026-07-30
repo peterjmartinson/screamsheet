@@ -78,6 +78,19 @@ class TestRunOrder:
         mock_nhl_news.assert_called_once()
         mock_nhl.assert_not_called()
 
+    def test_french_mlb_news_order_calls_french_mlb_news_handler(self) -> None:
+        from screamsheet.order import FrenchMLBNewsOrderOptions
+        order = ScreamsheetOrder(
+            french_mlb_news=FrenchMLBNewsOrderOptions(news_names=["Phillies"])
+        )
+        mock_french_mlb_news = MagicMock(return_value="/tmp/french_mlb_news.pdf")
+        mock_nhl = MagicMock(return_value="/tmp/nhl.pdf")
+        with patch("screamsheet.runner._REGISTRY", {"french_mlb_news": mock_french_mlb_news, "nhl": mock_nhl}):
+            result = run_order(order, today=_TODAY)
+        assert isinstance(result, ScreamsheetResult)
+        mock_french_mlb_news.assert_called_once()
+        mock_nhl.assert_not_called()
+
     def test_no_sheet_keys_produces_zero_handler_calls(self) -> None:
         order = ScreamsheetOrder(output=OutputOrderOptions(directory="/tmp"))
         mock_handler = MagicMock(return_value="/tmp/sheet.pdf")

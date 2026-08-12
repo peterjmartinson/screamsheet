@@ -293,3 +293,53 @@ class TestComputePlanetPositionsSidereal:
 
         sun_entry = next(p for p in planets if p["name"] == "Sun")
         assert sun_entry["zodiac"] == "Gemini"
+
+
+# ---------------------------------------------------------------------------
+# Issue 104: Astronomy Pipeline Enhancements
+# ---------------------------------------------------------------------------
+
+class TestIssue104SkyEnhancements:
+    def test_azimuth_to_compass_cardinal_points(self) -> None:
+        assert SkyDataProvider._azimuth_to_compass(0.0) == "North"
+        assert SkyDataProvider._azimuth_to_compass(45.0) == "North-East"
+        assert SkyDataProvider._azimuth_to_compass(90.0) == "East"
+        assert SkyDataProvider._azimuth_to_compass(135.0) == "South-East"
+        assert SkyDataProvider._azimuth_to_compass(180.0) == "South"
+        assert SkyDataProvider._azimuth_to_compass(225.0) == "South-West"
+        assert SkyDataProvider._azimuth_to_compass(270.0) == "West"
+        assert SkyDataProvider._azimuth_to_compass(315.0) == "North-West"
+
+    def test_altitude_to_sector_categories(self) -> None:
+        assert "low" in SkyDataProvider._altitude_to_sector(15.0, "East")
+        assert "mid-sky" in SkyDataProvider._altitude_to_sector(45.0, "East")
+        assert "high" in SkyDataProvider._altitude_to_sector(75.0, "North")
+
+    def test_get_detailed_constellations_returns_list(self) -> None:
+        provider = SkyDataProvider(lat=40.0, lon=-75.0, location_name="Test")
+        result = provider.get_detailed_constellations(datetime(2026, 4, 23))
+        assert isinstance(result, list)
+
+    def test_get_visible_messier_objects_returns_list(self) -> None:
+        provider = SkyDataProvider(lat=40.0, lon=-75.0, location_name="Test")
+        result = provider.get_visible_messier_objects(datetime(2026, 4, 23))
+        assert isinstance(result, list)
+
+    def test_get_dark_sky_window_returns_string(self) -> None:
+        provider = SkyDataProvider(lat=40.0, lon=-75.0, location_name="Test")
+        window = provider.get_dark_sky_window(datetime(2026, 4, 23))
+        assert isinstance(window, str) and len(window) > 0
+
+    def test_get_planet_brightness_returns_list(self) -> None:
+        provider = SkyDataProvider(lat=40.0, lon=-75.0, location_name="Test")
+        pheno = provider.get_planet_brightness_and_elongation(datetime(2026, 4, 23))
+        assert isinstance(pheno, list)
+
+    def test_get_sky_data_contains_issue_104_keys(self) -> None:
+        provider = SkyDataProvider(lat=40.0, lon=-75.0, location_name="Test")
+        data = provider.get_sky_data(datetime(2026, 4, 23))
+        assert "constellation_details" in data
+        assert "messier_objects" in data
+        assert "dark_sky_window" in data
+        assert "planet_pheno" in data
+

@@ -24,11 +24,18 @@ from .config import LLMConfig, DEFAULT_LLM_CONFIG
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
+class SafeDict(dict):
+    """Dict subclass that leaves missing keys as literal '{key}' placeholders during str.format_map."""
+
+    def __missing__(self, key: str) -> str:
+        return f"{{{key}}}"
+
+
 class FilePromptMixin:
     """
     Mixin that loads ``_build_llm_prompt`` from a versioned ``.txt`` file.
 
-    The prompt file lives at ``llm/prompts/<_PROMPT_FILE>``.  Any ``{key}``
+    The prompt file lives at ``llm/prompts/<_PROMPT_FILE>``. Any ``{key}``
     placeholders in the file are filled via ``str.format_map(data)``.
     Keys that are absent from *data* are left as literals so the prompt
     doesn't crash on partially-populated inputs.
@@ -38,11 +45,7 @@ class FilePromptMixin:
 
     def _build_llm_prompt(self, data: ExtractedInfo) -> str:
         template = (_PROMPTS_DIR / self._PROMPT_FILE).read_text(encoding="utf-8")
-        try:
-            return template.format_map(data)
-        except KeyError:
-            # Fallback: return the raw template (missing keys stay as {key})
-            return template
+        return template.format_map(SafeDict(data))
 
 
 # ---------------------------------------------------------------------------

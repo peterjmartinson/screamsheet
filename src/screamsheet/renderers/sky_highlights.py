@@ -108,11 +108,24 @@ class SkyHighlightsSection(Section):
                 grok_api_key=grok_key,
                 config=DEFAULT_LLM_CONFIG,
             )
-            planets_str = ", ".join(
-                f"{p['name']} in {p['zodiac']}"
-                for p in sky.get("planets", [])
-                if p.get("name") not in {"Uranus", "Neptune"}
+            pheno_map = {p["name"]: p for p in sky.get("planet_pheno", [])}
+            planet_parts: List[str] = []
+            for p in sky.get("planets", []):
+                if p.get("name") not in {"Uranus", "Neptune"}:
+                    ph = pheno_map.get(p["name"])
+                    mag_info = f" (mag {ph['magnitude']:.1f})" if ph else ""
+                    planet_parts.append(f"{p['name']} in {p['zodiac']}{mag_info}")
+            planets_str = ", ".join(planet_parts)
+
+            const_str = ", ".join(
+                c.get("description", c.get("name", ""))
+                for c in sky.get("constellation_details", [])[:4]
             )
+            messier_str = "; ".join(
+                m.get("formatted", "") for m in sky.get("messier_objects", [])
+            )
+            dark_sky = sky.get("dark_sky_window", "")
+
             llm_choice = "gemini" if gemini_key else "grok"
             result = summarizer.generate_summary(
                 llm_choice=llm_choice,
@@ -120,6 +133,9 @@ class SkyHighlightsSection(Section):
                     "planets": planets_str,
                     "moon_phase": sky.get("moon_phase", ""),
                     "highlights": "\n".join(sky.get("highlights", [])),
+                    "constellations": const_str,
+                    "messier_objects": messier_str,
+                    "dark_sky_window": dark_sky,
                     "location": self.location_name,
                     "date": self.date.strftime("%B %d, %Y"),
                 },

@@ -386,3 +386,38 @@ class TestFindTransitHits:
     def test_returns_empty_list_for_no_planets(self) -> None:
         hits = AstroDataProvider._find_transit_hits([], [], orb=3.0)
         assert hits == []
+
+
+# ---------------------------------------------------------------------------
+# Issue 104: Retrogrades, Ingresses, Eclipses, and Aspect Formatting
+# ---------------------------------------------------------------------------
+
+class TestIssue104AstroEnhancements:
+    def test_planet_longitudes_includes_motion_status(self) -> None:
+        planets = _PROVIDER.get_planet_longitudes(_DATE)
+        for p in planets:
+            assert "speed_lon" in p
+            assert "is_retrograde" in p
+            assert "is_stationary" in p
+            assert p["motion_status"] in {"Direct", "Retrograde", "Stationary Direct", "Stationary Retrograde"}
+
+    def test_aspects_includes_formatted_string(self) -> None:
+        aspects = _PROVIDER.get_aspects(_DATE)
+        for a in aspects:
+            assert "formatted" in a
+            assert "Aspect:" in a["formatted"]
+
+    def test_get_sign_ingresses_returns_list(self) -> None:
+        ingresses = _PROVIDER.get_sign_ingresses(_DATE)
+        assert isinstance(ingresses, list)
+
+    def test_get_astrological_eclipses_returns_list(self) -> None:
+        eclipses = _PROVIDER.get_astrological_eclipses(_DATE)
+        assert isinstance(eclipses, list)
+
+    def test_get_horoscope_data_contains_issue_104_keys(self) -> None:
+        data = _PROVIDER.get_horoscope_data(_DATE)
+        assert "ingresses" in data
+        assert "eclipses" in data
+        assert "retrogrades" in data
+

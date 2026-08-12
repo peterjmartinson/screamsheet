@@ -137,7 +137,7 @@ class AstroDataProvider(DataProvider):
             planets: List of dicts with at least ``name`` and ``ecliptic_lon`` keys.
 
         Returns:
-            List of dicts with keys ``planet_a``, ``planet_b``, ``aspect``, ``orb``.
+            List of dicts with keys ``planet_a``, ``planet_b``, ``aspect``, ``orb``, ``formatted``.
         """
         results: List[Dict[str, Any]] = []
         for i in range(len(planets)):
@@ -150,12 +150,14 @@ class AstroDataProvider(DataProvider):
                 for angle, orb, name in _ASPECTS:
                     separation = abs(diff - angle)
                     if separation <= orb:
+                        orb_val = round(separation, 2)
                         results.append(
                             {
                                 "planet_a": pa["name"],
                                 "planet_b": pb["name"],
                                 "aspect": name,
-                                "orb": round(separation, 2),
+                                "orb": orb_val,
+                                "formatted": f"Aspect: {pa['name']} {name} {pb['name']} (diff {orb_val:.1f}°)",
                             }
                         )
                         break  # Each pair gets at most one aspect
@@ -244,13 +246,14 @@ class AstroDataProvider(DataProvider):
     # ------------------------------------------------------------------
 
     def get_planet_longitudes(self, date: datetime) -> List[Dict[str, Any]]:
-        """Return tropical ecliptic longitudes for all 9 modern planets.
+        """Return tropical ecliptic longitudes and motion parameters for all 9 planets.
 
         Uses the Moshier built-in ephemeris (``swe.FLG_MOSEPH``).
 
         Returns:
             List of dicts with keys: ``name``, ``ecliptic_lon``, ``zodiac``,
-            ``two_letter``.
+            ``two_letter``, ``speed_lon``, ``is_retrograde``, ``is_stationary``,
+            ``motion_status``.
         """
         jd = self._get_julian_day(date)
         flags = swe.FLG_MOSEPH  # Moshier built-in — no data files needed
@@ -258,15 +261,116 @@ class AstroDataProvider(DataProvider):
         for name, planet_id in _PLANET_IDS.items():
             result, _ = swe.calc_ut(jd, planet_id, flags)
             lon_deg = float(result[0])
+            speed_lon = float(result[3])
+            is_retrograde = speed_lon < 0.0
+            is_stationary = abs(speed_lon) < 0.005
+
+            if is_stationary:
+                motion_status = "Stationary Retrograde" if is_retrograde else "Stationary Direct"
+            elif is_retrograde:
+                motion_status = "Retrograde"
+            else:
+                motion_status = "Direct"
+
             planets.append(
                 {
                     "name": name,
                     "ecliptic_lon": lon_deg,
                     "zodiac": self._ecliptic_lon_to_zodiac(lon_deg),
                     "two_letter": _PLANET_TWO_LETTER[name],
+                    "speed_lon": speed_lon,
+                    "is_retrograde": is_retrograde,
+                    "is_stationary": is_stationary,
+                    "motion_status": motion_status,
                 }
             )
         return planets
+
+    def get_sign_ingresses(self, date: datetime) -> List[Dict[str, Any]]:
+        """Detect zodiac sign boundary crossings between target date and preceding day."""
+        jd_today = self._get_julian_day(date)
+        jd_prev = jd_today - 1.0
+        flags = swe.FLG_MOSEPH
+        ingresses: List[Dict[str, Any]] = []
+
+        for name, planet_id in _PLANET_IDS.items():
+            res_prev, _ = swe.calc_ut(jd_prev, planet_id, flags)
+            res_today, _ = swe.calc_ut(jd_today, planet_id, flags)
+            lon_prev = float(res_prev[0])
+            lon_today = float(res_today[0])
+            sign_prev = self._ecliptic_lon_to_zodiac(lon_prev)
+            sign_today = self._ecliptic_lon_to_zodiac(lon_today)
+
+            if sign_prev != sign_today:
+                jd_lo, jd_hi = jd_prev, jd_today
+                for _ in range(10):
+                    jd_mid = (jd_lo + jd_hi) / 2.0
+                    res_mid, _ = swe.calc_ut(jd_mid, planet_id, flags)
+                    if self._ecliptic_lon_to_zodiac(float(res_mid[0])) == sign_prev:
+                        jd_lo = jd_mid
+                    else:
+                        jd_hi = jd_mid
+
+                crossing_jd = (jd_lo + jd_hi) / 2.0
+                hour_utc = (crossing_jd + 0.5 - math.floor(crossing_jd + 0.5)) * 24.0
+                h = int(hour_utc)
+                m = int((hour_utc - h) * 60)
+                ingresses.append(
+                    {
+                        "planet": name,
+                        "from_sign": sign_prev,
+                        "to_sign": sign_today,
+                        "time_utc": f"{h:02d}:{m:02d} UTC",
+                        "formatted": f"{name} enters {sign_today} today at {h:02d}:{m:02d} UTC",
+                    }
+                )
+        return ingresses
+
+    def get_astrological_eclipses(self, date: datetime, window_days: int = 7) -> List[Dict[str, Any]]:
+        """Find lunar and global solar eclipses within +/- window_days of date."""
+        jd = self._get_julian_day(date)
+        jd_start = jd - window_days
+        eclipses: List[Dict[str, Any]] = []
+
+        try:
+            res = swe.lun_eclipse_when(jd_start)
+            if res and len(res) >= 2:
+                tret = res[1]
+                e_jd = float(tret[0])
+                if abs(e_jd - jd) <= window_days:
+                    diff = round(e_jd - jd)
+                    timing = "today" if diff == 0 else (f"in {diff} days" if diff > 0 else f"{abs(diff)} days ago")
+                    eclipses.append(
+                        {
+                            "type": "Lunar Eclipse",
+                            "jd": e_jd,
+                            "days_diff": diff,
+                            "formatted": f"Upcoming Lunar Eclipse ({timing})",
+                        }
+                    )
+        except Exception:
+            pass
+
+        try:
+            res = swe.sol_eclipse_when_glob(jd_start)
+            if res and len(res) >= 2:
+                tret = res[1]
+                e_jd = float(tret[0])
+                if abs(e_jd - jd) <= window_days:
+                    diff = round(e_jd - jd)
+                    timing = "today" if diff == 0 else (f"in {diff} days" if diff > 0 else f"{abs(diff)} days ago")
+                    eclipses.append(
+                        {
+                            "type": "Solar Eclipse",
+                            "jd": e_jd,
+                            "days_diff": diff,
+                            "formatted": f"Upcoming Solar Eclipse ({timing})",
+                        }
+                    )
+        except Exception:
+            pass
+
+        return eclipses
 
     def get_natal_positions(self, birth_date: str, birth_time: str) -> List[Dict[str, Any]]:
         """Compute tropical ecliptic positions for a birth chart.
@@ -287,11 +391,26 @@ class AstroDataProvider(DataProvider):
         for name, planet_id in _PLANET_IDS.items():
             result, _ = swe.calc_ut(jd, planet_id, flags)
             lon_deg = float(result[0])
+            speed_lon = float(result[3])
+            is_retrograde = speed_lon < 0.0
+            is_stationary = abs(speed_lon) < 0.005
+
+            if is_stationary:
+                motion_status = "Stationary Retrograde" if is_retrograde else "Stationary Direct"
+            elif is_retrograde:
+                motion_status = "Retrograde"
+            else:
+                motion_status = "Direct"
+
             planets.append({
                 "name": name,
                 "ecliptic_lon": lon_deg,
                 "zodiac": self._ecliptic_lon_to_zodiac(lon_deg),
                 "two_letter": _PLANET_TWO_LETTER[name],
+                "speed_lon": speed_lon,
+                "is_retrograde": is_retrograde,
+                "is_stationary": is_stationary,
+                "motion_status": motion_status,
             })
         return planets
 
@@ -316,17 +435,27 @@ class AstroDataProvider(DataProvider):
 
         Returns:
             Dict with keys:
-                ``planets``    — List[Dict] from :meth:`get_planet_longitudes`
-                ``aspects``    — List[Dict] from :meth:`get_aspects`
-                ``moon_phase`` — str from :meth:`get_moon_phase`
+                ``planets``     — List[Dict] from :meth:`get_planet_longitudes`
+                ``aspects``     — List[Dict] from :meth:`get_aspects`
+                ``moon_phase``  — str from :meth:`get_moon_phase`
+                ``ingresses``   — List[Dict] from :meth:`get_sign_ingresses`
+                ``eclipses``    — List[Dict] from :meth:`get_astrological_eclipses`
+                ``retrogrades`` — List[Dict] retrograde/stationary planets
         """
         planets = self.get_planet_longitudes(date)
         aspects = self._compute_aspects(planets)
         moon_phase = self.get_moon_phase(date)
+        ingresses = self.get_sign_ingresses(date)
+        eclipses = self.get_astrological_eclipses(date)
+        retrogrades = [p for p in planets if p.get("is_retrograde") or p.get("is_stationary")]
+
         return {
             "planets": planets,
             "aspects": aspects,
             "moon_phase": moon_phase,
+            "ingresses": ingresses,
+            "eclipses": eclipses,
+            "retrogrades": retrogrades,
         }
 
     # ------------------------------------------------------------------
@@ -353,3 +482,4 @@ class AstroDataProvider(DataProvider):
             return "Last Quarter"
         else:
             return "Waning Crescent"
+

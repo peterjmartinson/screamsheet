@@ -174,6 +174,8 @@ class SkyHoroscopeSection(Section):
             transit_source: List[Dict[str, Any]] = astro["planets"] if astro else sky.get("planets", [])
             aspects_list: List[Dict[str, Any]] = astro["aspects"] if astro else []
             moon_phase: str = astro["moon_phase"] if astro else sky.get("moon_phase", "")
+            ingresses: List[Dict[str, Any]] = astro.get("ingresses", []) if astro else []
+            eclipses: List[Dict[str, Any]] = astro.get("eclipses", []) if astro else []
 
             # Enrich each transit planet with whole-sign house + dignity.
             house_map = AstroDataProvider.get_whole_sign_houses(person.ascendant) if person.ascendant else {}
@@ -205,16 +207,17 @@ class SkyHoroscopeSection(Section):
             # Build current_sky block.
             planet_lines: List[str] = []
             for p in transit_enriched:
+                motion_str = f" ({p['motion_status']})" if p.get("motion_status") and p["motion_status"] != "Direct" else ""
                 if p.get("house_number"):
                     planet_lines.append(
-                        f"- {p['name']} in {p['zodiac']} "
+                        f"- {p['name']}{motion_str} in {p['zodiac']} "
                         f"(House {p['house_number']}: {p['house_meaning']}) [{p['dignity']}]"
                     )
                 else:
-                    planet_lines.append(f"- {p['name']} in {p['zodiac']} [{p['dignity']}]")
+                    planet_lines.append(f"- {p['name']}{motion_str} in {p['zodiac']} [{p['dignity']}]")
 
             aspects_str = ", ".join(
-                f"{a['planet_a']} {a['aspect']} {a['planet_b']}" for a in aspects_list
+                a.get("formatted", f"{a['planet_a']} {a['aspect']} {a['planet_b']} (orb {a['orb']}°)") for a in aspects_list
             ) or "None"
 
             hits_str = "\n".join(
@@ -222,9 +225,14 @@ class SkyHoroscopeSection(Section):
                 for h in hits
             ) or "None"
 
+            ingresses_str = "\n".join(f"- {i['formatted']}" for i in ingresses) if ingresses else "None"
+            eclipses_str = "\n".join(f"- {e['formatted']}" for e in eclipses) if eclipses else "None"
+
             current_sky = (
                 "Transit planets:\n" + "\n".join(planet_lines) + "\n\n"
                 f"Key aspects: {aspects_str}\n\n"
+                f"Sign ingresses today:\n{ingresses_str}\n\n"
+                f"Astrological eclipses:\n{eclipses_str}\n\n"
                 f"Hits (transit conjunct natal, orb ≤3°):\n{hits_str}\n\n"
                 f"Moon phase: {moon_phase}"
             )

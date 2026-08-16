@@ -94,6 +94,12 @@ class TestRunSheet:
 
 
 class TestBuildOrderFromConfig:
+    @pytest.fixture(autouse=True)
+    def mock_config(self, monkeypatch):
+        from screamsheet.config import load_config
+        example_path = Path(__file__).parents[1] / "config.yaml.example"
+        monkeypatch.setattr("screamsheet.__main__.load_config", lambda: load_config(example_path))
+
     def test_worldcup_not_in_batch_order(self):
         from datetime import datetime
         from screamsheet.__main__ import _build_order_from_config

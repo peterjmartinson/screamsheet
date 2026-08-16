@@ -115,3 +115,16 @@ class TestBuildOrderFromConfig:
         assert order.french_mlb_news is not None
         assert isinstance(order.french_mlb_news.news_names, list)
 
+
+class TestMainMissingConfig:
+    def test_main_exits_gracefully_when_config_missing(self, monkeypatch, capsys):
+        from screamsheet.__main__ import main
+        monkeypatch.setattr("screamsheet.__main__.load_config", MagicMock(side_effect=FileNotFoundError("Config file not found")))
+        monkeypatch.setattr("sys.argv", ["screamsheet"])
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert "config.yaml" in captured.out or "config.yaml" in captured.err
+

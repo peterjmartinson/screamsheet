@@ -27,10 +27,10 @@ class NFLDataProvider(DataProvider):
     
     def get_game_scores(self, date: datetime = None) -> list:
         """
-        Get NFL game scores for the current week.
+        Get NFL game scores for the current (or requested) week.
         
         Note: NFL games are organized by week, not by specific date.
-        The date parameter is used only to determine the season/week.
+        The date parameter is used to determine the season/week.
         
         Args:
             date: The date (used to determine week)
@@ -38,14 +38,16 @@ class NFLDataProvider(DataProvider):
         Returns:
             List of game score dictionaries
         """
-        if self.current_week is None:
+        week_info = self._get_current_week(date) if date else self.current_week
+        if week_info is None:
             return []
         
         return self._get_weekly_scores(
             self.current_season,
-            self.current_week,
+            week_info,
             previous_week=False
         )
+
     
     def get_standings(self) -> pd.DataFrame:
         """
@@ -208,11 +210,17 @@ class NFLDataProvider(DataProvider):
             # September onwards - current year's season
             return this_year
     
-    def _get_current_week(self) -> Optional[Dict]:
-        """Get information about the current NFL week."""
+    def _get_current_week(self, date: Optional[datetime] = None) -> Optional[Dict]:
+        """Get information about the NFL week for a given date (or now)."""
         season = self.current_season
-        url = f"{self.base_url}/scoreboard?dates={season}&seasontype=2"
-        now = datetime.now(timezone.utc)
+        url = f"{self.base_url}/scoreboard?dates={season}"
+        if date:
+            if date.tzinfo is None:
+                target_dt = date.replace(tzinfo=timezone.utc)
+            else:
+                target_dt = date
+        else:
+            target_dt = datetime.now(timezone.utc)
         
         week_info = {
             "SeasonName": "",
@@ -230,23 +238,24 @@ class NFLDataProvider(DataProvider):
             print(f"Error fetching scoreboard data: {e}")
             return None
         
-        calendar = data["leagues"][0]["calendar"]
+        calendar = data.get("leagues", [{}])[0].get("calendar", [])
         
         for period in calendar:
             start_date = datetime.fromisoformat(period["startDate"].replace('Z', '+00:00'))
             end_date = datetime.fromisoformat(period["endDate"].replace('Z', '+00:00'))
-            if start_date <= now <= end_date:
-                week_info["SeasonName"] = period["label"]
-                week_info["SeasonValue"] = period["value"]
-                for week in period["entries"]:
+            if start_date <= target_dt <= end_date:
+                week_info["SeasonName"] = period.get("label", "")
+                week_info["SeasonValue"] = int(period.get("value", 0))
+                for week in period.get("entries", []):
                     week_start = datetime.fromisoformat(week["startDate"].replace('Z', '+00:00'))
                     week_end = datetime.fromisoformat(week["endDate"].replace('Z', '+00:00'))
-                    if week_start <= now <= week_end:
-                        week_info["WeekName"] = week["label"]
-                        week_info["WeekDetail"] = week["detail"]
-                        week_info["WeekValue"] = week["value"]
+                    if week_start <= target_dt <= week_end:
+                        week_info["WeekName"] = week.get("label", "")
+                        week_info["WeekDetail"] = week.get("detail", "")
+                        week_info["WeekValue"] = int(week.get("value", 0))
         
         return week_info if week_info["WeekValue"] != 0 else None
+
     
     def _get_weekly_scores(
         self,
@@ -302,3 +311,77 @@ class NFLDataProvider(DataProvider):
                     games.append(game_info)
         
         return games
+
+    def get_game_summary(self, team_id: int, date: Optional[datetime] = None) -> Dict[str, Any]:
+        """
+        Get game summary and leaders for a specific team.
+        """
+        from .parsers.nfl_parsers import extract_game_summary
+        
+        # 1. Find the game/event ID for the team in scores for that date/week
+        event_id = None
+        week_info = self._get_current_week(date) if date else self.current_week
+        if week_info:
+            scores = self._get_weekly_scores(self.current_season, week_info)
+            # Find matching team in scores
+            team_lookup = self._get_team_name_lookup()
+            team_name = team_lookup.get(team_id, "")
+            for g in scores:
+                if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
+                    event_id = g.get("gameId")
+                    break
+
+        
+        if not event_id:
+            return {"team_totals": {}, "scoring_drives": [], "leaders": {"passing": [], "rushing": [], "receiving": []}}
+
+        url = f"{self.base_url}/summary?event={event_id}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return extract_game_summary(data, favorite_team_id=team_id)
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching game summary for event {event_id}: {e}")
+            return {"team_totals": {}, "scoring_drives": [], "leaders": {"passing": [], "rushing": [], "receiving": []}}
+
+    def get_injuries(self, team_id: int) -> list:
+        """
+        Get injury report for a specific team.
+        """
+        from .parsers.nfl_parsers import extract_injuries
+        url = f"{self.base_url}/teams/{team_id}/injuries"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return extract_injuries(data)
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching injuries for team {team_id}: {e}")
+            return []
+
+    def has_game(self, team_id: int, date: Optional[datetime] = None) -> bool:
+        """Check if team played in the current week."""
+        team_lookup = self._get_team_name_lookup()
+        team_name = team_lookup.get(team_id, "")
+        scores = self.get_game_scores(date)
+        for g in scores:
+            if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
+                return True
+        return False
+
+    def get_all_teams_for_date(self, date: Optional[datetime] = None) -> List[tuple]:
+        """Get all teams that played games for the date/week."""
+        scores = self.get_game_scores(date)
+        team_lookup = self._get_team_name_lookup()
+        # reverse map
+        name_to_id = {v: k for k, v in team_lookup.items()}
+        teams = []
+        for g in scores:
+            h_name = g.get("home_team")
+            a_name = g.get("away_team")
+            if h_name:
+                teams.append((name_to_id.get(h_name, 0), h_name))
+            if a_name:
+                teams.append((name_to_id.get(a_name, 0), a_name))
+        return list(set(teams))

@@ -139,6 +139,15 @@ class TestRunOrder:
         result = run_order(order, today=_TODAY, subscriber_name="Peter Martinson")
         assert result.subscriber_name == "Peter Martinson"
 
+    def test_subscriber_name_is_logged(self, caplog) -> None:
+        import logging
+
+        order = ScreamsheetOrder()
+        with caplog.at_level(logging.INFO, logger="screamsheet.runner"):
+            run_order(order, today=_TODAY, subscriber_name="Asher Martinson")
+
+        assert any("Generating screamsheets for subscriber Asher Martinson" in r.message for r in caplog.records)
+
 
 class TestPersonOptions:
     def test_birth_fields_default_to_empty_strings(self) -> None:

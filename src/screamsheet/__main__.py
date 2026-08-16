@@ -10,6 +10,7 @@ Usage:
 import argparse
 import logging
 import shutil
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from .config import load_config
@@ -360,31 +361,36 @@ def main():
     except FileNotFoundError:
         pass  # config.yaml missing — env var / platform default will be used
 
-    if args.single:
-        sheets, output_dir = _build_sheets(today_str)
-        if args.output_dir:
-            output_dir = args.output_dir
-        if isinstance(args.single, str):
-            query = args.single.lower().replace("-", "_").replace(" ", "_")
-            chosen = None
-            for label, factory_fn in sheets:
-                label_norm = label.lower().replace("-", "_").replace(" ", "_")
-                if query in label_norm or (query == "mlb_allstar" and "all_star" in label_norm):
-                    chosen = (label, factory_fn)
-                    break
-            if chosen:
-                print(f"\nRunning selected screamsheet: {chosen[0]}\n")
-                _run_sheet(chosen[0], chosen[1], output_dir)
+    try:
+        if args.single:
+            sheets, output_dir = _build_sheets(today_str)
+            if args.output_dir:
+                output_dir = args.output_dir
+            if isinstance(args.single, str):
+                query = args.single.lower().replace("-", "_").replace(" ", "_")
+                chosen = None
+                for label, factory_fn in sheets:
+                    label_norm = label.lower().replace("-", "_").replace(" ", "_")
+                    if query in label_norm or (query == "mlb_allstar" and "all_star" in label_norm):
+                        chosen = (label, factory_fn)
+                        break
+                if chosen:
+                    print(f"\nRunning selected screamsheet: {chosen[0]}\n")
+                    _run_sheet(chosen[0], chosen[1], output_dir)
+                else:
+                    print(f"\nNo screamsheet matched '{args.single}'. Opening interactive selection...")
+                    _pick_and_run(sheets, output_dir)
             else:
-                print(f"\nNo screamsheet matched '{args.single}'. Opening interactive selection...")
                 _pick_and_run(sheets, output_dir)
         else:
-            _pick_and_run(sheets, output_dir)
-    else:
-        order = _build_order_from_config(today)
-        if args.output_dir:
-            order.output = OutputOrderOptions(directory=args.output_dir)
-        run_order(order, today=today)
+            order = _build_order_from_config(today)
+            if args.output_dir:
+                order.output = OutputOrderOptions(directory=args.output_dir)
+            run_order(order, today=today)
+    except FileNotFoundError as err:
+        logging.getLogger(__name__).info("config.yaml not found: %s", err)
+        print(f"[info] config.yaml not found ({err}). Exiting gracefully.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

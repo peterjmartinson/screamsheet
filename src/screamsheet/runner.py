@@ -280,6 +280,9 @@ def run_order(
 
     result = ScreamsheetResult(subscriber_name=subscriber_name)
 
+    if subscriber_name:
+        logger.info("\nGenerating screamsheets for subscriber %s", subscriber_name)
+
     for f in dataclasses.fields(order):
         if f.name in _SKIP_FIELDS:
             continue

@@ -94,6 +94,12 @@ class TestRunSheet:
 
 
 class TestBuildOrderFromConfig:
+    @pytest.fixture(autouse=True)
+    def mock_config(self, monkeypatch):
+        from screamsheet.config import load_config
+        example_path = Path(__file__).parents[1] / "config.yaml.example"
+        monkeypatch.setattr("screamsheet.__main__.load_config", lambda: load_config(example_path))
+
     def test_worldcup_not_in_batch_order(self):
         from datetime import datetime
         from screamsheet.__main__ import _build_order_from_config
@@ -108,4 +114,17 @@ class TestBuildOrderFromConfig:
         order = _build_order_from_config(datetime(2026, 7, 29))
         assert order.french_mlb_news is not None
         assert isinstance(order.french_mlb_news.news_names, list)
+
+
+class TestMainMissingConfig:
+    def test_main_exits_gracefully_when_config_missing(self, monkeypatch, capsys):
+        from screamsheet.__main__ import main
+        monkeypatch.setattr("screamsheet.__main__.load_config", MagicMock(side_effect=FileNotFoundError("Config file not found")))
+        monkeypatch.setattr("sys.argv", ["screamsheet"])
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert "config.yaml" in captured.out or "config.yaml" in captured.err
 

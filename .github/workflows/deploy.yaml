@@ -42,10 +42,13 @@ jobs:
           cd "$RELEASE_DIR"
           uv sync --frozen
 
-          # 4. Set Permissions
+          # 4. Generate minimal config for branding
+          echo 'branding: "DISTRACTEDFORTUNE.COM"' > "$RELEASE_DIR/config.yaml"
+
+          # 5. Set Permissions
           chmod +x "$RELEASE_DIR/screamsheet.sh"
 
-          # 5. Atomic Switch
+          # 6. Atomic Switch
           ln -snf "$RELEASE_DIR" "$LIVE_PATH"
 
       - name: Cleanup Old Releases

@@ -501,3 +501,35 @@ class WorldCupGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+
+class NFLGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates an NFL game recap and drive breakdown.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``       str
+    - ``away_team``       str
+    - ``home_score``      int
+    - ``away_score``      int
+    - ``scoring_drives``  str
+    - ``team_totals``     str
+    - ``top_performers``  str
+    """
+
+    _PROMPT_FILE = Path("nfl_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+

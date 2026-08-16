@@ -17,6 +17,7 @@ from .allstar_renderers import (
 )
 from .derby_markdown import format_derby_markdown
 from .derby_section import HomeRunDerbySection
+from .nfl_injuries import NFLInjuriesSection
 
 __all__ = [
     'GameScoresSection',
@@ -35,4 +36,6 @@ __all__ = [
     'AllStarSideBySideBoxScoreSection',
     'format_derby_markdown',
     'HomeRunDerbySection',
+    'NFLInjuriesSection',
 ]
+

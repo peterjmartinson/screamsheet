@@ -24,7 +24,8 @@ Public API:
     init_db(sport, db_path)                        Create table if missing → Engine
     upsert_teams(sport, teams, db_path)            Bulk idempotent upsert → count
     upsert_team_aliases(sport, aliases, db_path)   Bulk idempotent alias upsert → count
-    seed_aliases(sport, db_path)                   Seed built-in team aliases → count
+    load_aliases_from_csv(csv_path, sport, db_path) Load aliases from user-editable CSV → count
+    seed_aliases(sport, db_path, csv_path)         Seed team aliases (checks CSV first) → count
     lookup_team_by_id(sport, team_id, db_path)     → dict | None
     lookup_team_by_abbrev(sport, abbrev, db_path)  → dict | None
     lookup_team_by_name(sport, fragment, db_path)  → list[dict]
@@ -36,6 +37,7 @@ Public API:
 
 from __future__ import annotations
 
+import csv
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +52,8 @@ from .team_aliases_data import ALL_SEEDS
 logger = logging.getLogger(__name__)
 
 Sport = Literal["nhl", "mlb", "nba", "nfl"]
+
+DEFAULT_CSV_PATH = Path(__file__).parent / "data" / "team_aliases.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +208,7 @@ def upsert_team_aliases(
         db_path: Path to the SQLite file.
 
     Returns:
-        Number of alias rows inserted.
+        Number of alias rows processed/upserted.
     """
     engine = _get_engine(db_path)
     count = 0
@@ -235,25 +239,113 @@ def upsert_team_aliases(
                         alias_type=alias_type,
                     )
                 )
-                count += 1
+            else:
+                if alias_type and existing.alias_type != alias_type:
+                    existing.alias_type = alias_type
+            count += 1
         session.commit()
-    logger.debug("upsert_team_aliases(%s): inserted %d rows", sport, count)
+    logger.debug("upsert_team_aliases(%s): processed %d rows", sport, count)
     return count
+
+
+def load_aliases_from_csv(
+    csv_path: Optional[Path] = None,
+    sport: Optional[Sport] = None,
+    db_path: Optional[Path] = None,
+) -> int:
+    """Load team aliases and base team records from a user-editable CSV file.
+
+    Columns: sport, team_id, full_name, abbrev, alias, alias_type.
+
+    Args:
+        csv_path: Path to the CSV file (defaults to src/screamsheet/db/data/team_aliases.csv).
+        sport:    Optional sport filter ("mlb", "nhl", "nba", "nfl").
+        db_path:  Path to SQLite DB file.
+
+    Returns:
+        Number of alias rows loaded/upserted.
+    """
+    path = csv_path or DEFAULT_CSV_PATH
+    if not path.exists():
+        logger.warning("Aliases CSV not found at %s", path)
+        return 0
+
+    init_db(sport, db_path)
+
+    teams_by_sport: dict[str, dict[int, dict]] = {}
+    aliases_by_sport: dict[str, list[dict]] = {}
+
+    with open(path, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            s = row.get("sport", "").strip().lower()
+            if not s or (sport and s != sport):
+                continue
+            if s not in _MODELS:
+                continue
+
+            try:
+                tid = int(row.get("team_id", 0))
+            except (ValueError, TypeError):
+                continue
+
+            full_name = row.get("full_name", "").strip()
+            abbrev = row.get("abbrev", "").strip()
+            alias = row.get("alias", "").strip()
+            alias_type = row.get("alias_type", "").strip()
+
+            if s not in teams_by_sport:
+                teams_by_sport[s] = {}
+                aliases_by_sport[s] = []
+
+            if full_name and tid not in teams_by_sport[s]:
+                teams_by_sport[s][tid] = {
+                    "team_id": tid,
+                    "full_name": full_name,
+                    "abbrev": abbrev,
+                }
+
+            if alias:
+                aliases_by_sport[s].append({
+                    "team_id": tid,
+                    "alias": alias,
+                    "alias_type": alias_type or "nickname",
+                })
+
+    total_aliases = 0
+    for s, teams_dict in teams_by_sport.items():
+        if teams_dict:
+            upsert_teams(s, list(teams_dict.values()), db_path)
+        if s in aliases_by_sport:
+            count = upsert_team_aliases(s, aliases_by_sport[s], db_path)
+            total_aliases += count
+
+    logger.info("Loaded %d team aliases from %s", total_aliases, path)
+    return total_aliases
 
 
 def seed_aliases(
     sport: Optional[Sport] = None,
     db_path: Optional[Path] = None,
+    csv_path: Optional[Path] = None,
 ) -> int:
-    """Seed built-in team aliases and base team records into the local database.
+    """Seed team aliases and base team records into the local database.
+
+    Always checks the user-editable CSV file first. If present, populates from CSV.
+    Falls back to built-in code seeds if CSV is missing.
 
     Args:
-        sport:   Optional sport identifier. If None, seeds all supported sports.
-        db_path: Path to the SQLite file.
+        sport:    Optional sport identifier. If None, seeds all supported sports.
+        db_path:  Path to the SQLite file.
+        csv_path: Optional custom path to CSV file.
 
     Returns:
         Total number of alias rows inserted.
     """
+    path = csv_path or DEFAULT_CSV_PATH
+    if path.exists():
+        return load_aliases_from_csv(path, sport, db_path)
+
     init_db(sport, db_path)
     sports_to_seed = [sport] if sport else list(ALL_SEEDS.keys())
     total_aliases = 0
@@ -263,7 +355,6 @@ def seed_aliases(
         if not seeds:
             continue
 
-        # Ensure base team records exist if not already present
         teams_to_upsert = []
         alias_entries = []
 
@@ -280,7 +371,6 @@ def seed_aliases(
                 "abbrev": abbrev,
             })
 
-            # Base aliases
             alias_entries.append({"team_id": tid, "alias": full_name, "alias_type": "name"})
             if abbrev:
                 alias_entries.append({"team_id": tid, "alias": abbrev, "alias_type": "abbrev"})
@@ -289,7 +379,6 @@ def seed_aliases(
             for alt in aliases:
                 alias_entries.append({"team_id": tid, "alias": alt, "alias_type": "nickname"})
 
-        # Only insert team records if table is empty
         model_cls = _MODELS[s]
         engine = _get_engine(db_path)
         with Session(engine) as session:
@@ -420,7 +509,6 @@ def get_team_aliases(
     engine = _get_engine(db_path)
     aliases: Set[str] = set()
 
-    # Get aliases from team_aliases table
     with Session(engine) as session:
         alias_count = session.query(_TeamAlias).filter(_TeamAlias.sport == sport).count()
         if alias_count == 0:
@@ -435,7 +523,6 @@ def get_team_aliases(
             if r.alias:
                 aliases.add(r.alias)
 
-    # Also add canonical full_name and abbrev from sport_teams table
     team = lookup_team_by_id(sport, team_id, db_path)
     if team:
         if team.get("full_name"):

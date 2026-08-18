@@ -257,3 +257,33 @@ class TestTeamAliases:
         assert resolve_team(sport, "PHI", db)["team_id"] == 143
         assert resolve_team(sport, "Phils", db)["team_id"] == 143
         assert resolve_team(sport, "Philadelphia", db)["team_id"] == 143
+
+    def test_load_aliases_from_csv(self, tmp_path):
+        db_path = tmp_path / "csv_test.db"
+        csv_file = tmp_path / "custom_aliases.csv"
+        csv_file.write_text(
+            "sport,team_id,full_name,abbrev,alias,alias_type\n"
+            "mlb,143,Philadelphia Phillies,PHI,Fightins,nickname\n"
+            "mlb,143,Philadelphia Phillies,PHI,The Broad Street Bullies of Baseball,nickname\n"
+            "mlb,158,Milwaukee Brewers,MIL,Brew Crew,nickname\n"
+        )
+        from screamsheet.db.team_lookup_db import load_aliases_from_csv
+        count = load_aliases_from_csv(csv_file, "mlb", db_path)
+        assert count == 3
+
+        resolved = resolve_team("mlb", "The Broad Street Bullies of Baseball", db_path)
+        assert resolved is not None
+        assert resolved["team_id"] == 143
+        assert resolved["full_name"] == "Philadelphia Phillies"
+
+        brew = resolve_team("mlb", "Brew Crew", db_path)
+        assert brew is not None
+        assert brew["team_id"] == 158
+
+    def test_seed_aliases_uses_default_csv(self, tmp_path):
+        db_path = tmp_path / "default_csv_test.db"
+        count = seed_aliases("mlb", db_path)
+        assert count > 0
+        phils = resolve_team("mlb", "Fightin' Phils", db_path)
+        assert phils is not None
+        assert phils["team_id"] == 143

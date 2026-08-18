@@ -23,7 +23,8 @@ Public API — multi-sport team lookup (targets '<sport>_teams' tables):
     sport_get_team_aliases(sport, team_id, db_path)  → list[str]
     sport_get_team_feed_slug(sport, team_id, db_path)→ str | None
     sport_resolve_team(sport, query, db_path)        → dict | None
-    sport_seed_aliases(sport, db_path)               → int
+    sport_seed_aliases(sport, db_path, csv_path)     → int
+    sport_load_aliases_from_csv(csv_path, sport, db_path) → int
 """
 
 from .nhl_players_db import (
@@ -40,9 +41,11 @@ from .nhl_teams_db import (
     upsert_teams as upsert_nhl_teams,
 )
 from .team_lookup_db import (
+    DEFAULT_CSV_PATH,
     get_team_aliases as sport_get_team_aliases,
     get_team_feed_slug as sport_get_team_feed_slug,
     init_db as sport_init_db,
+    load_aliases_from_csv as sport_load_aliases_from_csv,
     lookup_team_by_alias as sport_lookup_by_alias,
     lookup_team_by_abbrev as sport_lookup_by_abbrev,
     lookup_team_by_id as sport_lookup_by_id,
@@ -56,6 +59,7 @@ from .team_lookup_db import (
 __all__ = [
     # DB path
     "get_db_path",
+    "DEFAULT_CSV_PATH",
     # NHL players (legacy)
     "init_db",
     "lookup_player",
@@ -76,6 +80,7 @@ __all__ = [
     "sport_get_team_feed_slug",
     "sport_resolve_team",
     "sport_seed_aliases",
+    "sport_load_aliases_from_csv",
     "sport_upsert_team_aliases",
     "sport_upsert_teams",
 ]

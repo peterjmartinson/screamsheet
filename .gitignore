@@ -221,6 +221,7 @@ __marimo__/
 
 *.json
 *.csv
+!src/screamsheet/db/data/*.csv
 
 GEMINI_API_KEY
 logfiles

@@ -63,3 +63,23 @@ def test_unmatched_team_slots_filled_with_general_articles(mock_parse):
     provider = MLBTradeRumorsProvider(favorite_teams=["Phillies"])
     articles = provider.get_articles()
     assert len(articles) == 4
+
+
+@patch("screamsheet.providers.mlb_trade_rumors_provider.feedparser.parse")
+def test_full_team_name_matches_nickname_in_title(mock_parse):
+    entries = [
+        {"title": "D-backs Place Ketel Marte On Restricted List", "link": "http://ex.com/d1", "summary": ""},
+        {"title": "Brewers Designate Pitcher For Assignment", "link": "http://ex.com/b1", "summary": ""},
+        {"title": "Blue Jays Sign Pitcher", "link": "http://ex.com/1", "summary": ""},
+        {"title": "Cubs Trade Outfielder", "link": "http://ex.com/2", "summary": ""},
+    ]
+    mock_parse.return_value = _make_feed(entries)
+    provider = MLBTradeRumorsProvider(favorite_teams=["Milwaukee Brewers", "Arizona Diamondbacks"])
+    articles = provider.get_articles()
+    assert len(articles) == 4
+    # Section 1 should be Brewers (priority 0)
+    assert articles[0]["slot"] == "Section 1"
+    assert "Brewers" in articles[0]["entry"]["title"]
+    # Section 2 should be D-backs (priority 1)
+    assert articles[1]["slot"] == "Section 2"
+    assert "D-backs" in articles[1]["entry"]["title"]

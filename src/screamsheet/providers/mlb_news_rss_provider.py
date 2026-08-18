@@ -24,20 +24,106 @@ class MLBNewsRssProvider(DataProvider):
     when the RSS feed provides an empty summary (as MLB.com typically does).
     """
 
-    # Maps team name to its MLB.com RSS feed URL.
+    # Maps team name/slug to its MLB.com RSS feed URL for all 30 MLB teams.
     # None is the sentinel key for the general MLB news feed used as fallback.
     TEAM_FEEDS: Dict[Optional[str], str] = {
-        "Phillies": "https://www.mlb.com/phillies/feeds/news/rss.xml",
-        "Padres": "https://www.mlb.com/padres/feeds/news/rss.xml",
-        "Yankees": "https://www.mlb.com/yankees/feeds/news/rss.xml",
-        "Dodgers": "https://www.mlb.com/dodgers/feeds/news/rss.xml",
-        "Mets": "https://www.mlb.com/mets/feeds/news/rss.xml",
-        "Braves": "https://www.mlb.com/braves/feeds/news/rss.xml",
-        "Astros": "https://www.mlb.com/astros/feeds/news/rss.xml",
-        "Cubs": "https://www.mlb.com/cubs/feeds/news/rss.xml",
-        "RedSox": "https://www.mlb.com/red-sox/feeds/news/rss.xml",
-        "Giants": "https://www.mlb.com/giants/feeds/news/rss.xml",
+        # General
         None: "https://www.mlb.com/feeds/news/rss.xml",
+        # All 30 MLB teams (short names, slugs, and aliases)
+        "Angels": "https://www.mlb.com/angels/feeds/news/rss.xml",
+        "angels": "https://www.mlb.com/angels/feeds/news/rss.xml",
+        "Los Angeles Angels": "https://www.mlb.com/angels/feeds/news/rss.xml",
+        "D-backs": "https://www.mlb.com/dbacks/feeds/news/rss.xml",
+        "Diamondbacks": "https://www.mlb.com/dbacks/feeds/news/rss.xml",
+        "dbacks": "https://www.mlb.com/dbacks/feeds/news/rss.xml",
+        "Arizona Diamondbacks": "https://www.mlb.com/dbacks/feeds/news/rss.xml",
+        "Orioles": "https://www.mlb.com/orioles/feeds/news/rss.xml",
+        "orioles": "https://www.mlb.com/orioles/feeds/news/rss.xml",
+        "Baltimore Orioles": "https://www.mlb.com/orioles/feeds/news/rss.xml",
+        "Red Sox": "https://www.mlb.com/redsox/feeds/news/rss.xml",
+        "RedSox": "https://www.mlb.com/redsox/feeds/news/rss.xml",
+        "redsox": "https://www.mlb.com/redsox/feeds/news/rss.xml",
+        "Boston Red Sox": "https://www.mlb.com/redsox/feeds/news/rss.xml",
+        "Cubs": "https://www.mlb.com/cubs/feeds/news/rss.xml",
+        "cubs": "https://www.mlb.com/cubs/feeds/news/rss.xml",
+        "Chicago Cubs": "https://www.mlb.com/cubs/feeds/news/rss.xml",
+        "Reds": "https://www.mlb.com/reds/feeds/news/rss.xml",
+        "reds": "https://www.mlb.com/reds/feeds/news/rss.xml",
+        "Cincinnati Reds": "https://www.mlb.com/reds/feeds/news/rss.xml",
+        "Guardians": "https://www.mlb.com/guardians/feeds/news/rss.xml",
+        "guardians": "https://www.mlb.com/guardians/feeds/news/rss.xml",
+        "Cleveland Guardians": "https://www.mlb.com/guardians/feeds/news/rss.xml",
+        "Rockies": "https://www.mlb.com/rockies/feeds/news/rss.xml",
+        "rockies": "https://www.mlb.com/rockies/feeds/news/rss.xml",
+        "Colorado Rockies": "https://www.mlb.com/rockies/feeds/news/rss.xml",
+        "Tigers": "https://www.mlb.com/tigers/feeds/news/rss.xml",
+        "tigers": "https://www.mlb.com/tigers/feeds/news/rss.xml",
+        "Detroit Tigers": "https://www.mlb.com/tigers/feeds/news/rss.xml",
+        "Astros": "https://www.mlb.com/astros/feeds/news/rss.xml",
+        "astros": "https://www.mlb.com/astros/feeds/news/rss.xml",
+        "Houston Astros": "https://www.mlb.com/astros/feeds/news/rss.xml",
+        "Royals": "https://www.mlb.com/royals/feeds/news/rss.xml",
+        "royals": "https://www.mlb.com/royals/feeds/news/rss.xml",
+        "Kansas City Royals": "https://www.mlb.com/royals/feeds/news/rss.xml",
+        "Dodgers": "https://www.mlb.com/dodgers/feeds/news/rss.xml",
+        "dodgers": "https://www.mlb.com/dodgers/feeds/news/rss.xml",
+        "Los Angeles Dodgers": "https://www.mlb.com/dodgers/feeds/news/rss.xml",
+        "Nationals": "https://www.mlb.com/nationals/feeds/news/rss.xml",
+        "nationals": "https://www.mlb.com/nationals/feeds/news/rss.xml",
+        "Washington Nationals": "https://www.mlb.com/nationals/feeds/news/rss.xml",
+        "Mets": "https://www.mlb.com/mets/feeds/news/rss.xml",
+        "mets": "https://www.mlb.com/mets/feeds/news/rss.xml",
+        "New York Mets": "https://www.mlb.com/mets/feeds/news/rss.xml",
+        "Athletics": "https://www.mlb.com/athletics/feeds/news/rss.xml",
+        "athletics": "https://www.mlb.com/athletics/feeds/news/rss.xml",
+        "Oakland Athletics": "https://www.mlb.com/athletics/feeds/news/rss.xml",
+        "Pirates": "https://www.mlb.com/pirates/feeds/news/rss.xml",
+        "pirates": "https://www.mlb.com/pirates/feeds/news/rss.xml",
+        "Pittsburgh Pirates": "https://www.mlb.com/pirates/feeds/news/rss.xml",
+        "Padres": "https://www.mlb.com/padres/feeds/news/rss.xml",
+        "padres": "https://www.mlb.com/padres/feeds/news/rss.xml",
+        "San Diego Padres": "https://www.mlb.com/padres/feeds/news/rss.xml",
+        "Mariners": "https://www.mlb.com/mariners/feeds/news/rss.xml",
+        "mariners": "https://www.mlb.com/mariners/feeds/news/rss.xml",
+        "Seattle Mariners": "https://www.mlb.com/mariners/feeds/news/rss.xml",
+        "Giants": "https://www.mlb.com/giants/feeds/news/rss.xml",
+        "giants": "https://www.mlb.com/giants/feeds/news/rss.xml",
+        "San Francisco Giants": "https://www.mlb.com/giants/feeds/news/rss.xml",
+        "Cardinals": "https://www.mlb.com/cardinals/feeds/news/rss.xml",
+        "cardinals": "https://www.mlb.com/cardinals/feeds/news/rss.xml",
+        "St. Louis Cardinals": "https://www.mlb.com/cardinals/feeds/news/rss.xml",
+        "Rays": "https://www.mlb.com/rays/feeds/news/rss.xml",
+        "rays": "https://www.mlb.com/rays/feeds/news/rss.xml",
+        "Tampa Bay Rays": "https://www.mlb.com/rays/feeds/news/rss.xml",
+        "Rangers": "https://www.mlb.com/rangers/feeds/news/rss.xml",
+        "rangers": "https://www.mlb.com/rangers/feeds/news/rss.xml",
+        "Texas Rangers": "https://www.mlb.com/rangers/feeds/news/rss.xml",
+        "Blue Jays": "https://www.mlb.com/bluejays/feeds/news/rss.xml",
+        "BlueJays": "https://www.mlb.com/bluejays/feeds/news/rss.xml",
+        "bluejays": "https://www.mlb.com/bluejays/feeds/news/rss.xml",
+        "Toronto Blue Jays": "https://www.mlb.com/bluejays/feeds/news/rss.xml",
+        "Twins": "https://www.mlb.com/twins/feeds/news/rss.xml",
+        "twins": "https://www.mlb.com/twins/feeds/news/rss.xml",
+        "Minnesota Twins": "https://www.mlb.com/twins/feeds/news/rss.xml",
+        "Phillies": "https://www.mlb.com/phillies/feeds/news/rss.xml",
+        "phillies": "https://www.mlb.com/phillies/feeds/news/rss.xml",
+        "Philadelphia Phillies": "https://www.mlb.com/phillies/feeds/news/rss.xml",
+        "Braves": "https://www.mlb.com/braves/feeds/news/rss.xml",
+        "braves": "https://www.mlb.com/braves/feeds/news/rss.xml",
+        "Atlanta Braves": "https://www.mlb.com/braves/feeds/news/rss.xml",
+        "White Sox": "https://www.mlb.com/whitesox/feeds/news/rss.xml",
+        "WhiteSox": "https://www.mlb.com/whitesox/feeds/news/rss.xml",
+        "whitesox": "https://www.mlb.com/whitesox/feeds/news/rss.xml",
+        "Chicago White Sox": "https://www.mlb.com/whitesox/feeds/news/rss.xml",
+        "Marlins": "https://www.mlb.com/marlins/feeds/news/rss.xml",
+        "marlins": "https://www.mlb.com/marlins/feeds/news/rss.xml",
+        "Miami Marlins": "https://www.mlb.com/marlins/feeds/news/rss.xml",
+        "Yankees": "https://www.mlb.com/yankees/feeds/news/rss.xml",
+        "yankees": "https://www.mlb.com/yankees/feeds/news/rss.xml",
+        "New York Yankees": "https://www.mlb.com/yankees/feeds/news/rss.xml",
+        "Brewers": "https://www.mlb.com/brewers/feeds/news/rss.xml",
+        "brewers": "https://www.mlb.com/brewers/feeds/news/rss.xml",
+        "Milwaukee Brewers": "https://www.mlb.com/brewers/feeds/news/rss.xml",
     }
 
     # Entries whose title contains any of these phrases (case-insensitive) are
@@ -207,11 +293,41 @@ class MLBNewsRssProvider(DataProvider):
                 return entry
         return None
 
+    def _get_feed_url(self, team: Optional[str]) -> Optional[str]:
+        """Resolve a team string or alias to an MLB.com RSS feed URL."""
+        if team is None:
+            return self.TEAM_FEEDS.get(None)
+
+        if team in self.TEAM_FEEDS:
+            return self.TEAM_FEEDS[team]
+
+        # Case-insensitive match in static map
+        team_clean = str(team).strip()
+        for k, v in self.TEAM_FEEDS.items():
+            if k and k.lower() == team_clean.lower():
+                return v
+
+        # Database lookup fallback
+        try:
+            from ..db import sport_get_team_feed_slug, sport_resolve_team
+
+            resolved = sport_resolve_team("mlb", team_clean)
+            if resolved:
+                slug = sport_get_team_feed_slug("mlb", resolved["team_id"])
+                if slug:
+                    return f"https://www.mlb.com/{slug}/feeds/news/rss.xml"
+                full_name = resolved.get("full_name")
+                if full_name and full_name in self.TEAM_FEEDS:
+                    return self.TEAM_FEEDS[full_name]
+        except Exception:
+            pass
+
+        return None
+
     def _fetch_entries(self, team: Optional[str]) -> List[object]:
         """Fetch and return raw feedparser entries for the given team (or general feed)."""
-        url = self.TEAM_FEEDS.get(team)
+        url = self._get_feed_url(team)
         if url is None:
             return []
         feed = feedparser.parse(url)
         return list(feed.entries)
-

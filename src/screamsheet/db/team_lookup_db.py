@@ -1,4 +1,4 @@
-"""SQLite ORM models and lookup helpers for per-sport team tables.
+"""SQLite ORM models and lookup helpers for per-sport team and alias tables.
 
 All four sports share an identical table schema:
 
@@ -10,14 +10,28 @@ All four sports share an identical table schema:
         last_synced VARCHAR(25)
     )
 
-Tables: nhl_teams, mlb_teams, nba_teams, nfl_teams
+    team_aliases (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        sport       VARCHAR(10) NOT NULL,
+        team_id     INTEGER NOT NULL,
+        alias       VARCHAR(100) NOT NULL,
+        alias_type  VARCHAR(20)
+    )
+
+Tables: nhl_teams, mlb_teams, nba_teams, nfl_teams, team_aliases
 
 Public API:
     init_db(sport, db_path)                        Create table if missing → Engine
     upsert_teams(sport, teams, db_path)            Bulk idempotent upsert → count
+    upsert_team_aliases(sport, aliases, db_path)   Bulk idempotent alias upsert → count
+    seed_aliases(sport, db_path)                   Seed built-in team aliases → count
     lookup_team_by_id(sport, team_id, db_path)     → dict | None
     lookup_team_by_abbrev(sport, abbrev, db_path)  → dict | None
     lookup_team_by_name(sport, fragment, db_path)  → list[dict]
+    lookup_team_by_alias(sport, alias, db_path)    → dict | None
+    get_team_aliases(sport, team_id, db_path)      → list[str]
+    get_team_feed_slug(sport, team_id, db_path)    → str | None
+    resolve_team(sport, query, db_path)            → dict | None
 """
 
 from __future__ import annotations
@@ -25,12 +39,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Set
 
 from sqlalchemy import Column, Integer, String, create_engine, text
 from sqlalchemy.orm import Session
 
 from ._nhl_db_shared import _Base, get_db_path
+from .team_aliases_data import ALL_SEEDS
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +92,15 @@ class _NFLTeam(_Base):
     last_synced = Column(String(25))
 
 
+class _TeamAlias(_Base):
+    __tablename__ = "team_aliases"
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    sport       = Column(String(10), nullable=False, index=True)
+    team_id     = Column(Integer, nullable=False, index=True)
+    alias       = Column(String(100), nullable=False, index=True)
+    alias_type  = Column(String(20))
+
+
 _MODELS: dict[str, type] = {
     "nhl": _NHLTeam,
     "mlb": _MLBTeam,
@@ -98,18 +122,18 @@ def _get_engine(db_path: Optional[Path] = None):
     return engine
 
 
-def init_db(sport: Sport, db_path: Optional[Path] = None):
-    """Create the <sport>_teams table if it does not exist.
+def init_db(sport: Optional[Sport] = None, db_path: Optional[Path] = None):
+    """Create sport team tables and team_aliases table if they do not exist.
 
     Args:
-        sport:   One of "nhl", "mlb", "nba", "nfl".
-        db_path: Path to the SQLite file.  Defaults to get_db_path().
+        sport:   Optional sport name ("nhl", "mlb", "nba", "nfl").
+        db_path: Path to the SQLite file. Defaults to get_db_path().
 
     Returns:
         SQLAlchemy Engine bound to the database.
     """
     engine = _get_engine(db_path)
-    logger.debug("init_db: %s_teams ready at %s", sport, db_path or get_db_path())
+    logger.debug("init_db ready at %s", db_path or get_db_path())
     return engine
 
 
@@ -125,13 +149,13 @@ def upsert_teams(
     """Idempotent bulk upsert of team dicts into the <sport>_teams table.
 
     Each dict must contain ``team_id`` and ``full_name``.
-    Optional: ``abbrev``.  ``last_synced`` is always set to the current UTC
+    Optional: ``abbrev``. ``last_synced`` is always set to the current UTC
     timestamp.
 
     Args:
         sport:   Target sport table.
         teams:   List of team dicts.
-        db_path: Path to the SQLite file.  Defaults to get_db_path().
+        db_path: Path to the SQLite file. Defaults to get_db_path().
 
     Returns:
         Number of rows successfully upserted.
@@ -162,6 +186,121 @@ def upsert_teams(
         session.commit()
     logger.debug("upsert_teams(%s): upserted %d rows", sport, count)
     return count
+
+
+def upsert_team_aliases(
+    sport: Sport,
+    aliases: List[Dict[str, Any]],
+    db_path: Optional[Path] = None,
+) -> int:
+    """Bulk upsert of alias records into team_aliases table.
+
+    Each dict must contain ``team_id`` and ``alias``.
+    Optional: ``alias_type``.
+
+    Args:
+        sport:   Sport identifier ("mlb", "nhl", "nba", "nfl").
+        aliases: List of alias dictionaries.
+        db_path: Path to the SQLite file.
+
+    Returns:
+        Number of alias rows inserted.
+    """
+    engine = _get_engine(db_path)
+    count = 0
+    with Session(engine) as session:
+        for a in aliases:
+            tid = a.get("team_id")
+            alias = a.get("alias", "").strip()
+            if tid is None or not alias:
+                continue
+            alias_type = a.get("alias_type")
+
+            # Check if alias already exists for this sport & team
+            existing = (
+                session.query(_TeamAlias)
+                .filter(
+                    _TeamAlias.sport == sport,
+                    _TeamAlias.team_id == tid,
+                    _TeamAlias.alias.ilike(alias),
+                )
+                .first()
+            )
+            if not existing:
+                session.add(
+                    _TeamAlias(
+                        sport=sport,
+                        team_id=tid,
+                        alias=alias[:100],
+                        alias_type=alias_type,
+                    )
+                )
+                count += 1
+        session.commit()
+    logger.debug("upsert_team_aliases(%s): inserted %d rows", sport, count)
+    return count
+
+
+def seed_aliases(
+    sport: Optional[Sport] = None,
+    db_path: Optional[Path] = None,
+) -> int:
+    """Seed built-in team aliases and base team records into the local database.
+
+    Args:
+        sport:   Optional sport identifier. If None, seeds all supported sports.
+        db_path: Path to the SQLite file.
+
+    Returns:
+        Total number of alias rows inserted.
+    """
+    init_db(sport, db_path)
+    sports_to_seed = [sport] if sport else list(ALL_SEEDS.keys())
+    total_aliases = 0
+
+    for s in sports_to_seed:
+        seeds = ALL_SEEDS.get(s, [])
+        if not seeds:
+            continue
+
+        # Ensure base team records exist if not already present
+        teams_to_upsert = []
+        alias_entries = []
+
+        for item in seeds:
+            tid = item["team_id"]
+            full_name = item["full_name"]
+            abbrev = item["abbrev"]
+            slug = item.get("slug", "")
+            aliases = item.get("aliases", [])
+
+            teams_to_upsert.append({
+                "team_id": tid,
+                "full_name": full_name,
+                "abbrev": abbrev,
+            })
+
+            # Base aliases
+            alias_entries.append({"team_id": tid, "alias": full_name, "alias_type": "name"})
+            if abbrev:
+                alias_entries.append({"team_id": tid, "alias": abbrev, "alias_type": "abbrev"})
+            if slug:
+                alias_entries.append({"team_id": tid, "alias": slug, "alias_type": "slug"})
+            for alt in aliases:
+                alias_entries.append({"team_id": tid, "alias": alt, "alias_type": "nickname"})
+
+        # Only insert team records if table is empty
+        model_cls = _MODELS[s]
+        engine = _get_engine(db_path)
+        with Session(engine) as session:
+            existing_count = session.query(model_cls).count()
+            if existing_count == 0:
+                upsert_teams(s, teams_to_upsert, db_path)
+
+        inserted = upsert_team_aliases(s, alias_entries, db_path)
+        total_aliases += inserted
+
+    return total_aliases
 
 
 # ---------------------------------------------------------------------------
@@ -231,3 +370,151 @@ def lookup_team_by_name(
             model_cls.full_name.ilike(f"%{name_fragment}%")
         ).all()
         return [_row_to_dict(r) for r in rows]
+
+
+def lookup_team_by_alias(
+    sport: Sport,
+    alias: str,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict]:
+    """Look up a team by an alias (case-insensitive exact alias match).
+
+    Returns:
+        Dict of canonical team fields, or None if not found.
+    """
+    cleaned = alias.strip()
+    if not cleaned:
+        return None
+
+    engine = _get_engine(db_path)
+    with Session(engine) as session:
+        alias_count = session.query(_TeamAlias).filter(_TeamAlias.sport == sport).count()
+        if alias_count == 0:
+            seed_aliases(sport, db_path)
+
+        alias_row = (
+            session.query(_TeamAlias)
+            .filter(_TeamAlias.sport == sport, _TeamAlias.alias.ilike(cleaned))
+            .first()
+        )
+        if alias_row:
+            return lookup_team_by_id(sport, alias_row.team_id, db_path)
+    return None
+
+
+def get_team_aliases(
+    sport: Sport,
+    team_id: int,
+    db_path: Optional[Path] = None,
+) -> List[str]:
+    """Retrieve all known alias strings for a team (including name and abbreviation).
+
+    Args:
+        sport:   Sport identifier.
+        team_id: Numeric team ID.
+        db_path: Path to the SQLite file.
+
+    Returns:
+        List of unique alias strings.
+    """
+    engine = _get_engine(db_path)
+    aliases: Set[str] = set()
+
+    # Get aliases from team_aliases table
+    with Session(engine) as session:
+        alias_count = session.query(_TeamAlias).filter(_TeamAlias.sport == sport).count()
+        if alias_count == 0:
+            seed_aliases(sport, db_path)
+
+        rows = (
+            session.query(_TeamAlias)
+            .filter(_TeamAlias.sport == sport, _TeamAlias.team_id == team_id)
+            .all()
+        )
+        for r in rows:
+            if r.alias:
+                aliases.add(r.alias)
+
+    # Also add canonical full_name and abbrev from sport_teams table
+    team = lookup_team_by_id(sport, team_id, db_path)
+    if team:
+        if team.get("full_name"):
+            aliases.add(team["full_name"])
+        if team.get("abbrev"):
+            aliases.add(team["abbrev"])
+
+    return sorted(aliases)
+
+
+def get_team_feed_slug(
+    sport: Sport,
+    team_id: int,
+    db_path: Optional[Path] = None,
+) -> Optional[str]:
+    """Return the feed slug for a team (e.g. 'phillies', 'dbacks', 'redsox')."""
+    engine = _get_engine(db_path)
+    with Session(engine) as session:
+        alias_count = session.query(_TeamAlias).filter(_TeamAlias.sport == sport).count()
+        if alias_count == 0:
+            seed_aliases(sport, db_path)
+
+        row = (
+            session.query(_TeamAlias)
+            .filter(
+                _TeamAlias.sport == sport,
+                _TeamAlias.team_id == team_id,
+                _TeamAlias.alias_type == "slug",
+            )
+            .first()
+        )
+        if row:
+            return row.alias
+    return None
+
+
+def resolve_team(
+    sport: Sport,
+    query: Any,
+    db_path: Optional[Path] = None,
+) -> Optional[Dict]:
+    """Resolve a team identifier or query string to canonical team data.
+
+    Accepts:
+      - Integer or numeric string team ID (e.g. 143, "143")
+      - Exact abbreviation (e.g. "PHI")
+      - Exact alias or nickname (e.g. "Phillies", "D-backs", "Red Sox", "redsox")
+      - Name fragment (e.g. "Philadelphia", "Brewers")
+
+    Returns:
+        Dict with canonical team data (id, team_id, full_name, abbrev) or None.
+    """
+    if query is None:
+        return None
+
+    # 1. Numeric ID
+    if isinstance(query, int) or (isinstance(query, str) and query.strip().isdigit()):
+        tid = int(query)
+        match = lookup_team_by_id(sport, tid, db_path)
+        if match:
+            return match
+
+    query_str = str(query).strip()
+    if not query_str:
+        return None
+
+    # 2. Exact abbreviation match
+    match = lookup_team_by_abbrev(sport, query_str, db_path)
+    if match:
+        return match
+
+    # 3. Team alias match
+    match = lookup_team_by_alias(sport, query_str, db_path)
+    if match:
+        return match
+
+    # 4. Name substring match
+    matches = lookup_team_by_name(sport, query_str, db_path)
+    if matches:
+        return matches[0]
+
+    return None

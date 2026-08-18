@@ -19,6 +19,11 @@ Public API — multi-sport team lookup (targets '<sport>_teams' tables):
     sport_lookup_by_id(sport, team_id, db_path)      → dict | None
     sport_lookup_by_abbrev(sport, abbrev, db_path)   → dict | None
     sport_lookup_by_name(sport, fragment, db_path)   → list[dict]
+    sport_lookup_by_alias(sport, alias, db_path)    → dict | None
+    sport_get_team_aliases(sport, team_id, db_path)  → list[str]
+    sport_get_team_feed_slug(sport, team_id, db_path)→ str | None
+    sport_resolve_team(sport, query, db_path)        → dict | None
+    sport_seed_aliases(sport, db_path)               → int
 """
 
 from .nhl_players_db import (
@@ -35,10 +40,16 @@ from .nhl_teams_db import (
     upsert_teams as upsert_nhl_teams,
 )
 from .team_lookup_db import (
+    get_team_aliases as sport_get_team_aliases,
+    get_team_feed_slug as sport_get_team_feed_slug,
     init_db as sport_init_db,
+    lookup_team_by_alias as sport_lookup_by_alias,
     lookup_team_by_abbrev as sport_lookup_by_abbrev,
     lookup_team_by_id as sport_lookup_by_id,
     lookup_team_by_name as sport_lookup_by_name,
+    resolve_team as sport_resolve_team,
+    seed_aliases as sport_seed_aliases,
+    upsert_team_aliases as sport_upsert_team_aliases,
     upsert_teams as sport_upsert_teams,
 )
 
@@ -60,5 +71,11 @@ __all__ = [
     "sport_lookup_by_abbrev",
     "sport_lookup_by_id",
     "sport_lookup_by_name",
+    "sport_lookup_by_alias",
+    "sport_get_team_aliases",
+    "sport_get_team_feed_slug",
+    "sport_resolve_team",
+    "sport_seed_aliases",
+    "sport_upsert_team_aliases",
     "sport_upsert_teams",
 ]

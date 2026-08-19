@@ -42,6 +42,53 @@ class Section(ABC):
         """
         pass
     
+    def render_markdown(self) -> str:
+        """Render the section into a clean, sequential Markdown string.
+
+        Subclasses override this to format specific domain models (tables, summaries, articles).
+        The base implementation provides a robust fallback serializer for self.data.
+
+        Returns:
+            Formatted Markdown string.
+        """
+        if self.data is None:
+            self.fetch_data()
+
+        if self.data is None:
+            return ""
+
+        # String data (e.g. LLM summaries)
+        if isinstance(self.data, str):
+            return self.data.strip()
+
+        # List data
+        if isinstance(self.data, list):
+            lines = []
+            for item in self.data:
+                if isinstance(item, dict):
+                    title = item.get("title") or item.get("name") or item.get("headline")
+                    summary = item.get("summary") or item.get("body") or item.get("description") or item.get("text")
+                    link = item.get("link") or item.get("url")
+                    if title and summary:
+                        entry = f"### {title}\n\n{summary}"
+                        if link:
+                            entry += f"\n\n[Source]({link})"
+                        lines.append(entry)
+                    else:
+                        lines.append(str(item))
+                else:
+                    lines.append(f"* {item}")
+            return "\n\n".join(lines)
+
+        # Dictionary data
+        if isinstance(self.data, dict):
+            lines = []
+            for k, v in self.data.items():
+                lines.append(f"* **{k}**: {v}")
+            return "\n".join(lines)
+
+        return str(self.data)
+
     def has_content(self) -> bool:
         """
         Check if this section has content to render.

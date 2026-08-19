@@ -87,3 +87,25 @@ class NFLInjuriesSection(Section):
         elements.append(table)
         elements.append(Spacer(1, 10))
         return elements
+
+    def render_markdown(self) -> str:
+        """Render NFL injury report in Markdown table format."""
+        if self.data is None:
+            self.fetch_data()
+
+        if not self.data:
+            return ""
+
+        lines = [
+            "| Player | Position | Status | Details |",
+            "| :--- | :---: | :---: | :--- |",
+        ]
+        for item in self.data[:12]:
+            player = item.get("athlete", "Unknown")
+            pos = item.get("position", "")
+            status = item.get("status", "")
+            desc = item.get("description", "")
+            lines.append(f"| {player} | {pos} | {status} | {desc} |")
+
+        return "\n".join(lines)
+

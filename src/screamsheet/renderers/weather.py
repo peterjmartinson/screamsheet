@@ -83,6 +83,27 @@ class WeatherSection(Section):
         location_para = Paragraph(self.provider.location_name, self._location_style)
         return [location_para, self._build_flowable(self.data)]
 
+    def render_markdown(self) -> str:
+        """Render 5-day weather forecast in Markdown table format."""
+        if not self.data:
+            self.fetch_data()
+        if not self.data:
+            return "No weather forecast available."
+        
+        lines = [
+            f"**Location:** {self.provider.location_name}\n",
+            "| Day | High / Low | Forecast |",
+            "| :--- | :---: | :--- |",
+        ]
+        for d in self.data:
+            day = d.get('day', '').upper()
+            temps = f"{d.get('max_temp', '')}° / {d.get('min_temp', '')}°F"
+            desc = d.get('description', '')
+            lines.append(f"| {day} | {temps} | {desc} |")
+        
+        return "\n".join(lines)
+
+
     # ------------------------------------------------------------------
     # Flowable builder (ported from src/print_weather.py)
     # ------------------------------------------------------------------

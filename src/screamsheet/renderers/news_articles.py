@@ -273,3 +273,32 @@ class NewsArticlesSection(Section):
         elements.append(news_table)
         
         return elements
+
+    def render_markdown(self) -> str:
+        """Render news articles sequentially in single-column Markdown."""
+        if not self.data:
+            self.fetch_data()
+        
+        if not self.data:
+            return ""
+        
+        lines = []
+        for article in self.data:
+            title = article.get('title', 'Untitled')
+            summary = article.get('summary', '').strip()
+            link = article.get('link', '')
+            source = article.get('source')
+            pub_date = article.get('pub_date')
+            
+            byline = []
+            if source:
+                byline.append(source)
+            if pub_date:
+                byline.append(pub_date)
+            byline_str = f"_{' — '.join(byline)}_\n\n" if byline else ""
+            
+            link_str = f"\n\n[Source]({link})" if link else ""
+            lines.append(f"### {title}\n\n{byline_str}{summary}{link_str}")
+        
+        return "\n\n---\n\n".join(lines)
+

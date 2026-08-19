@@ -228,3 +228,7 @@ logfiles
 
 playground
 de421.bsp
+
+# Markdown output directory
+markdown_output/
+

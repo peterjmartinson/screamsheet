@@ -131,6 +131,55 @@ class BoxScoreSection(Section):
         elements.append(two_column_table)
         
         return elements
+
+    def render_markdown(self) -> str:
+        """Render game summary and box score sequentially in single-column Markdown."""
+        if not self.data:
+            self.fetch_data()
+        
+        if not self.data:
+            return ""
+        
+        lines = []
+        
+        # 1. Game Summary (sequential first)
+        game_summary = self.provider.get_game_summary(
+            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite
+        )
+        if game_summary:
+            lines.append("### Game Summary\n\n" + game_summary.strip() + "\n")
+        
+        # 2. Box Score (sequential second)
+        lines.append("### Box Score\n")
+        if isinstance(self.data, dict):
+            if 'batting_stats' in self.data and self.data['batting_stats']:
+                lines.append("#### Batting")
+                lines.append("| Batter | AB | R | H | HR | RBI | BB | SO |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
+                for p in self.data['batting_stats']:
+                    lines.append(f"| {p.get('name')} | {p.get('AB', 0)} | {p.get('R', 0)} | {p.get('H', 0)} | {p.get('HR', 0)} | {p.get('RBI', 0)} | {p.get('BB', 0)} | {p.get('SO', 0)} |")
+                lines.append("")
+            if 'pitching_stats' in self.data and self.data['pitching_stats']:
+                lines.append("#### Pitching")
+                lines.append("| Pitcher | IP | H | R | ER | BB | SO | HR | ERA |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
+                for p in self.data['pitching_stats']:
+                    lines.append(f"| {p.get('name')} | {p.get('IP', 0)} | {p.get('H', 0)} | {p.get('R', 0)} | {p.get('ER', 0)} | {p.get('BB', 0)} | {p.get('SO', 0)} | {p.get('HR', 0)} | {p.get('ERA', '0.00')} |")
+                lines.append("")
+            if 'player_stats' in self.data and self.data['player_stats']:
+                lines.append("| Player | PTS | REB | AST | STL | BLK |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
+                for p in self.data['player_stats']:
+                    lines.append(f"| {p.get('name')} | {p.get('PTS', 0)} | {p.get('REB', 0)} | {p.get('AST', 0)} | {p.get('STL', 0)} | {p.get('BLK', 0)} |")
+                lines.append("")
+            if 'skaters' in self.data and self.data['skaters']:
+                lines.append("| Skater | G | A | PTS | +/- | SOG |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
+                for p in self.data['skaters']:
+                    lines.append(f"| {p.get('name')} | {p.get('G', 0)} | {p.get('A', 0)} | {p.get('PTS', 0)} | {p.get('+/-', 0)} | {p.get('SOG', 0)} |")
+                lines.append("")
+        
+        return "\n".join(lines)
     
     def _render_mlb_boxscore(self, boxscore_stats: dict) -> List[Any]:
         """Render MLB box score with batting and pitching stats."""

@@ -2,6 +2,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, List, Optional
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
@@ -14,6 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 
+from .markdown_output import is_markdown_cached, resolve_markdown_path
 from .section import Section
 
 logger = logging.getLogger(__name__)
@@ -175,7 +177,7 @@ class BaseScreamsheet(ABC):
     def generate(self) -> str:
         """
         Generate the complete screamsheet PDF, distributing sections between
-        front and back pages.
+        front and back pages, and automatically produce the secondary Markdown file.
         
         Returns:
             Path to the generated PDF file
@@ -209,9 +211,78 @@ class BaseScreamsheet(ABC):
                     front_content.append(Spacer(1, 20))
                     logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
 
-        return self._build_two_page_pdf(front_content, back_content)
+        pdf_path = self._build_two_page_pdf(front_content, back_content)
 
+        # Automatically produce secondary Markdown output
+        try:
+            self.generate_markdown()
+        except Exception as exc:
+            logger.warning("Failed to generate secondary markdown output for %s: %s", self.get_title(), exc)
+
+        return pdf_path
+
+    def generate_markdown(
+        self,
+        output_path: Optional[Any] = None,
+        use_cache: bool = True,
+        refresh_cache: bool = False,
+        ttl_days: int = 7,
+    ) -> str:
+        """Generate a sequential, single-column Markdown file for this screamsheet.
+
+        Preserves a 7-day TTL cache: if the target file exists and is less than 7 days old,
+        it reuses the cached file unless refresh_cache=True or use_cache=False.
+
+        Args:
+            output_path:   Custom destination path (defaults to markdown_output/{stem}.md).
+            use_cache:     Whether to check for an existing cached .md file.
+            refresh_cache: Whether to force re-rendering and overwrite existing .md file.
+            ttl_days:      Cache lifetime in days (default: 7).
+
+        Returns:
+            Path string to the written/cached Markdown file.
+        """
+        target_file = Path(output_path) if output_path else resolve_markdown_path(self.output_filename)
+
+        if use_cache and not refresh_cache and is_markdown_cached(target_file, ttl_days=ttl_days):
+            logger.info("Markdown cache hit for %s (age < %dd)", target_file, ttl_days)
+            return str(target_file)
+
+        if not self.sections:
+            self.sections = self.build_sections()
+
+        doc_lines = []
+        doc_lines.append(f"# {self.get_title()}")
+        subtitle = self.get_subtitle()
+        if subtitle:
+            doc_lines.append(f"_{subtitle}_")
+        doc_lines.append(f"**{self.get_date_string()}**")
+        doc_lines.append("")
+        doc_lines.append("---")
+        doc_lines.append("")
+
+        for section in self.sections:
+            if section.has_content():
+                sec_md = section.render_markdown().strip()
+                if sec_md:
+                    if section.title and not sec_md.startswith("#"):
+                        doc_lines.append(f"## {section.title}\n")
+                    doc_lines.append(sec_md)
+                    doc_lines.append("")
+                    doc_lines.append("---")
+                    doc_lines.append("")
+
+        while doc_lines and doc_lines[-1] in ("", "---"):
+            doc_lines.pop()
+
+        markdown_content = "\n".join(doc_lines) + "\n"
+
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_file.write_text(markdown_content, encoding="utf-8")
+        logger.info("Markdown written to %s", target_file)
+        return str(target_file)
     
     def add_section(self, section: Section):
         """Add a section to the screamsheet."""
         self.sections.append(section)
+

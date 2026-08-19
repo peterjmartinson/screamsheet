@@ -185,3 +185,12 @@ class HomeRunDerbySection(Section):
             )
 
         return elements
+
+    def render_markdown(self) -> str:
+        """Render Home Run Derby bracket and highlights in Markdown."""
+        if self.data is None:
+            self.fetch_data()
+        
+        from .derby_markdown import format_derby_markdown
+        return format_derby_markdown(self.data)
+

@@ -1,7 +1,8 @@
-"""CLI entry point for syncing all sport databases.
+"""CLI entry point for syncing all sport databases and pruning caches.
 
-Runs team and player syncs for all supported sports and prints counts to
-stdout so that callers (e.g. update_db.sh) can capture them in a log file.
+Runs team and player syncs for all supported sports, purges expired LLM and Markdown
+caches, and prints counts to stdout so that callers (e.g. update_db.sh) can capture
+them in a log file.
 
 Usage:
     uv run db_update
@@ -24,12 +25,13 @@ from .mlb_teams_sync import full_sync as mlb_full_sync
 from .nba_teams_sync import full_sync as nba_full_sync
 from .nfl_teams_sync import full_sync as nfl_full_sync
 from .team_lookup_db import seed_aliases
+from ..base.markdown_output import purge_expired_markdown
 
 
 def _run(label: str, fn, db: Path, allow_zero: bool = False) -> bool:
     """Run one sync function, print its count, return False on failure."""
     try:
-        count = fn(db)
+        count = fn(db) if "db" in fn.__code__.co_varnames else fn()
         print(f"{label}:{count}")
         if count == 0 and not allow_zero:
             print(f"WARNING: zero rows for {label} — possible network failure.", file=sys.stderr)
@@ -58,6 +60,7 @@ def main() -> None:
     ok = True
     ok &= _run("team_aliases_seeded",          lambda p: seed_aliases(None, p), db)
     ok &= _run("llm_cache_purged",             purge_expired_cache,       db, allow_zero=True)
+    ok &= _run("markdown_cache_purged",        lambda: purge_expired_markdown(), db, allow_zero=True)
     ok &= _run("nhl_teams_legacy_upserted",    full_sync_teams,           db)
     ok &= _run("nhl_teams_upserted",           full_sync_canonical_teams, db)
     ok &= _run("mlb_teams_upserted",           mlb_full_sync,             db)

@@ -90,3 +90,13 @@ class FrenchArticlesSection(Section):
         )
 
         return [Spacer(1, 6), table, Spacer(1, 8)]
+
+    def render_markdown(self) -> str:
+        """Render French MLB articles sequentially (Lane A, then Lane B)."""
+        lines = []
+        if self._content and self._content.lane_a:
+            lines.append("### Niveau A2\n\n" + self._content.lane_a.strip())
+        if self._content and self._content.lane_b:
+            lines.append("### Niveau B2–C1\n\n" + self._content.lane_b.strip())
+        return "\n\n---\n\n".join(lines)
+

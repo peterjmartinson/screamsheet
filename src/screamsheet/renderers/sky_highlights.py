@@ -86,6 +86,26 @@ class SkyHighlightsSection(Section):
 
         return elements
 
+    def render_markdown(self) -> str:
+        """Render sky tonight highlights in Markdown."""
+        if self.data is None:
+            self.fetch_data()
+
+        llm_output = self._get_llm_bullet()
+        if llm_output:
+            lines = []
+            for line in llm_output.splitlines():
+                line = line.strip()
+                if line:
+                    text = line.lstrip("•").strip()
+                    if text:
+                        lines.append(f"* {text}")
+            return "\n".join(lines)
+        
+        bullets = self.data if isinstance(self.data, list) else []
+        return "\n".join(f"* {b}" for b in bullets if b)
+
+
     # ------------------------------------------------------------------
     # LLM integration (graceful no-op if no API keys)
     # ------------------------------------------------------------------

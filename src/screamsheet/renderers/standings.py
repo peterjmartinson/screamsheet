@@ -69,6 +69,31 @@ class StandingsSection(Section):
             elements.append(self._render_generic_standings(self.data))
         
         return elements
+
+    def render_markdown(self) -> str:
+        """Render league standings as Markdown tables."""
+        if self.data is None:
+            self.fetch_data()
+        
+        if self.data is None or (isinstance(self.data, pd.DataFrame) and self.data.empty):
+            return "No standings data available."
+        
+        if isinstance(self.data, pd.DataFrame):
+            try:
+                df = self.data.copy()
+                cols_to_drop = [c for c in ['team_id', 'id'] if c in df.columns]
+                if cols_to_drop:
+                    df = df.drop(columns=cols_to_drop)
+                return df.to_markdown(index=False)
+            except Exception:
+                lines = ["| " + " | ".join(str(c) for c in self.data.columns) + " |"]
+                lines.append("| " + " | ".join([":---"] * len(self.data.columns)) + " |")
+                for _, row in self.data.iterrows():
+                    lines.append("| " + " | ".join(str(v) for v in row.values) + " |")
+                return "\n".join(lines)
+        
+        return str(self.data)
+
     
     def _render_mlb_standings(self, standings_df: pd.DataFrame) -> Table:
         """Render MLB standings in AL/NL format."""

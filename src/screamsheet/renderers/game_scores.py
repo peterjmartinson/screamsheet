@@ -151,3 +151,26 @@ class GameScoresSection(Section):
         elements.append(scores_table)
         
         return elements
+
+    def render_markdown(self) -> str:
+        """Render all game scores into a clean Markdown table."""
+        if not self.data:
+            self.fetch_data()
+        
+        if not self.data:
+            return "No games scheduled."
+        
+        lines = [
+            "| Away | Score | Home | Score | Status |",
+            "| :--- | :---: | :--- | :---: | :--- |",
+        ]
+        for g in self.data:
+            away = g.get("away_team", "")
+            away_score = g.get("away_score", "-")
+            home = g.get("home_team", "")
+            home_score = g.get("home_score", "-")
+            status = g.get("status", "Final")
+            lines.append(f"| {away} | {away_score} | {home} | {home_score} | {status} |")
+        
+        return "\n".join(lines)
+

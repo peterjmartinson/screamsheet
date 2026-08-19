@@ -115,6 +115,12 @@ class AllStarGameSummarySection(Section):
 
         return elements
 
+    def render_markdown(self) -> str:
+        """Render All-Star game summary in Markdown."""
+        if self.data is None:
+            self.fetch_data()
+        return self.data.strip() if self.data else ""
+
 
 class AllStarSideBySideBoxScoreSection(Section):
     """
@@ -169,6 +175,44 @@ class AllStarSideBySideBoxScoreSection(Section):
         ]))
 
         return [two_column_table]
+
+    def render_markdown(self) -> str:
+        """Render AL and NL box scores sequentially in single-column Markdown."""
+        if not self.data:
+            self.fetch_data()
+
+        if not self.data or not isinstance(self.data, dict):
+            return ""
+
+        lines = []
+        for league_key in ['AL', 'NL']:
+            tdata = self.data.get(league_key, {})
+            if not tdata:
+                continue
+            team_name = tdata.get('team_name', f'{league_key} All-Stars')
+            lines.append(f"### {team_name}\n")
+
+            # Batting
+            batting = tdata.get('batting_stats', [])
+            if batting:
+                lines.append("#### Batting")
+                lines.append("| Batter | AB | R | H | HR | RBI | BB | SO |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
+                for p in batting:
+                    lines.append(f"| {p.get('name')} | {p.get('AB', 0)} | {p.get('R', 0)} | {p.get('H', 0)} | {p.get('HR', 0)} | {p.get('RBI', 0)} | {p.get('BB', 0)} | {p.get('SO', 0)} |")
+                lines.append("")
+
+            # Pitching
+            pitching = tdata.get('pitching_stats', [])
+            if pitching:
+                lines.append("#### Pitching")
+                lines.append("| Pitcher | IP | H | R | ER | BB | SO |")
+                lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |")
+                for p in pitching:
+                    lines.append(f"| {p.get('name')} | {p.get('IP', '0.0')} | {p.get('H', 0)} | {p.get('R', 0)} | {p.get('ER', 0)} | {p.get('BB', 0)} | {p.get('SO', 0)} |")
+                lines.append("")
+
+        return "\n".join(lines)
 
     def _render_team_column(self, team_data: dict) -> List[Any]:
         """Render batting and pitching tables for a single league column."""
@@ -246,3 +290,4 @@ class AllStarSideBySideBoxScoreSection(Section):
             elements.append(pitching_table)
 
         return elements
+

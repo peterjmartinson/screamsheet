@@ -179,3 +179,37 @@ class FrenchLexiconSection(Section):
             )
 
         return flowables
+
+    def render_markdown(self) -> str:
+        """Render vocabulary table and idioms in Markdown."""
+        lexicon = self._content.lexicon or {}
+        vocab = lexicon.get("vocabulary", [])
+        idioms = lexicon.get("idiomatic_phrases", [])
+        lines = []
+
+        if vocab:
+            lines.append("### Le Lexique Essentiel\n")
+            lines.append("| Mot | Classe | Traduction |")
+            lines.append("| :--- | :--- | :--- |")
+            for entry in vocab:
+                lines.append(f"| {entry.get('french_lemma', '')} | {entry.get('part_of_speech', '')} | {entry.get('english_translation', '')} |")
+            lines.append("")
+
+        if idioms:
+            lines.append("### Les Tournures de Phrase\n")
+            for idx, item in enumerate(idioms, 1):
+                phrase = item.get("french_phrase", "")
+                lit = item.get("literal_english", "")
+                ctx = item.get("contextual_english", "")
+                note = item.get("usage_note", "")
+                lines.append(f"**{idx}. {phrase}**")
+                if lit:
+                    lines.append(f"* *Littéral:* {lit}")
+                if ctx:
+                    lines.append(f"* *Sens:* {ctx}")
+                if note:
+                    lines.append(f"* *Note:* {note}")
+                lines.append("")
+
+        return "\n".join(lines)
+

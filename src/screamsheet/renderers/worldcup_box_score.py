@@ -127,6 +127,41 @@ class WorldCupBoxScoreSection(Section):
         )
         return [two_col]
 
+    def render_markdown(self) -> str:
+        """Render World Cup game summary and player statistics sequentially in Markdown."""
+        if not hasattr(self, "players"):
+            self.fetch_data()
+
+        lines = []
+        summary_text = self.provider.get_game_summary(
+            self.fixture_id, self.date, is_primary_favorite=self.is_primary_favorite
+        )
+        if summary_text:
+            lines.append("### Match Summary\n\n" + summary_text.strip() + "\n")
+
+        players = getattr(self, "players", [])
+        if players:
+            lines.append("### Lineup & Statistics\n")
+            lines.append("| Player | Team | Pos | G | A |")
+            lines.append("| :--- | :--- | :---: | :---: | :---: |")
+            for p in players:
+                lines.append(f"| {p.get('name')} | {p.get('team', '')} | {p.get('position', '')} | {p.get('goals', 0)} | {p.get('assists', 0)} |")
+            lines.append("")
+
+        events = getattr(self, "events", [])
+        if events:
+            lines.append("### Match Events\n")
+            for ev in events:
+                time_str = f"{ev.get('elapsed', '')}'"
+                ev_type = ev.get("type", "")
+                player = ev.get("player", "")
+                detail = ev.get("detail", "")
+                lines.append(f"* **{time_str}** — {ev_type}: {player} ({detail})")
+            lines.append("")
+
+        return "\n".join(lines)
+
+
     # ------------------------------------------------------------------
 
     def _render_player_tables(self) -> List[Any]:

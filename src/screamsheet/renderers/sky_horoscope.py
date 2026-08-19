@@ -138,6 +138,21 @@ class SkyHoroscopeSection(Section):
         elements.append(table)
         return elements
 
+    def render_markdown(self) -> str:
+        """Render horoscope readings sequentially for each person."""
+        if not self.has_content():
+            return ""
+        if self.data is None:
+            self.fetch_data()
+        
+        lines = []
+        for person in self.people:
+            reading = self._get_horoscope(person)
+            lines.append(f"### {person.name}\n\n{reading}")
+        
+        return "\n\n---\n\n".join(lines)
+
+
     # ------------------------------------------------------------------
     # LLM integration
     # ------------------------------------------------------------------

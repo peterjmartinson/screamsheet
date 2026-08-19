@@ -1,6 +1,6 @@
 """LLM model/API configuration for screamsheet summarizers.
 
-All model names, endpoint URLs, sampling temperatures, and other
+All model names, endpoint URLs, sampling temperatures, caching flags, and other
 provider-level knobs live here so they can be version-controlled and
 swapped without touching prompt or business logic.
 
@@ -31,6 +31,11 @@ class LLMConfig:
     grok_base_url: str = "https://api.x.ai/v1"
     grok_temperature: float = 0.3
     grok_extra_headers: dict = field(default_factory=lambda: {"x-search-mode": "auto"})
+
+    # --- Caching ------------------------------------------------------
+    use_cache: bool = True
+    refresh_cache: bool = False
+    cache_ttl_days: int = 7
 
     # --- Fallback / debug ---------------------------------------------
     # Returned when no LLM key is configured (keeps tests and dry-runs clean)

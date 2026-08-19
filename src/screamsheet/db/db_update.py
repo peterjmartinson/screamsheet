@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from ._nhl_db_shared import get_db_path
+from .llm_cache_db import purge_expired_cache
 from .nhl_teams_sync import full_sync_canonical_teams, full_sync_teams
 from .nhl_players_sync import full_sync as full_sync_players
 from .mlb_teams_sync import full_sync as mlb_full_sync
@@ -25,12 +26,12 @@ from .nfl_teams_sync import full_sync as nfl_full_sync
 from .team_lookup_db import seed_aliases
 
 
-def _run(label: str, fn, db: Path) -> bool:
+def _run(label: str, fn, db: Path, allow_zero: bool = False) -> bool:
     """Run one sync function, print its count, return False on failure."""
     try:
         count = fn(db)
         print(f"{label}:{count}")
-        if count == 0:
+        if count == 0 and not allow_zero:
             print(f"WARNING: zero rows for {label} — possible network failure.", file=sys.stderr)
             return False
         return True
@@ -56,6 +57,7 @@ def main() -> None:
 
     ok = True
     ok &= _run("team_aliases_seeded",          lambda p: seed_aliases(None, p), db)
+    ok &= _run("llm_cache_purged",             purge_expired_cache,       db, allow_zero=True)
     ok &= _run("nhl_teams_legacy_upserted",    full_sync_teams,           db)
     ok &= _run("nhl_teams_upserted",           full_sync_canonical_teams, db)
     ok &= _run("mlb_teams_upserted",           mlb_full_sync,             db)

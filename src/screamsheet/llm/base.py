@@ -1,4 +1,4 @@
-"""Base LLM summarizer: LangChain chain wiring and shared generation logic.
+"""Base LLM summarizer: LangChain chain wiring, SQLite response caching, and shared generation logic.
 
 Concrete summarizers live in llm/summarizers.py; they subclass this and
 implement only ``_build_llm_prompt(data)``.
@@ -6,8 +6,10 @@ implement only ``_build_llm_prompt(data)``.
 Callers that previously imported from ``llm.summary`` continue to work
 unchanged — ``llm/summary.py`` re-exports everything from here.
 """
+import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
@@ -49,10 +51,10 @@ PromptChainInput = Dict[str, Any]
 
 class BaseGameSummaryGenerator:
     """
-    Base class for LLM-powered summarizers.
+    Base class for LLM-powered summarizers with built-in SQLite caching.
 
-    Handles LLM initialisation, LangChain pipeline assembly, logging, and
-    error recovery.  Concrete subclasses implement ``_build_llm_prompt(data)``
+    Handles LLM initialisation, LangChain pipeline assembly, response caching,
+    logging, and error recovery. Concrete subclasses implement ``_build_llm_prompt(data)``
     and declare an optional ``_PROMPT_FILE`` class attribute pointing to a
     versioned ``.txt`` template relative to ``llm/prompts/``.
 
@@ -61,16 +63,6 @@ class BaseGameSummaryGenerator:
         grok_api_key:   xAI Grok API key     (``None`` disables Grok).
         config:         :class:`~screamsheet.llm.config.LLMConfig` instance.
                         Defaults to :data:`~screamsheet.llm.config.DEFAULT_LLM_CONFIG`.
-
-    Wiring a new input source
-    -------------------------
-    1. Subclass ``BaseGameSummaryGenerator`` in ``llm/summarizers.py``.
-    2. Add a prompt file under ``llm/prompts/`` with ``{key}`` placeholders
-       matching your ``ExtractedInfo`` dict keys.
-    3. Set ``_PROMPT_FILE = Path("your_prompt.txt")`` on the subclass.
-    4. ``_build_llm_prompt(data)`` is handled automatically by
-       :class:`~screamsheet.llm.summarizers.FilePromptMixin` if you inherit it;
-       otherwise override the method directly.
     """
 
     def __init__(
@@ -138,7 +130,7 @@ class BaseGameSummaryGenerator:
     def _setup_prompt_chain(self) -> Runnable:
         """Build a reusable LangChain prompt-assembly chain."""
         input_prep_chain = RunnablePassthrough.assign(
-            game_data=RunnableLambda(lambda x: json.dumps(x["data"], indent=2)),
+            game_data=RunnableLambda(lambda x: json.dumps(x["data"], indent=2, default=str)),
             prompt_text=RunnableLambda(lambda x: self._build_llm_prompt(x["data"])),
         )
         template = PromptTemplate.from_template(
@@ -147,54 +139,152 @@ class BaseGameSummaryGenerator:
         return input_prep_chain | template
 
     def _build_llm_prompt(self, data: ExtractedInfo) -> str:
-        """Return the prompt string for *data*.  Subclasses must override."""
+        """Return the prompt string for *data*. Subclasses must override."""
         raise NotImplementedError("Subclass must implement '_build_llm_prompt'")
+
+    # ------------------------------------------------------------------
+    # Caching helpers
+    # ------------------------------------------------------------------
+
+    def _derive_topic_slug(self, data: Union[ExtractedInfo, str]) -> str:
+        """Derive a human-readable topic slug from input data."""
+        summarizer_name = self.__class__.__name__
+        if isinstance(data, str):
+            clean_str = re.sub(r"[^\w\s-]", "", data)[:40].strip().replace(" ", "_")
+            return f"{summarizer_name}_{clean_str}"
+
+        if not isinstance(data, dict):
+            return summarizer_name
+
+        date_str = str(data.get("date", "")).replace("-", "")
+
+        # Game summaries: away at home
+        if "home_team" in data and "away_team" in data:
+            home = re.sub(r"[^\w-]", "", str(data["home_team"])).replace(" ", "_")
+            away = re.sub(r"[^\w-]", "", str(data["away_team"])).replace(" ", "_")
+            rant = "_rant" if "losing_team" in data else ""
+            prefix = f"{date_str}_" if date_str else ""
+            return f"{prefix}{summarizer_name}_{away}_at_{home}{rant}"
+
+        # News articles
+        if "title" in data:
+            title_clean = re.sub(r"[^\w\s-]", "", str(data["title"]))[:40].strip().replace(" ", "_")
+            prefix = f"{date_str}_" if date_str else ""
+            return f"{prefix}{summarizer_name}_{title_clean}"
+
+        # Horoscope / sky
+        if "name" in data:
+            name_clean = re.sub(r"[^\w-]", "", str(data["name"])).replace(" ", "_")
+            prefix = f"{date_str}_" if date_str else ""
+            return f"{prefix}{summarizer_name}_{name_clean}"
+
+        return f"{summarizer_name}_{list(data.keys())[:2]}"
+
+    def _compute_cache_key(
+        self,
+        data: ExtractedInfo,
+        prompt_text: str,
+        llm_choice: str,
+        model_name: str,
+    ) -> str:
+        """Compute deterministic SHA-256 cache key."""
+        try:
+            data_json = json.dumps(data, sort_keys=True, default=str)
+        except Exception:
+            data_json = str(data)
+
+        payload = f"{self.__class__.__name__}|{prompt_text}|{data_json}|{llm_choice.lower()}|{model_name}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     # ------------------------------------------------------------------
     # Generation
     # ------------------------------------------------------------------
 
     def _generate_llm_summary(
-        self, data: Union[ExtractedInfo, str], llm_choice: str
+        self,
+        data: Union[ExtractedInfo, str],
+        llm_choice: str,
+        use_cache: Optional[bool] = None,
+        refresh_cache: Optional[bool] = None,
+        cache_ttl_days: Optional[int] = None,
     ) -> str:
-        """Run the full generation pipeline and return the summary string."""
+        """Run the generation pipeline (with SQLite caching) and return summary string."""
         if isinstance(data, str):
             return data
 
+        should_use_cache = self.config.use_cache if use_cache is None else use_cache
+        should_refresh_cache = self.config.refresh_cache if refresh_cache is None else refresh_cache
+        ttl_days = self.config.cache_ttl_days if cache_ttl_days is None else cache_ttl_days
+
+        llm_choice_clean = (llm_choice or "gemini").lower()
+        model_name = (
+            self.config.grok_model
+            if llm_choice_clean == "grok"
+            else self.config.gemini_model
+        )
+
+        prompt_text = ""
         try:
-            llm_instance: Runnable = self._select_llm_instance(llm_choice)
+            prompt_text = self._build_llm_prompt(data)
+        except Exception:
+            pass
+
+        cache_key = self._compute_cache_key(data, prompt_text, llm_choice_clean, model_name)
+        topic_slug = self._derive_topic_slug(data)
+
+        # 1. Check cache if caching is active and not refreshing
+        if should_use_cache and not should_refresh_cache:
+            try:
+                from ..db import llm_cache_get
+
+                cached_response = llm_cache_get(cache_key)
+                if cached_response is not None:
+                    word_count = len(cached_response.split())
+                    logger.info(
+                        "LLM cache HIT for %s (%d words, key=%s)",
+                        topic_slug,
+                        word_count,
+                        cache_key[:8],
+                    )
+                    return cached_response
+            except Exception as exc:
+                logger.debug("Cache lookup failed: %s", exc)
+
+        # 2. Invoke LLM on cache miss or cache refresh
+        try:
+            llm_instance: Runnable = self._select_llm_instance(llm_choice_clean)
+            if not llm_instance:
+                return self.config.default_text
 
             full_pipeline = (
                 self._setup_prompt_chain() | llm_instance | StrOutputParser()
             )
 
-            chain_input: PromptChainInput = {"data": data, "llm_choice": llm_choice}
-
-            # Log a prompt preview at DEBUG level only (best-effort)
-            try:
-                prompt_builder = self._setup_prompt_chain()
-                try:
-                    prompt_preview = prompt_builder.invoke(chain_input)
-                    if hasattr(prompt_preview, "to_string"):
-                        prompt_preview = prompt_preview.to_string()
-                    else:
-                        prompt_preview = str(prompt_preview)
-                    logger.debug(
-                        "LLM prompt preview (trimmed 4000 chars):\n%s",
-                        prompt_preview[:4000],
-                    )
-                    logger.debug("Full LLM prompt length: %d", len(prompt_preview))
-                except Exception as exc:
-                    logger.debug("Could not render LLM prompt preview: %s", exc)
-            except Exception:
-                pass
-
-            if not llm_choice:
-                return self.config.default_text
+            chain_input: PromptChainInput = {"data": data, "llm_choice": llm_choice_clean}
 
             summary: str = full_pipeline.invoke(chain_input)
             word_count = len(summary.split())
-            logger.info("LLM summary generated: %d words (via %s)", word_count, llm_choice)
+            logger.info("LLM summary generated: %d words (via %s)", word_count, llm_choice_clean)
+
+            # 3. Save generated response to cache
+            if should_use_cache and summary and summary != self.config.default_text:
+                try:
+                    from ..db import llm_cache_save
+
+                    llm_cache_save(
+                        cache_key=cache_key,
+                        topic_slug=topic_slug,
+                        summarizer=self.__class__.__name__,
+                        llm_provider=llm_choice_clean,
+                        model_name=model_name,
+                        prompt_preview=prompt_text[:500],
+                        response_text=summary,
+                        ttl_days=ttl_days,
+                    )
+                    logger.info("LLM response cached for %s (key=%s)", topic_slug, cache_key[:8])
+                except Exception as exc:
+                    logger.warning("Failed to save LLM cache for %s: %s", topic_slug, exc)
+
             return summary
 
         except ValueError as ve:
@@ -208,7 +298,16 @@ class BaseGameSummaryGenerator:
         self,
         llm_choice: str = "gemini",
         data: Union[ExtractedInfo, str] = {"data": "dummy"},
+        use_cache: Optional[bool] = None,
+        refresh_cache: Optional[bool] = None,
+        cache_ttl_days: Optional[int] = None,
         **kwargs,
     ) -> str:
         """Public entry point: generate and return the summary string."""
-        return self._generate_llm_summary(data, llm_choice)
+        return self._generate_llm_summary(
+            data,
+            llm_choice,
+            use_cache=use_cache,
+            refresh_cache=refresh_cache,
+            cache_ttl_days=cache_ttl_days,
+        )

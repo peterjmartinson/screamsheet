@@ -7,10 +7,16 @@ All tests run against a tmp_path SQLite file — no network, no real DB.
 import pytest
 
 from screamsheet.db.team_lookup_db import (
+    get_team_aliases,
+    get_team_feed_slug,
     init_db,
     lookup_team_by_abbrev,
+    lookup_team_by_alias,
     lookup_team_by_id,
     lookup_team_by_name,
+    resolve_team,
+    seed_aliases,
+    upsert_team_aliases,
     upsert_teams,
 )
 
@@ -57,37 +63,43 @@ class TestInitDb:
         engine = init_db(sport, path)
         assert f"{sport}_teams" in sa.inspect(engine).get_table_names()
 
+    def test_creates_team_aliases_table(self, tmp_path, sport):
+        import sqlalchemy as sa
+        path = tmp_path / "teams.db"
+        engine = init_db(sport, path)
+        assert "team_aliases" in sa.inspect(engine).get_table_names()
+
 
 # ---------------------------------------------------------------------------
 # upsert_teams
 # ---------------------------------------------------------------------------
 
 class TestUpsertTeams:
-    def test_inserts_row(self, db, sport, phillies):
-        count = upsert_teams(sport, [phillies], db)
-        assert count == 1
-
-    def test_returns_count_for_multiple_teams(self, db, sport, phillies, padres):
+    def test_returns_upserted_count(self, db, sport, phillies, padres):
         count = upsert_teams(sport, [phillies, padres], db)
         assert count == 2
 
     def test_is_idempotent(self, db, sport, phillies):
         upsert_teams(sport, [phillies], db)
-        upsert_teams(sport, [phillies], db)
-        # Still only one row — no duplicates
-        results = lookup_team_by_name(sport, "Philadelphia Phillies", db)
-        assert len(results) == 1
+        count = upsert_teams(sport, [phillies], db)
+        assert count == 1
+        import sqlalchemy as sa
+        engine = init_db(sport, db)
+        with engine.connect() as conn:
+            rows = conn.execute(sa.text(f"SELECT COUNT(*) FROM {sport}_teams")).scalar()
+            assert rows == 1
 
-    def test_updates_existing_row(self, db, sport, phillies):
-        upsert_teams(sport, [phillies], db)
-        updated = {**phillies, "full_name": "Updated Phillies"}
-        upsert_teams(sport, [updated], db)
-        result = lookup_team_by_id(sport, phillies["team_id"], db)
-        assert result["full_name"] == "Updated Phillies"
-
-    def test_skips_entry_without_team_id(self, db, sport):
-        count = upsert_teams(sport, [{"full_name": "No ID Team", "abbrev": "NON"}], db)
+    def test_skips_entries_without_team_id(self, db, sport):
+        count = upsert_teams(sport, [{"full_name": "No ID Team"}], db)
         assert count == 0
+
+    def test_updates_fields_on_conflict(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        updated = {"team_id": 143, "full_name": "Philly Phils", "abbrev": "PHP"}
+        upsert_teams(sport, [updated], db)
+        result = lookup_team_by_id(sport, 143, db)
+        assert result["full_name"] == "Philly Phils"
+        assert result["abbrev"] == "PHP"
 
 
 # ---------------------------------------------------------------------------
@@ -164,3 +176,114 @@ class TestLookupTeamByName:
         upsert_teams(sport, [phillies, angels, dodgers], db)
         results = lookup_team_by_name(sport, "Los Angeles", db)
         assert len(results) == 2
+
+
+# ---------------------------------------------------------------------------
+# team_aliases and resolve_team
+# ---------------------------------------------------------------------------
+
+class TestTeamAliases:
+    def test_upsert_and_lookup_by_alias(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        aliases = [
+            {"team_id": 143, "alias": "Phils", "alias_type": "nickname"},
+            {"team_id": 143, "alias": "phillies", "alias_type": "slug"},
+        ]
+        count = upsert_team_aliases(sport, aliases, db)
+        assert count == 2
+
+        res = lookup_team_by_alias(sport, "Phils", db)
+        assert res is not None
+        assert res["team_id"] == 143
+        assert res["full_name"] == "Philadelphia Phillies"
+
+    def test_lookup_by_alias_case_insensitive(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        upsert_team_aliases(sport, [{"team_id": 143, "alias": "Fightin Phils"}], db)
+        assert lookup_team_by_alias(sport, "fightin phils", db) is not None
+
+    def test_get_team_aliases(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        upsert_team_aliases(
+            sport,
+            [
+                {"team_id": 143, "alias": "Phils", "alias_type": "nickname"},
+                {"team_id": 143, "alias": "phillies", "alias_type": "slug"},
+            ],
+            db,
+        )
+        aliases = get_team_aliases(sport, 143, db)
+        assert "Philadelphia Phillies" in aliases
+        assert "PHI" in aliases
+        assert "Phils" in aliases
+        assert "phillies" in aliases
+
+    def test_get_team_feed_slug(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        upsert_team_aliases(
+            sport,
+            [{"team_id": 143, "alias": "phillies", "alias_type": "slug"}],
+            db,
+        )
+        assert get_team_feed_slug(sport, 143, db) == "phillies"
+
+    def test_seed_aliases_seeds_mlb(self, tmp_path):
+        db_path = tmp_path / "seed_test.db"
+        count = seed_aliases("mlb", db_path)
+        assert count > 0
+
+        # Resolving various MLB team names
+        brewers = resolve_team("mlb", "Milwaukee Brewers", db_path)
+        assert brewers is not None
+        assert brewers["full_name"] == "Milwaukee Brewers"
+
+        dbacks = resolve_team("mlb", "D-backs", db_path)
+        assert dbacks is not None
+        assert dbacks["full_name"] == "Arizona Diamondbacks"
+
+        redsox = resolve_team("mlb", "Red Sox", db_path)
+        assert redsox is not None
+        assert redsox["full_name"] == "Boston Red Sox"
+
+    def test_resolve_team_handles_ids_abbrevs_and_names(self, db, sport, phillies):
+        upsert_teams(sport, [phillies], db)
+        upsert_team_aliases(
+            sport,
+            [{"team_id": 143, "alias": "Phils", "alias_type": "nickname"}],
+            db,
+        )
+        assert resolve_team(sport, 143, db)["team_id"] == 143
+        assert resolve_team(sport, "143", db)["team_id"] == 143
+        assert resolve_team(sport, "PHI", db)["team_id"] == 143
+        assert resolve_team(sport, "Phils", db)["team_id"] == 143
+        assert resolve_team(sport, "Philadelphia", db)["team_id"] == 143
+
+    def test_load_aliases_from_csv(self, tmp_path):
+        db_path = tmp_path / "csv_test.db"
+        csv_file = tmp_path / "custom_aliases.csv"
+        csv_file.write_text(
+            "sport,team_id,full_name,abbrev,alias,alias_type\n"
+            "mlb,143,Philadelphia Phillies,PHI,Fightins,nickname\n"
+            "mlb,143,Philadelphia Phillies,PHI,The Broad Street Bullies of Baseball,nickname\n"
+            "mlb,158,Milwaukee Brewers,MIL,Brew Crew,nickname\n"
+        )
+        from screamsheet.db.team_lookup_db import load_aliases_from_csv
+        count = load_aliases_from_csv(csv_file, "mlb", db_path)
+        assert count == 3
+
+        resolved = resolve_team("mlb", "The Broad Street Bullies of Baseball", db_path)
+        assert resolved is not None
+        assert resolved["team_id"] == 143
+        assert resolved["full_name"] == "Philadelphia Phillies"
+
+        brew = resolve_team("mlb", "Brew Crew", db_path)
+        assert brew is not None
+        assert brew["team_id"] == 158
+
+    def test_seed_aliases_uses_default_csv(self, tmp_path):
+        db_path = tmp_path / "default_csv_test.db"
+        count = seed_aliases("mlb", db_path)
+        assert count > 0
+        phils = resolve_team("mlb", "Fightin' Phils", db_path)
+        assert phils is not None
+        assert phils["team_id"] == 143

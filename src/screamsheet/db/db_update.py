@@ -22,6 +22,7 @@ from .nhl_players_sync import full_sync as full_sync_players
 from .mlb_teams_sync import full_sync as mlb_full_sync
 from .nba_teams_sync import full_sync as nba_full_sync
 from .nfl_teams_sync import full_sync as nfl_full_sync
+from .team_lookup_db import seed_aliases
 
 
 def _run(label: str, fn, db: Path) -> bool:
@@ -54,6 +55,7 @@ def main() -> None:
     print(f"Using DB: {db}")
 
     ok = True
+    ok &= _run("team_aliases_seeded",          lambda p: seed_aliases(None, p), db)
     ok &= _run("nhl_teams_legacy_upserted",    full_sync_teams,           db)
     ok &= _run("nhl_teams_upserted",           full_sync_canonical_teams, db)
     ok &= _run("mlb_teams_upserted",           mlb_full_sync,             db)

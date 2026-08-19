@@ -29,8 +29,22 @@ class TestMLBNewsRssProviderFeedUrls:
     def test_yankees_feed_url_in_team_feeds(self) -> None:
         assert "Yankees" in MLBNewsRssProvider.TEAM_FEEDS
 
+    def test_brewers_and_reds_feed_urls_present(self) -> None:
+        assert "Brewers" in MLBNewsRssProvider.TEAM_FEEDS
+        assert "Reds" in MLBNewsRssProvider.TEAM_FEEDS
+        assert "Diamondbacks" in MLBNewsRssProvider.TEAM_FEEDS
+
     def test_general_mlb_feed_url_present(self) -> None:
         assert None in MLBNewsRssProvider.TEAM_FEEDS
+
+    def test_get_feed_url_resolves_full_names_and_aliases(self) -> None:
+        p = MLBNewsRssProvider()
+        assert p._get_feed_url("Milwaukee Brewers") == "https://www.mlb.com/brewers/feeds/news/rss.xml"
+        assert p._get_feed_url("Cincinnati Reds") == "https://www.mlb.com/reds/feeds/news/rss.xml"
+        assert p._get_feed_url("Arizona Diamondbacks") == "https://www.mlb.com/dbacks/feeds/news/rss.xml"
+        assert p._get_feed_url("Boston Red Sox") == "https://www.mlb.com/redsox/feeds/news/rss.xml"
+        assert p._get_feed_url("Philadelphia Phillies") == "https://www.mlb.com/phillies/feeds/news/rss.xml"
+        assert p._get_feed_url(None) == "https://www.mlb.com/feeds/news/rss.xml"
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,174 @@
+sport,team_id,full_name,abbrev,alias,alias_type
+mlb,108,Los Angeles Angels,LAA,Los Angeles Angels,name
+mlb,108,Los Angeles Angels,LAA,LAA,abbrev
+mlb,108,Los Angeles Angels,LAA,angels,slug
+mlb,108,Los Angeles Angels,LAA,LA Angels,nickname
+mlb,108,Los Angeles Angels,LAA,Halos,nickname
+mlb,108,Los Angeles Angels,LAA,Anaheim,nickname
+mlb,109,Arizona Diamondbacks,ARI,Arizona Diamondbacks,name
+mlb,109,Arizona Diamondbacks,ARI,ARI,abbrev
+mlb,109,Arizona Diamondbacks,ARI,dbacks,slug
+mlb,109,Arizona Diamondbacks,ARI,Diamondbacks,nickname
+mlb,109,Arizona Diamondbacks,ARI,D-backs,nickname
+mlb,109,Arizona Diamondbacks,ARI,Arizona,nickname
+mlb,109,Arizona Diamondbacks,ARI,Snakes,nickname
+mlb,110,Baltimore Orioles,BAL,Baltimore Orioles,name
+mlb,110,Baltimore Orioles,BAL,BAL,abbrev
+mlb,110,Baltimore Orioles,BAL,orioles,slug
+mlb,110,Baltimore Orioles,BAL,O's,nickname
+mlb,110,Baltimore Orioles,BAL,Baltimore,nickname
+mlb,110,Baltimore Orioles,BAL,Birds,nickname
+mlb,111,Boston Red Sox,BOS,Boston Red Sox,name
+mlb,111,Boston Red Sox,BOS,BOS,abbrev
+mlb,111,Boston Red Sox,BOS,redsox,slug
+mlb,111,Boston Red Sox,BOS,Red Sox,nickname
+mlb,111,Boston Red Sox,BOS,red-sox,nickname
+mlb,111,Boston Red Sox,BOS,Boston,nickname
+mlb,111,Boston Red Sox,BOS,BoSox,nickname
+mlb,112,Chicago Cubs,CHC,Chicago Cubs,name
+mlb,112,Chicago Cubs,CHC,CHC,abbrev
+mlb,112,Chicago Cubs,CHC,cubs,slug
+mlb,112,Chicago Cubs,CHC,North Siders,nickname
+mlb,112,Chicago Cubs,CHC,Cubbies,nickname
+mlb,113,Cincinnati Reds,CIN,Cincinnati Reds,name
+mlb,113,Cincinnati Reds,CIN,CIN,abbrev
+mlb,113,Cincinnati Reds,CIN,reds,slug
+mlb,113,Cincinnati Reds,CIN,Cincinnati,nickname
+mlb,113,Cincinnati Reds,CIN,Redlegs,nickname
+mlb,114,Cleveland Guardians,CLE,Cleveland Guardians,name
+mlb,114,Cleveland Guardians,CLE,CLE,abbrev
+mlb,114,Cleveland Guardians,CLE,guardians,slug
+mlb,114,Cleveland Guardians,CLE,Cleveland,nickname
+mlb,114,Cleveland Guardians,CLE,Indians,nickname
+mlb,115,Colorado Rockies,COL,Colorado Rockies,name
+mlb,115,Colorado Rockies,COL,COL,abbrev
+mlb,115,Colorado Rockies,COL,rockies,slug
+mlb,115,Colorado Rockies,COL,Colorado,nickname
+mlb,115,Colorado Rockies,COL,Rox,nickname
+mlb,116,Detroit Tigers,DET,Detroit Tigers,name
+mlb,116,Detroit Tigers,DET,DET,abbrev
+mlb,116,Detroit Tigers,DET,tigers,slug
+mlb,116,Detroit Tigers,DET,Detroit,nickname
+mlb,117,Houston Astros,HOU,Houston Astros,name
+mlb,117,Houston Astros,HOU,HOU,abbrev
+mlb,117,Houston Astros,HOU,astros,slug
+mlb,117,Houston Astros,HOU,Houston,nickname
+mlb,117,Houston Astros,HOU,'Stros,nickname
+mlb,118,Kansas City Royals,KC,Kansas City Royals,name
+mlb,118,Kansas City Royals,KC,KC,abbrev
+mlb,118,Kansas City Royals,KC,royals,slug
+mlb,118,Kansas City Royals,KC,Kansas City,nickname
+mlb,118,Kansas City Royals,KC,KCR,nickname
+mlb,119,Los Angeles Dodgers,LAD,Los Angeles Dodgers,name
+mlb,119,Los Angeles Dodgers,LAD,LAD,abbrev
+mlb,119,Los Angeles Dodgers,LAD,dodgers,slug
+mlb,119,Los Angeles Dodgers,LAD,LA Dodgers,nickname
+mlb,119,Los Angeles Dodgers,LAD,Blue Crew,nickname
+mlb,119,Los Angeles Dodgers,LAD,Boys in Blue,nickname
+mlb,120,Washington Nationals,WSH,Washington Nationals,name
+mlb,120,Washington Nationals,WSH,WSH,abbrev
+mlb,120,Washington Nationals,WSH,nationals,slug
+mlb,120,Washington Nationals,WSH,Nats,nickname
+mlb,120,Washington Nationals,WSH,Washington,nickname
+mlb,120,Washington Nationals,WSH,WAS,nickname
+mlb,121,New York Mets,NYM,New York Mets,name
+mlb,121,New York Mets,NYM,NYM,abbrev
+mlb,121,New York Mets,NYM,mets,slug
+mlb,121,New York Mets,NYM,NY Mets,nickname
+mlb,121,New York Mets,NYM,Metropolitans,nickname
+mlb,121,New York Mets,NYM,Amazins,nickname
+mlb,133,Athletics,ATH,Athletics,name
+mlb,133,Athletics,ATH,ATH,abbrev
+mlb,133,Athletics,ATH,A's,nickname
+mlb,133,Athletics,ATH,Oakland Athletics,nickname
+mlb,133,Athletics,ATH,Oakland,nickname
+mlb,133,Athletics,ATH,Sacramento Athletics,nickname
+mlb,133,Athletics,ATH,OAK,nickname
+mlb,134,Pittsburgh Pirates,PIT,Pittsburgh Pirates,name
+mlb,134,Pittsburgh Pirates,PIT,PIT,abbrev
+mlb,134,Pittsburgh Pirates,PIT,pirates,slug
+mlb,134,Pittsburgh Pirates,PIT,Bucs,nickname
+mlb,134,Pittsburgh Pirates,PIT,Pittsburgh,nickname
+mlb,134,Pittsburgh Pirates,PIT,Buccos,nickname
+mlb,135,San Diego Padres,SD,San Diego Padres,name
+mlb,135,San Diego Padres,SD,SD,abbrev
+mlb,135,San Diego Padres,SD,padres,slug
+mlb,135,San Diego Padres,SD,San Diego,nickname
+mlb,135,San Diego Padres,SD,Friars,nickname
+mlb,135,San Diego Padres,SD,Pads,nickname
+mlb,135,San Diego Padres,SD,SDP,nickname
+mlb,136,Seattle Mariners,SEA,Seattle Mariners,name
+mlb,136,Seattle Mariners,SEA,SEA,abbrev
+mlb,136,Seattle Mariners,SEA,mariners,slug
+mlb,136,Seattle Mariners,SEA,M's,nickname
+mlb,136,Seattle Mariners,SEA,Seattle,nickname
+mlb,137,San Francisco Giants,SF,San Francisco Giants,name
+mlb,137,San Francisco Giants,SF,SF,abbrev
+mlb,137,San Francisco Giants,SF,giants,slug
+mlb,137,San Francisco Giants,SF,San Francisco,nickname
+mlb,137,San Francisco Giants,SF,SFG,nickname
+mlb,138,St. Louis Cardinals,STL,St. Louis Cardinals,name
+mlb,138,St. Louis Cardinals,STL,STL,abbrev
+mlb,138,St. Louis Cardinals,STL,cardinals,slug
+mlb,138,St. Louis Cardinals,STL,Cards,nickname
+mlb,138,St. Louis Cardinals,STL,St. Louis,nickname
+mlb,138,St. Louis Cardinals,STL,Saint Louis Cardinals,nickname
+mlb,138,St. Louis Cardinals,STL,Redbirds,nickname
+mlb,139,Tampa Bay Rays,TB,Tampa Bay Rays,name
+mlb,139,Tampa Bay Rays,TB,TB,abbrev
+mlb,139,Tampa Bay Rays,TB,rays,slug
+mlb,139,Tampa Bay Rays,TB,Tampa Bay,nickname
+mlb,139,Tampa Bay Rays,TB,TBR,nickname
+mlb,140,Texas Rangers,TEX,Texas Rangers,name
+mlb,140,Texas Rangers,TEX,TEX,abbrev
+mlb,140,Texas Rangers,TEX,rangers,slug
+mlb,140,Texas Rangers,TEX,Texas,nickname
+mlb,141,Toronto Blue Jays,TOR,Toronto Blue Jays,name
+mlb,141,Toronto Blue Jays,TOR,TOR,abbrev
+mlb,141,Toronto Blue Jays,TOR,bluejays,slug
+mlb,141,Toronto Blue Jays,TOR,Blue Jays,nickname
+mlb,141,Toronto Blue Jays,TOR,blue-jays,nickname
+mlb,141,Toronto Blue Jays,TOR,Jays,nickname
+mlb,141,Toronto Blue Jays,TOR,Toronto,nickname
+mlb,142,Minnesota Twins,MIN,Minnesota Twins,name
+mlb,142,Minnesota Twins,MIN,MIN,abbrev
+mlb,142,Minnesota Twins,MIN,twins,slug
+mlb,142,Minnesota Twins,MIN,Minnesota,nickname
+mlb,142,Minnesota Twins,MIN,Twinkies,nickname
+mlb,143,Philadelphia Phillies,PHI,Philadelphia Phillies,name
+mlb,143,Philadelphia Phillies,PHI,PHI,abbrev
+mlb,143,Philadelphia Phillies,PHI,phillies,slug
+mlb,143,Philadelphia Phillies,PHI,Philadelphia,nickname
+mlb,143,Philadelphia Phillies,PHI,Phils,nickname
+mlb,143,Philadelphia Phillies,PHI,Fightins,nickname
+mlb,143,Philadelphia Phillies,PHI,Fightin' Phils,nickname
+mlb,144,Atlanta Braves,ATL,Atlanta Braves,name
+mlb,144,Atlanta Braves,ATL,ATL,abbrev
+mlb,144,Atlanta Braves,ATL,braves,slug
+mlb,144,Atlanta Braves,ATL,Atlanta,nickname
+mlb,145,Chicago White Sox,CWS,Chicago White Sox,name
+mlb,145,Chicago White Sox,CWS,CWS,abbrev
+mlb,145,Chicago White Sox,CWS,whitesox,slug
+mlb,145,Chicago White Sox,CWS,White Sox,nickname
+mlb,145,Chicago White Sox,CWS,white-sox,nickname
+mlb,145,Chicago White Sox,CWS,CHW,nickname
+mlb,145,Chicago White Sox,CWS,South Siders,nickname
+mlb,145,Chicago White Sox,CWS,Pale Hose,nickname
+mlb,146,Miami Marlins,MIA,Miami Marlins,name
+mlb,146,Miami Marlins,MIA,MIA,abbrev
+mlb,146,Miami Marlins,MIA,marlins,slug
+mlb,146,Miami Marlins,MIA,Miami,nickname
+mlb,146,Miami Marlins,MIA,Fish,nickname
+mlb,147,New York Yankees,NYY,New York Yankees,name
+mlb,147,New York Yankees,NYY,NYY,abbrev
+mlb,147,New York Yankees,NYY,yankees,slug
+mlb,147,New York Yankees,NYY,NY Yankees,nickname
+mlb,147,New York Yankees,NYY,Bronx Bombers,nickname
+mlb,147,New York Yankees,NYY,Yanks,nickname
+mlb,147,New York Yankees,NYY,Pinstripes,nickname
+mlb,158,Milwaukee Brewers,MIL,Milwaukee Brewers,name
+mlb,158,Milwaukee Brewers,MIL,MIL,abbrev
+mlb,158,Milwaukee Brewers,MIL,brewers,slug
+mlb,158,Milwaukee Brewers,MIL,Milwaukee,nickname
+mlb,158,Milwaukee Brewers,MIL,Crew,nickname
+mlb,158,Milwaukee Brewers,MIL,Brew Crew,nickname

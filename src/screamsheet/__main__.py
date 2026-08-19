@@ -339,7 +339,25 @@ def main():
             "Example: --date 20260503 fetches games from May 2 and stamps files with 20260503."
         ),
     )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        default=False,
+        help="Bypass LLM response caching (always generate fresh summaries).",
+    )
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        default=False,
+        help="Re-generate LLM summaries and overwrite the cache in SQLite.",
+    )
     args = parser.parse_args()
+
+    from .llm.config import DEFAULT_LLM_CONFIG
+    if args.no_cache:
+        DEFAULT_LLM_CONFIG.use_cache = False
+    if args.refresh_cache:
+        DEFAULT_LLM_CONFIG.refresh_cache = True
 
     if args.date:
         try:

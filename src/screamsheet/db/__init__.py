@@ -25,8 +25,24 @@ Public API — multi-sport team lookup (targets '<sport>_teams' tables):
     sport_resolve_team(sport, query, db_path)        → dict | None
     sport_seed_aliases(sport, db_path, csv_path)     → int
     sport_load_aliases_from_csv(csv_path, sport, db_path) → int
+
+Public API — LLM response cache:
+    llm_cache_init(db_path)                          Create llm_cache table
+    llm_cache_get(cache_key, db_path)                → str | None
+    llm_cache_save(cache_key, ...)                   Save LLM response with TTL
+    llm_cache_purge_expired(db_path)                 → int (purged count)
+    llm_cache_clear(db_path, topic_filter)           → int (cleared count)
+    llm_cache_stats(db_path)                         → dict
 """
 
+from .llm_cache_db import (
+    clear_cache as llm_cache_clear,
+    get_cache_stats as llm_cache_stats,
+    get_cached_response as llm_cache_get,
+    init_cache_db as llm_cache_init,
+    purge_expired_cache as llm_cache_purge_expired,
+    save_cached_response as llm_cache_save,
+)
 from .nhl_players_db import (
     get_db_path,
     init_db,
@@ -83,4 +99,11 @@ __all__ = [
     "sport_load_aliases_from_csv",
     "sport_upsert_team_aliases",
     "sport_upsert_teams",
+    # LLM cache
+    "llm_cache_init",
+    "llm_cache_get",
+    "llm_cache_save",
+    "llm_cache_purge_expired",
+    "llm_cache_clear",
+    "llm_cache_stats",
 ]

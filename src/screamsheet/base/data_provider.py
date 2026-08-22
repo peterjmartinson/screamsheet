@@ -65,15 +65,15 @@ class DataProvider(ABC):
         """
         return None
     
-    def get_game_summary(self, team_id: int, date: datetime, is_primary_favorite: bool = False) -> Optional[str]:
+    def get_game_summary(self, team_id: int, date: datetime, is_primary_favorite: bool = False, mad_fan: bool = False) -> Optional[str]:
         """
         Get game summary for a specific team and date.
         
         Args:
             team_id: The team ID
             date: The date to fetch summary for
-            is_primary_favorite: True when this is the #1 priority team (enables
-                fan-rant mode for losing results in concrete providers that support it)
+            is_primary_favorite: True when this is the #1 priority team
+            mad_fan: True when fan-rant mode is enabled for losses by primary favorite
             
         Returns:
             Game summary text or None if not available

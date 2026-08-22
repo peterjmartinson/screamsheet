@@ -27,6 +27,7 @@ class TeamEntry:
 class SportConfig:
     """Configuration for a single sport."""
     favorite_teams: List[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass
@@ -141,24 +142,28 @@ def _parse_db(raw: dict) -> DbConfig:
 
 def _parse_sport(raw: dict) -> SportConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
-    return SportConfig(favorite_teams=teams)
+    mad_fan = bool(raw.get("mad_fan", False))
+    return SportConfig(favorite_teams=teams, mad_fan=mad_fan)
 
 
 def _parse_mlb(raw: dict) -> MLBConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
-    return MLBConfig(favorite_teams=teams, news_names=news_names)
+    mad_fan = bool(raw.get("mad_fan", False))
+    return MLBConfig(favorite_teams=teams, news_names=news_names, mad_fan=mad_fan)
 
 
 def _parse_worldcup(raw: dict) -> WorldCupConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
-    return WorldCupConfig(favorite_teams=teams)
+    mad_fan = bool(raw.get("mad_fan", False))
+    return WorldCupConfig(favorite_teams=teams, mad_fan=mad_fan)
 
 
 def _parse_nhl(raw: dict) -> NHLConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     news_names = raw.get("news_names", [])
-    return NHLConfig(favorite_teams=teams, news_names=news_names)
+    mad_fan = bool(raw.get("mad_fan", False))
+    return NHLConfig(favorite_teams=teams, news_names=news_names, mad_fan=mad_fan)
 
 
 def _parse_french_mlb(raw: dict) -> FrenchMLBConfig:

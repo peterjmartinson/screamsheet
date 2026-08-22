@@ -43,6 +43,7 @@ class SportsScreamsheet(BaseScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ):
         """
         Initialize the sports screamsheet.
@@ -57,9 +58,12 @@ class SportsScreamsheet(BaseScreamsheet):
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples. The
                 first team that played on `date` will be featured. When provided,
                 team_id and team_name are ignored.
+            mad_fan: If True, generate an enraged hometown-fan recap when the primary
+                favorite team loses. Defaults to False.
         """
         super().__init__(output_filename, date, display_date)
         self.sport_name = sport_name
+        self.mad_fan = mad_fan
 
         # Build the canonical priority list.
         # favorite_teams wins; otherwise fall back to the legacy single-team args.
@@ -163,6 +167,7 @@ class SportsScreamsheet(BaseScreamsheet):
                     team_id=featured_id,
                     date=self.date,
                     is_primary_favorite=is_primary,
+                    mad_fan=self.mad_fan,
                 )
             )
         

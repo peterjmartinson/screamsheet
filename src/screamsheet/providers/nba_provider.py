@@ -280,12 +280,13 @@ class NBADataProvider(DataProvider):
         team_id: int,
         date: datetime,
         is_primary_favorite: bool = False,
+        mad_fan: bool = False,
     ) -> Optional[str]:
         """
         Generate an LLM game summary for *team_id* on *date*.
 
-        Uses the angry fan-rant persona when ``is_primary_favorite`` is True
-        and the featured team lost; otherwise uses the neutral recap.
+        Uses the angry fan-rant persona when ``mad_fan`` is True, ``is_primary_favorite``
+        is True, and the featured team lost; otherwise uses the neutral recap.
         """
         import os
         from .extractors import NBAGameExtractor
@@ -303,7 +304,7 @@ class NBADataProvider(DataProvider):
                 return extracted
 
             use_rant = False
-            if is_primary_favorite:
+            if mad_fan and is_primary_favorite:
                 home_score = int(extracted["home_score"])
                 away_score = int(extracted["away_score"])
                 is_home = bool(extracted.get("featured_team_is_home", False))
@@ -316,7 +317,7 @@ class NBADataProvider(DataProvider):
                     "FanRantSummarizer" if use_rant else "GameSummarizer",
                 )
             else:
-                logger.info("Game summary: team_id=%s (not primary favorite) — using GameSummarizer", team_id)
+                logger.info("Game summary: team_id=%s (not primary favorite or mad_fan disabled) — using GameSummarizer", team_id)
 
             gemini_key = os.environ.get("GEMINI_API_KEY")
             grok_key = os.environ.get("GROK_API_KEY")

@@ -11,6 +11,7 @@
 # Branding footer — printed at the bottom of every screamsheet page.
 branding: "DISTRACTEDFORTUNE.COM"
 nhl:
+  mad_fan: false  # set to true for enraged hometown-fan recap on primary favorite team loss
   favorite_teams:
     - id: 4
       name: "Philadelphia Flyers"
@@ -25,6 +26,7 @@ nhl:
     - "Hurricanes"
 
 mlb:
+  mad_fan: false  # set to true for enraged hometown-fan recap on primary favorite team loss
   favorite_teams:
     - id: 143
       name: "Philadelphia Phillies"
@@ -39,6 +41,7 @@ mlb:
     - "Yankees"
 
 nba:
+  mad_fan: false  # set to true for enraged hometown-fan recap on primary favorite team loss
   favorite_teams:
     - id: 1610612755
       name: "Philadelphia 76ers"
@@ -48,6 +51,7 @@ nba:
       name: "Milwaukee Bucks"
 
 nfl:
+  mad_fan: false
   favorite_teams:
     - id: 4
       name: "Philadelphia Eagles"

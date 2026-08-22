@@ -22,12 +22,13 @@ class BoxScoreSection(Section):
     """
     
     def __init__(self, title: str, provider: DataProvider, team_id: int, date: datetime,
-                 is_primary_favorite: bool = False):
+                 is_primary_favorite: bool = False, mad_fan: bool = False):
         super().__init__(title)
         self.provider = provider
         self.team_id = team_id
         self.date = date
         self.is_primary_favorite = is_primary_favorite
+        self.mad_fan = mad_fan
         self.page_slot = "back"
         self.styles = getSampleStyleSheet()
         
@@ -78,7 +79,7 @@ class BoxScoreSection(Section):
         
         # Get game summary from provider
         game_summary = self.provider.get_game_summary(
-            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite
+            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite, mad_fan=self.mad_fan
         )
         
         # Build left column (game summary)
@@ -144,7 +145,7 @@ class BoxScoreSection(Section):
         
         # 1. Game Summary (sequential first)
         game_summary = self.provider.get_game_summary(
-            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite
+            self.team_id, self.date, is_primary_favorite=self.is_primary_favorite, mad_fan=self.mad_fan
         )
         if game_summary:
             lines.append("### Game Summary\n\n" + game_summary.strip() + "\n")

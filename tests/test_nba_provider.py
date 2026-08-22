@@ -318,3 +318,47 @@ class TestNBAGetAllTeamsForDate:
             provider = NBADataProvider()
             result = provider.get_all_teams_for_date(datetime(2026, 5, 3))
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# get_game_summary & mad_fan
+# ---------------------------------------------------------------------------
+
+class TestNBAGetGameSummary:
+    def test_loss_uses_regular_summarizer_when_mad_fan_false(self):
+        provider = NBADataProvider()
+        fake_raw = {"game": "data"}
+        fake_extracted = {
+            "home_team": "76ers", "away_team": "Celtics",
+            "home_score": 98, "away_score": 105,
+            "featured_team_is_home": True,
+            "narrative_snippets": "",
+        }
+        with patch.object(provider, "_get_game_id", return_value="0022500001"), \
+             patch("screamsheet.providers.extractors.NBAGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.NBAGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summarizers.NBAGameSummarizer.generate_summary", return_value="Regular summary") as mock_gen, \
+             patch("screamsheet.llm.summarizers.NBAFanRantSummarizer.generate_summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=1610612755, date=datetime(2026, 5, 3), is_primary_favorite=True, mad_fan=False)
+            assert summary == "Regular summary"
+            mock_gen.assert_called_once()
+            mock_rant.assert_not_called()
+
+    def test_loss_uses_fan_rant_when_mad_fan_true(self):
+        provider = NBADataProvider()
+        fake_raw = {"game": "data"}
+        fake_extracted = {
+            "home_team": "76ers", "away_team": "Celtics",
+            "home_score": 98, "away_score": 105,
+            "featured_team_is_home": True,
+            "narrative_snippets": "",
+        }
+        with patch.object(provider, "_get_game_id", return_value="0022500001"), \
+             patch("screamsheet.providers.extractors.NBAGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.NBAGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summarizers.NBAGameSummarizer.generate_summary") as mock_gen, \
+             patch("screamsheet.llm.summarizers.NBAFanRantSummarizer.generate_summary", return_value="Rant summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=1610612755, date=datetime(2026, 5, 3), is_primary_favorite=True, mad_fan=True)
+            assert summary == "Rant summary"
+            mock_rant.assert_called_once()
+            mock_gen.assert_not_called()

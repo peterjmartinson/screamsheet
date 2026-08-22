@@ -99,6 +99,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 favorite_teams=mlb_teams,
                 date=game_date,
                 display_date=today,
+                mad_fan=cfg.mlb.mad_fan,
             ),
         ),
         (
@@ -149,6 +150,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 favorite_teams=nhl_teams,
                 date=game_date,
                 display_date=today,
+                mad_fan=cfg.nhl.mad_fan,
             ),
         ),
         (
@@ -170,6 +172,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 favorite_teams=nba_teams,
                 date=game_date,
                 display_date=today,
+                mad_fan=cfg.nba.mad_fan,
             ),
         ),
         (
@@ -254,6 +257,7 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         mlb=MLBOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.mlb.favorite_teams],
             news_names=cfg.mlb.news_names,
+            mad_fan=cfg.mlb.mad_fan,
         ),
         mlb_news=MLBNewsOrderOptions(
             news_names=cfg.mlb.news_names,

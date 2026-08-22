@@ -88,6 +88,19 @@ class TestMLBScreamsheet:
         s = MLBScreamsheet("out.pdf", team_name="Philadelphia Phillies")
         assert s.team_name == "Philadelphia Phillies"
 
+    def test_mad_fan_defaults_to_false(self):
+        s = MLBScreamsheet("out.pdf")
+        assert s.mad_fan is False
+
+    def test_mad_fan_stored_and_passed_to_box_score_section(self):
+        s = MLBScreamsheet("out.pdf", favorite_teams=[(143, "Philadelphia Phillies")], mad_fan=True)
+        assert s.mad_fan is True
+        with patch.object(s.provider, "has_game", return_value=True):
+            sections = s.build_sections()
+        box_sections = [sec for sec in sections if isinstance(sec, BoxScoreSection)]
+        assert len(box_sections) == 1
+        assert box_sections[0].mad_fan is True
+
 
 # ---------------------------------------------------------------------------
 # NHLScreamsheet
@@ -106,6 +119,10 @@ class TestNHLScreamsheet:
     def test_team_id_stored(self):
         s = NHLScreamsheet("out.pdf", team_id=4)
         assert s.team_id == 4
+
+    def test_nhl_mad_fan_stored(self):
+        s = NHLScreamsheet("out.pdf", mad_fan=True)
+        assert s.mad_fan is True
 
 
 # ---------------------------------------------------------------------------

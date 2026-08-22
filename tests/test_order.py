@@ -158,3 +158,27 @@ class TestPersonOptions:
         assert person.sun_sign == ""
         assert person.moon_sign == ""
         assert person.ascendant == ""
+
+
+class TestMadFanOrderOptions:
+    def test_mad_fan_defaults_to_false_in_options(self) -> None:
+        from screamsheet.order import MLBOrderOptions, NHLOrderOptions, NBAOrderOptions, NFLOrderOptions, WorldCupOrderOptions
+        assert MLBOrderOptions().mad_fan is False
+        assert NHLOrderOptions().mad_fan is False
+        assert NBAOrderOptions().mad_fan is False
+        assert NFLOrderOptions().mad_fan is False
+        assert WorldCupOrderOptions().mad_fan is False
+
+    def test_mad_fan_can_be_set_true(self) -> None:
+        from screamsheet.order import MLBOrderOptions, NHLOrderOptions
+        assert MLBOrderOptions(mad_fan=True).mad_fan is True
+        assert NHLOrderOptions(mad_fan=True).mad_fan is True
+
+    def test_runner_forwards_mad_fan_to_factory(self) -> None:
+        from screamsheet.runner import _run_mlb, _run_nhl, _run_nba
+        order_mlb = MLBOrderOptions(favorite_teams=[TeamEntry(id=143, name="Phillies")], mad_fan=True)
+        with patch("screamsheet.runner.ScreamsheetFactory.create_mlb_screamsheet") as mock_factory:
+            mock_sheet = MagicMock()
+            mock_factory.return_value = mock_sheet
+            _run_mlb(order_mlb, _TODAY, "20260516", "/tmp")
+            assert mock_factory.call_args[1]["mad_fan"] is True

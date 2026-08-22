@@ -14,6 +14,7 @@ Adding a new input source
 3. Wire it where needed (provider's ``get_game_summary`` or a renderer's
    ``fetch_data``), passing the matching ``ExtractedInfo`` dict.
 """
+import random
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +23,35 @@ from .config import LLMConfig, DEFAULT_LLM_CONFIG
 
 # Absolute path to the prompts directory next to this file
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+
+# ---------------------------------------------------------------------------
+# Randomized Fan Rant opening hook angles
+# ---------------------------------------------------------------------------
+
+MLB_RANT_ANGLES = [
+    "Focus your opening on the starting pitcher or bullpen meltdown and the specific pitches that gave up runs.",
+    "Focus your opening on the decisive offensive failure: stranded runners in scoring position, key double plays, or empty at-bats.",
+    "Focus your opening with biting sarcasm about false hope from earlier innings or a misleading stat that masked the disaster.",
+    "Open in media res with the opponent's game-winning hit or home run that sealed the defeat.",
+    "Focus your opening on questionable managerial decisions, bullpen substitutions, or late-game execution errors.",
+]
+
+NHL_RANT_ANGLES = [
+    "Focus your opening on the goaltending performance and soft or surrendered goals.",
+    "Focus your opening on special teams failures: wasted power plays, shorthanded concessions, or undisciplined penalties.",
+    "Focus your opening on a devastating third-period breakdown or late defensive collapse.",
+    "Open in media res with the opponent's dagger goal that put the game out of reach.",
+    "Focus your opening with biting sarcasm about a blown lead or failing to match the opponent's physical intensity.",
+]
+
+NBA_RANT_ANGLES = [
+    "Focus your opening on a devastating 4th quarter collapse or opponent scoring run.",
+    "Focus your opening on poor shooting, missed free throws, and wasted possessions in crunch time.",
+    "Focus your opening on star players failing to step up or costly turnovers down the stretch.",
+    "Open in media res with the opponent's dagger three-pointer or backbreaking run.",
+    "Focus your opening on defensive lapses and easy transition points given away.",
+]
 
 
 class SafeDict(dict):
@@ -93,6 +123,7 @@ class NHLFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     - ``away_score``         int
     - ``narrative_snippets`` str  — period-tagged play-by-play
     - ``losing_team``        str  — full name of the featured team that lost
+    - ``rant_angle``         str  — optional opening hook instruction
     """
 
     _PROMPT_FILE = Path("nhl_game_fan_rant.txt")
@@ -109,6 +140,12 @@ class NHLFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+    def _build_llm_prompt(self, data: ExtractedInfo) -> str:
+        prompt_data = dict(data)
+        if not prompt_data.get("rant_angle"):
+            prompt_data["rant_angle"] = random.choice(NHL_RANT_ANGLES)
+        return super()._build_llm_prompt(prompt_data)
 
 
 class MLBGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
@@ -155,6 +192,7 @@ class MLBFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     - ``away_score``         int
     - ``narrative_snippets`` str  — space-joined play descriptions
     - ``losing_team``        str  — full name of the featured team that lost
+    - ``rant_angle``         str  — optional opening hook instruction
     """
 
     _PROMPT_FILE = Path("mlb_game_fan_rant.txt")
@@ -171,6 +209,12 @@ class MLBFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+    def _build_llm_prompt(self, data: ExtractedInfo) -> str:
+        prompt_data = dict(data)
+        if not prompt_data.get("rant_angle"):
+            prompt_data["rant_angle"] = random.choice(MLB_RANT_ANGLES)
+        return super()._build_llm_prompt(prompt_data)
 
 
 class MLBAllStarGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
@@ -367,6 +411,7 @@ class NBAFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     - ``away_score``         int
     - ``narrative_snippets`` str  — quarter-tagged play descriptions
     - ``losing_team``        str  — full name of the featured team that lost
+    - ``rant_angle``         str  — optional opening hook instruction
     """
 
     _PROMPT_FILE = Path("nba_game_fan_rant.txt")
@@ -383,6 +428,12 @@ class NBAFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+
+    def _build_llm_prompt(self, data: ExtractedInfo) -> str:
+        prompt_data = dict(data)
+        if not prompt_data.get("rant_angle"):
+            prompt_data["rant_angle"] = random.choice(NBA_RANT_ANGLES)
+        return super()._build_llm_prompt(prompt_data)
 
 
 # ---------------------------------------------------------------------------

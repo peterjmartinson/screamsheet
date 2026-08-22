@@ -333,3 +333,47 @@ class TestNHLGetAllTeamsForDate:
         with patch("requests.get", return_value=mock_resp):
             result = provider.get_all_teams_for_date(sample_date)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# get_game_summary & mad_fan
+# ---------------------------------------------------------------------------
+
+class TestNHLGetGameSummary:
+    def test_loss_uses_regular_summarizer_when_mad_fan_false(self, provider, sample_date):
+        fake_raw = {
+            "homeTeam": {"id": 4, "commonName": {"default": "Flyers"}},
+            "awayTeam": {"id": 1, "commonName": {"default": "Devils"}},
+        }
+        fake_extracted = {
+            "home_team": "Flyers", "away_team": "Devils",
+            "home_score": 1, "away_score": 4, "narrative_snippets": "",
+        }
+        with patch.object(provider, "_get_game_pk", return_value=2024020001), \
+             patch("screamsheet.providers.extractors.NHLGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.NHLGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summary.NHLGameSummarizer.generate_summary", return_value="Regular summary") as mock_gen, \
+             patch("screamsheet.llm.summary.NHLFanRantSummarizer.generate_summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=4, date=sample_date, is_primary_favorite=True, mad_fan=False)
+            assert summary == "Regular summary"
+            mock_gen.assert_called_once()
+            mock_rant.assert_not_called()
+
+    def test_loss_uses_fan_rant_when_mad_fan_true(self, provider, sample_date):
+        fake_raw = {
+            "homeTeam": {"id": 4, "commonName": {"default": "Flyers"}},
+            "awayTeam": {"id": 1, "commonName": {"default": "Devils"}},
+        }
+        fake_extracted = {
+            "home_team": "Flyers", "away_team": "Devils",
+            "home_score": 1, "away_score": 4, "narrative_snippets": "",
+        }
+        with patch.object(provider, "_get_game_pk", return_value=2024020001), \
+             patch("screamsheet.providers.extractors.NHLGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.NHLGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summary.NHLGameSummarizer.generate_summary") as mock_gen, \
+             patch("screamsheet.llm.summary.NHLFanRantSummarizer.generate_summary", return_value="Rant summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=4, date=sample_date, is_primary_favorite=True, mad_fan=True)
+            assert summary == "Rant summary"
+            mock_rant.assert_called_once()
+            mock_gen.assert_not_called()

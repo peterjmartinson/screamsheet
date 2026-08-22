@@ -24,6 +24,7 @@ class NFLScreamsheet(SportsScreamsheet):
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ):
         """
         Initialize NFL screamsheet.
@@ -34,6 +35,7 @@ class NFLScreamsheet(SportsScreamsheet):
             team_name: Team name (deprecated — use favorite_teams)
             date: Target date (defaults to yesterday)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            mad_fan: If True, enable enraged hometown-fan recap on loss. Defaults to False.
         """
         super().__init__(
             sport_name="NFL",
@@ -42,6 +44,7 @@ class NFLScreamsheet(SportsScreamsheet):
             team_name=team_name,
             date=date,
             favorite_teams=favorite_teams,
+            mad_fan=mad_fan,
         )
         self.router = ScreamSheetRouter(override_date=self.date)
         self.strategy = self.router.get_strategy(self.date)

@@ -25,6 +25,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ) -> MLBScreamsheet:
         """
         Create an MLB screamsheet.
@@ -36,6 +37,7 @@ class ScreamsheetFactory:
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
             
         Returns:
             MLBScreamsheet instance
@@ -47,6 +49,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            mad_fan=mad_fan,
         )
 
     @staticmethod
@@ -84,6 +87,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ) -> NHLScreamsheet:
         """
         Create an NHL screamsheet.
@@ -95,6 +99,7 @@ class ScreamsheetFactory:
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
             
         Returns:
             NHLScreamsheet instance
@@ -106,6 +111,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            mad_fan=mad_fan,
         )
     
     @staticmethod
@@ -115,6 +121,7 @@ class ScreamsheetFactory:
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ) -> NFLScreamsheet:
         """
         Create an NFL screamsheet.
@@ -125,6 +132,7 @@ class ScreamsheetFactory:
             team_name: Team name (deprecated — use favorite_teams)
             date: Target date (defaults to yesterday)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            mad_fan: If True, enable fan rant on loss. Defaults to False.
             
         Returns:
             NFLScreamsheet instance
@@ -135,6 +143,7 @@ class ScreamsheetFactory:
             team_name=team_name,
             date=date,
             favorite_teams=favorite_teams,
+            mad_fan=mad_fan,
         )
     
     @staticmethod
@@ -145,6 +154,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        mad_fan: bool = False,
     ) -> NBAScreamsheet:
         """
         Create an NBA screamsheet.
@@ -156,6 +166,7 @@ class ScreamsheetFactory:
             date: Target date (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
             
         Returns:
             NBAScreamsheet instance
@@ -167,6 +178,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            mad_fan=mad_fan,
         )
     
     @staticmethod

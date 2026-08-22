@@ -85,6 +85,28 @@ class TestLoadConfigValid:
         cfg = load_config(path)
         assert cfg.nfl.favorite_teams[0] == TeamEntry(id=4, name="Philadelphia Eagles")
 
+    def test_mad_fan_parsed_when_true(self, tmp_path):
+        path = _write_yaml(tmp_path, {
+            "mlb": {"favorite_teams": [{"id": 143, "name": "Philadelphia Phillies"}], "mad_fan": True},
+            "nhl": {"favorite_teams": [{"id": 4, "name": "Philadelphia Flyers"}], "mad_fan": True},
+            "nba": {"favorite_teams": [{"id": 1610612755, "name": "Philadelphia 76ers"}], "mad_fan": True},
+        })
+        cfg = load_config(path)
+        assert cfg.mlb.mad_fan is True
+        assert cfg.nhl.mad_fan is True
+        assert cfg.nba.mad_fan is True
+
+    def test_mad_fan_defaults_to_false(self, tmp_path):
+        path = _write_yaml(tmp_path, {
+            "mlb": {"favorite_teams": [{"id": 143, "name": "Philadelphia Phillies"}]},
+            "nhl": {"favorite_teams": [{"id": 4, "name": "Philadelphia Flyers"}]},
+            "nba": {"favorite_teams": [{"id": 1610612755, "name": "Philadelphia 76ers"}]},
+        })
+        cfg = load_config(path)
+        assert cfg.mlb.mad_fan is False
+        assert cfg.nhl.mad_fan is False
+        assert cfg.nba.mad_fan is False
+
 
 # ---------------------------------------------------------------------------
 # Missing optional sport sections default to empty

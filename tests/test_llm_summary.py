@@ -138,6 +138,48 @@ class TestBuildLLMPrompt:
         assert isinstance(prompt, str)
         assert len(prompt) > 20
 
+    def test_mlb_fan_rant_prompt_contains_forbidden_rules_and_angle(self):
+        from screamsheet.llm.summarizers import MLBFanRantSummarizer, MLB_RANT_ANGLES
+        gen = MLBFanRantSummarizer(gemini_api_key=None, grok_api_key=None)
+        data = {
+            "home_team": "Phillies", "away_team": "Mets",
+            "home_score": 2, "away_score": 5,
+            "losing_team": "Philadelphia Phillies",
+            "narrative_snippets": "Strikeout.",
+        }
+        prompt = gen._build_llm_prompt(data)
+        assert "DO NOT start with \"Another night...\"" in prompt
+        assert "gut-wrenching loss" in prompt
+        assert any(angle in prompt for angle in MLB_RANT_ANGLES)
+
+    def test_nhl_fan_rant_prompt_custom_rant_angle(self):
+        from screamsheet.llm.summarizers import NHLFanRantSummarizer
+        gen = NHLFanRantSummarizer(gemini_api_key=None, grok_api_key=None)
+        custom_angle = "Focus your opening directly on the 3rd period power play disaster."
+        data = {
+            "home_team": "Flyers", "away_team": "Devils",
+            "home_score": 1, "away_score": 4,
+            "losing_team": "Philadelphia Flyers",
+            "narrative_snippets": "Goal.",
+            "rant_angle": custom_angle,
+        }
+        prompt = gen._build_llm_prompt(data)
+        assert custom_angle in prompt
+        assert "DO NOT start with \"Another night...\"" in prompt
+
+    def test_nba_fan_rant_prompt_contains_forbidden_rules_and_angle(self):
+        from screamsheet.llm.summarizers import NBAFanRantSummarizer, NBA_RANT_ANGLES
+        gen = NBAFanRantSummarizer(gemini_api_key=None, grok_api_key=None)
+        data = {
+            "home_team": "76ers", "away_team": "Celtics",
+            "home_score": 98, "away_score": 105,
+            "losing_team": "Philadelphia 76ers",
+            "narrative_snippets": "Turnover.",
+        }
+        prompt = gen._build_llm_prompt(data)
+        assert "DO NOT start with \"Another night...\"" in prompt
+        assert any(angle in prompt for angle in NBA_RANT_ANGLES)
+
 
 # ---------------------------------------------------------------------------
 # LLMConfig

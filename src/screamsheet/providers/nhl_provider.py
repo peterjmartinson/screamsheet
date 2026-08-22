@@ -180,17 +180,19 @@ class NHLDataProvider(DataProvider):
             print(f"Error getting NHL box score: {e}")
             return None
     
-    def get_game_summary(self, team_id: int, date: datetime, is_primary_favorite: bool = False) -> Optional[str]:
+    def get_game_summary(self, team_id: int, date: datetime, is_primary_favorite: bool = False, mad_fan: bool = False) -> Optional[str]:
         """
         Get game summary for a specific team and date.
 
-        When ``is_primary_favorite`` is True and the featured team lost, the
-        summary uses the angry-fan rant persona instead of the neutral recap.
+        When ``mad_fan`` is True, ``is_primary_favorite`` is True, and the
+        featured team lost, the summary uses the angry-fan rant persona instead
+        of the neutral recap.
 
         Args:
             team_id: The NHL team ID
             date: The date to fetch summary for
             is_primary_favorite: True when this is the #1 priority team
+            mad_fan: True when fan-rant mode is enabled for losses
             
         Returns:
             Game summary text or None if not available
@@ -210,7 +212,7 @@ class NHLDataProvider(DataProvider):
 
             use_rant = False
             losing_team: Optional[str] = None
-            if is_primary_favorite and raw:
+            if mad_fan and is_primary_favorite and raw:
                 home_id = raw.get("homeTeam", {}).get("id")
                 home_score = int(extracted["home_score"])
                 away_score = int(extracted["away_score"])

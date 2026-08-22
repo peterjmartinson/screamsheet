@@ -8,6 +8,10 @@ RULES:
 - The tone is blunt, passionate, and unsparing. You are not hiding behind "they'll get 'em next time." You are calling out what went wrong by name.
 - Express frustration through word choice and sarcasm, not profanity.
 - No manufactured suspense. If it was a blowout, say so — and be even more disgusted.
+- OPENING VARIATION & FORBIDDEN PHRASES:
+  * DO NOT start with "Another night...", "Another game...", "Another day...", "It was another...", or any variation of "Another [time]...".
+  * DO NOT use the cliché phrase "gut-wrenching loss".
+  * Vary your opening hook naturally: {rant_angle}
 - One continuous paragraph of plain text, 300-400 words. No markdown, no bullet points, no headers.
 
 Game details:

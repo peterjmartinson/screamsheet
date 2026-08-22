@@ -177,3 +177,43 @@ class TestMLBGetAllTeamsForDate:
         with patch("requests.get", return_value=mock_resp):
             result = provider.get_all_teams_for_date(sample_date)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# get_game_summary & mad_fan
+# ---------------------------------------------------------------------------
+
+class TestMLBGetGameSummary:
+    def test_loss_uses_regular_summarizer_when_mad_fan_false(self, provider, sample_date):
+        fake_raw = {
+            "gameData": {"teams": {"home": {"id": 143}, "away": {"id": 121}}},
+        }
+        fake_extracted = {
+            "home_team": "Phillies", "away_team": "Mets",
+            "home_score": 2, "away_score": 5, "narrative_snippets": "",
+        }
+        with patch("screamsheet.providers.extractors.MLBGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.MLBGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summary.MLBGameSummarizer.generate_summary", return_value="Regular summary") as mock_gen, \
+             patch("screamsheet.llm.summary.MLBFanRantSummarizer.generate_summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=143, date=sample_date, is_primary_favorite=True, mad_fan=False)
+            assert summary == "Regular summary"
+            mock_gen.assert_called_once()
+            mock_rant.assert_not_called()
+
+    def test_loss_uses_fan_rant_when_mad_fan_true(self, provider, sample_date):
+        fake_raw = {
+            "gameData": {"teams": {"home": {"id": 143}, "away": {"id": 121}}},
+        }
+        fake_extracted = {
+            "home_team": "Phillies", "away_team": "Mets",
+            "home_score": 2, "away_score": 5, "narrative_snippets": "",
+        }
+        with patch("screamsheet.providers.extractors.MLBGameExtractor.fetch_raw_data", return_value=fake_raw), \
+             patch("screamsheet.providers.extractors.MLBGameExtractor.extract_key_info", return_value=fake_extracted), \
+             patch("screamsheet.llm.summary.MLBGameSummarizer.generate_summary") as mock_gen, \
+             patch("screamsheet.llm.summary.MLBFanRantSummarizer.generate_summary", return_value="Rant summary") as mock_rant:
+            summary = provider.get_game_summary(team_id=143, date=sample_date, is_primary_favorite=True, mad_fan=True)
+            assert summary == "Rant summary"
+            mock_rant.assert_called_once()
+            mock_gen.assert_not_called()

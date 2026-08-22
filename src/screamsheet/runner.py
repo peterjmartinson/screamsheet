@@ -73,6 +73,7 @@ def _run_nhl(options: NHLOrderOptions, today: datetime, today_str: str, output_d
         favorite_teams=teams,
         date=game_date,
         display_date=today,
+        mad_fan=options.mad_fan,
     )
     return sheet.generate()
 
@@ -85,6 +86,7 @@ def _run_mlb(options: MLBOrderOptions, today: datetime, today_str: str, output_d
         favorite_teams=teams,
         date=game_date,
         display_date=today,
+        mad_fan=options.mad_fan,
     )
     return sheet.generate()
 
@@ -97,6 +99,7 @@ def _run_nba(options: NBAOrderOptions, today: datetime, today_str: str, output_d
         favorite_teams=teams,
         date=game_date,
         display_date=today,
+        mad_fan=options.mad_fan,
     )
     return sheet.generate()
 
@@ -108,6 +111,7 @@ def _run_nfl(options: NFLOrderOptions, today: datetime, today_str: str, output_d
         output_filename=_output_path(output_dir, f"NFL_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
         date=game_date,
+        mad_fan=options.mad_fan,
     )
     return sheet.generate()
 

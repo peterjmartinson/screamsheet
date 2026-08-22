@@ -59,6 +59,7 @@ class NHLOrderOptions:
     """Options for the NHL sports / standings sheet."""
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass
@@ -67,6 +68,7 @@ class MLBOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     news_names: list[str] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass
@@ -74,6 +76,7 @@ class NBAOrderOptions:
     """Options for the NBA sports sheet."""
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass
@@ -81,6 +84,7 @@ class NFLOrderOptions:
     """Options for the NFL sports sheet."""
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass
@@ -136,6 +140,7 @@ class WorldCupOrderOptions:
     """Options for the FIFA World Cup sheet."""
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
 
 
 @dataclass

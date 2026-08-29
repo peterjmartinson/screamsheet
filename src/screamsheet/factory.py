@@ -6,6 +6,7 @@ from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamshe
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
+from .briefing import MorningBriefingScreamsheet, DEFAULT_AGENDA_ENDPOINT
 
 
 class ScreamsheetFactory:
@@ -440,5 +441,46 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             game_pk=game_pk,
+        )
+
+    @staticmethod
+    def create_briefing_screamsheet(
+        output_filename: str,
+        subscriber_name: str = "",
+        payload: Optional[dict] = None,
+        api_url: str = DEFAULT_AGENDA_ENDPOINT,
+        include_weather: bool = True,
+        weather_lat: float = 40.02,
+        weather_lon: float = -75.34,
+        weather_location_name: str = "Bryn Mawr, PA",
+        date: Optional[datetime] = None,
+    ) -> MorningBriefingScreamsheet:
+        """
+        Create a Morning Briefing screamsheet.
+
+        Args:
+            output_filename: Path to save the PDF.
+            subscriber_name: Name of subscriber (e.g. "Peter").
+            payload: Configuration payload dictionary for random-task API.
+            api_url: Endpoint for random-task REST API.
+            include_weather: Whether to include 5-day weather report.
+            weather_lat: Latitude for weather forecast.
+            weather_lon: Longitude for weather forecast.
+            weather_location_name: Display name for weather location.
+            date: Target date (defaults to today).
+
+        Returns:
+            MorningBriefingScreamsheet instance
+        """
+        return MorningBriefingScreamsheet(
+            output_filename=output_filename,
+            subscriber_name=subscriber_name,
+            payload=payload,
+            api_url=api_url,
+            include_weather=include_weather,
+            weather_lat=weather_lat,
+            weather_lon=weather_lon,
+            weather_location_name=weather_location_name,
+            date=date,
         )
 

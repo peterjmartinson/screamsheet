@@ -151,6 +151,16 @@ class HomeRunDerbyOrderOptions:
 
 
 @dataclass
+class BriefingOrderOptions:
+    """Options for the Morning Briefing sheet."""
+
+    subscriber_name: str = ""
+    payload: dict = field(default_factory=dict)
+    api_url: str = ""
+    weather: WeatherLocationOptions | None = None
+
+
+@dataclass
 class OutputOrderOptions:
     """Destination directory for generated PDFs."""
 
@@ -167,6 +177,7 @@ class ScreamsheetOrder:
 
     output: OutputOrderOptions | None = None
     # --- active batch sheets (generated in this order) ---
+    briefing: BriefingOrderOptions | None = None
     mlb: MLBOrderOptions | None = None
     mlb_news: MLBNewsOrderOptions | None = None
     french_mlb_news: FrenchMLBNewsOrderOptions | None = None

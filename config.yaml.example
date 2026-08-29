@@ -72,6 +72,17 @@ weather:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+  briefing:
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"
+
+# Morning Briefing screamsheet.
+# Connects to random-task REST API endpoint to aggregate 6-day calendar & Trello tasks.
+briefing:
+  api_url: "https://random-task-rouge.vercel.app/api/agenda"
+  # payload contains the JSON body required by random-task (calendars, trello tokens, etc.)
+  payload: {}
 
 # French MLB News screamsheet.
 # Scrapes RDS.ca and TVA Sports; rewrites articles via Grok at two CEFR levels.

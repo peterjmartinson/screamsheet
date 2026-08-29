@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from .factory import ScreamsheetFactory
 from .order import (
+    BriefingOrderOptions,
     FrenchMLBNewsOrderOptions,
     HomeRunDerbyOrderOptions,
     MLBNewsOrderOptions,
@@ -236,11 +237,34 @@ def _run_home_run_derby(
     return sheet.generate()
 
 
+def _run_briefing(
+    options: BriefingOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    kwargs: dict[str, Any] = {
+        "output_filename": _output_path(output_dir, f"BRIEFING_{today_str}.pdf"),
+        "subscriber_name": options.subscriber_name,
+        "payload": options.payload,
+        "date": today,
+    }
+    if options.api_url:
+        kwargs["api_url"] = options.api_url
+    if options.weather:
+        kwargs.update(
+            include_weather=True,
+            weather_lat=options.weather.lat,
+            weather_lon=options.weather.lon,
+            weather_location_name=options.weather.location_name,
+        )
+    sheet = ScreamsheetFactory.create_briefing_screamsheet(**kwargs)
+    return sheet.generate()
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps ScreamsheetOrder field names to their handler functions.
 # ---------------------------------------------------------------------------
 
 _REGISTRY: dict[str, Callable[..., str]] = {
+    "briefing":         _run_briefing,
     "nhl":              _run_nhl,
     "nhl_news":         _run_nhl_news,
     "mlb":              _run_mlb,

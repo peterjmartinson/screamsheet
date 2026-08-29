@@ -279,7 +279,6 @@ class TwoColumnAgendaSection(Section):
                     ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                     ("TOPPADDING", (0, 0), (-1, -1), 0),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                    ("LINEBEFORE", (2, 0), (2, -1), 0.5, colors.HexColor("#d0d0d0")),
                 ]
             )
         )

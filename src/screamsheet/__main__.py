@@ -205,6 +205,19 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
             ),
         ),
         (
+            "Morning Briefing",
+            lambda: ScreamsheetFactory.create_briefing_screamsheet(
+                output_filename=f'Files/BRIEFING_{today_str}.pdf',
+                subscriber_name=cfg.briefing.subscriber_name,
+                payload=cfg.briefing.payload,
+                api_url=cfg.briefing.api_url,
+                weather_lat=cfg.briefing.weather.lat,
+                weather_lon=cfg.briefing.weather.lon,
+                weather_location_name=cfg.briefing.weather.location_name,
+                date=today,
+            ),
+        ),
+        (
             "MLB Home Run Derby",
             lambda: ScreamsheetFactory.create_home_run_derby_screamsheet(
                 output_filename=f'Files/Home_Run_Derby_{today_str}.pdf',

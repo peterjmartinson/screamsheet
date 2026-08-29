@@ -74,6 +74,20 @@ class WeatherConfig:
     nhl_news: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
+    briefing: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
+
+
+@dataclass
+class BriefingConfig:
+    """Configuration for Morning Briefing screamsheet."""
+    api_url: str = ""
+    subscriber_name: str = ""
+    payload: dict = field(default_factory=dict)
+    weather: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
 
 
 @dataclass
@@ -125,6 +139,7 @@ class ScreamsheetConfig:
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
+    briefing: BriefingConfig = field(default_factory=BriefingConfig)
     branding: str = ""
     output: OutputConfig = field(default_factory=OutputConfig)
     database: DbConfig = field(default_factory=DbConfig)
@@ -195,6 +210,9 @@ def _parse_weather(raw: dict) -> WeatherConfig:
         nhl_news=_parse_weather_location(
             raw.get("nhl_news", {}), 40.02, -75.34, "Bryn Mawr, PA"
         ),
+        briefing=_parse_weather_location(
+            raw.get("briefing", {}), 40.02, -75.34, "Bryn Mawr, PA"
+        ),
     )
 
 
@@ -217,6 +235,23 @@ def _parse_sky(raw: dict) -> SkyConfig:
         lon=float(raw.get("lon", -75.0)),
         location_name=str(raw.get("location_name", "My Location")),
         people=people,
+    )
+
+
+def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
+    api_url = str(raw.get("api_url", ""))
+    subscriber_name = str(raw.get("subscriber_name", raw.get("name", "")))
+    payload = raw.get("payload", {})
+    weather_raw = raw.get("weather", {})
+    if weather_raw:
+        weather_loc = _parse_weather_location(weather_raw, 40.02, -75.34, "Bryn Mawr, PA")
+    else:
+        weather_loc = weather_cfg.briefing
+    return BriefingConfig(
+        api_url=api_url,
+        subscriber_name=subscriber_name,
+        payload=payload,
+        weather=weather_loc,
     )
 
 
@@ -245,6 +280,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     if raw is None:
         raw = {}
 
+    weather = _parse_weather(raw.get("weather", {}))
     return ScreamsheetConfig(
         nhl=_parse_nhl(raw.get("nhl", {})),
         mlb=_parse_mlb(raw.get("mlb", {})),
@@ -252,8 +288,9 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
         worldcup=_parse_worldcup(raw.get("worldcup", {})),
-        weather=_parse_weather(raw.get("weather", {})),
+        weather=weather,
         sky=_parse_sky(raw.get("sky", {})),
+        briefing=_parse_briefing(raw.get("briefing", {}), weather),
         branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
         database=_parse_db(raw.get("database", {})),

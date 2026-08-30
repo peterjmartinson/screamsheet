@@ -258,7 +258,7 @@ class ZodiacWheelSection(Section):
             symbol = _PLANET_SYMBOLS.get(name, two_letter)
             font   = _UNICODE_FONT if name in _PLANET_SYMBOLS else "Helvetica"
 
-            d.add(String(px, py - 8, symbol, fontSize=20, textAnchor="middle",
+            d.add(String(px, py - 10, symbol, fontSize=28, textAnchor="middle",
                          fontName=font, fillColor=black))
 
         # ------------------------------------------------------------------

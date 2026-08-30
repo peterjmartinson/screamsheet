@@ -86,7 +86,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
 
         return [
             ZodiacWheelSection(
-                title="Tonight's Zodiac Wheel",
+                title="",
                 provider=self.provider,
                 date=self.date,
             ),

@@ -193,29 +193,39 @@ class TwoColumnAgendaSection(Section):
             if not tasks:
                 continue
             sec_title = sec.get("title", "Tasks")
-            flowables.append(Paragraph(f"<b>{sec_title}</b>", self._sub_hdr))
-            flowables.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2))
 
+            # Group tasks by assignee preserving order of appearance
+            grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
             for task in tasks:
-                t_title = task.get("title", "")
-                assignee = task.get("assignee", "")
-                due = task.get("due", "")
-                accessory = task.get("accessory", "")
+                assignee = (task.get("assignee") or "").strip()
+                if assignee not in grouped_tasks:
+                    grouped_tasks[assignee] = []
+                grouped_tasks[assignee].append(task)
 
+            for assignee, t_list in grouped_tasks.items():
                 if assignee:
-                    task_line = f"<b>{assignee}</b> - {t_title}"
+                    hdr_title = f"{sec_title} &mdash; {assignee}"
                 else:
+                    hdr_title = sec_title
+
+                flowables.append(Paragraph(f"<b>{hdr_title}</b>", self._sub_hdr))
+                flowables.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2))
+
+                for task in t_list:
+                    t_title = task.get("title", "")
+                    due = task.get("due", "")
+                    accessory = task.get("accessory", "")
+
                     task_line = t_title
+                    if due:
+                        task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
+                    if accessory:
+                        task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
 
-                if due:
-                    task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
-                if accessory:
-                    task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
+                    flowables.append(Paragraph(task_line, self._item_style))
+                    flowables.append(Spacer(1, 1))
 
-                flowables.append(Paragraph(task_line, self._item_style))
-                flowables.append(Spacer(1, 1))
-
-            flowables.append(Spacer(1, 3))
+                flowables.append(Spacer(1, 3))
         return flowables
 
     def _build_left_column_flowables(self, today_data: Dict[str, Any], tomorrow_data: Optional[Dict[str, Any]] = None) -> List[Any]:
@@ -245,9 +255,7 @@ class TwoColumnAgendaSection(Section):
         flowables: List[Any] = []
 
         if self.upcoming_days == 1:
-            # Tomorrow-only mode: Right column is dedicated to Tasks / Projects / Boards
-            flowables.append(Paragraph("<b>TASKS &amp; PROJECTS</b>", self._col_h1))
-            flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+            # Tomorrow-only mode: Right column is dedicated to Board / List sections directly
             sections = (today_data or {}).get("sections", [])
             if not sections or not any(s.get("tasks") for s in sections):
                 flowables.append(Paragraph("<i>No active tasks</i>", self._empty_style))
@@ -363,26 +371,39 @@ class TwoColumnAgendaSection(Section):
                 lines.append("")
 
             lines.append("---\n")
-            lines.append("## TASKS & PROJECTS\n")
             for sec in today_data.get("sections", []):
                 sec_title = sec.get("title", "Tasks")
-                lines.append(f"### {sec_title}\n")
+                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
                 for task in sec.get("tasks", []):
-                    t_title = task.get("title", "")
-                    assignee = task.get("assignee", "")
-                    prefix = f"{assignee} - " if assignee else ""
-                    lines.append(f"{prefix}{t_title}")
-                lines.append("")
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    lines.append(f"### {sub_title}\n")
+                    for task in t_list:
+                        t_title = task.get("title", "")
+                        lines.append(f"{t_title}")
+                    lines.append("")
         else:
             for sec in today_data.get("sections", []):
                 sec_title = sec.get("title", "Tasks")
-                lines.append(f"### {sec_title}\n")
+                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
                 for task in sec.get("tasks", []):
-                    t_title = task.get("title", "")
-                    assignee = task.get("assignee", "")
-                    prefix = f"{assignee} - " if assignee else ""
-                    lines.append(f"{prefix}{t_title}")
-                lines.append("")
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    lines.append(f"### {sub_title}\n")
+                    for task in t_list:
+                        t_title = task.get("title", "")
+                        lines.append(f"{t_title}")
+                    lines.append("")
 
             lines.append("---\n")
             upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []

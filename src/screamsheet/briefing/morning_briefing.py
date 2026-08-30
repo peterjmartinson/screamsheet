@@ -48,11 +48,11 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
 
     def get_title(self) -> str:
+        if self.subscriber_name:
+            return f"{self.subscriber_name}'s Screamsheet"
         return "Screamsheet"
 
     def get_subtitle(self) -> Optional[str]:
-        if self.subscriber_name:
-            return f"{self.subscriber_name}'s Morning Briefing"
         return "Morning Briefing"
 
     def build_sections(self) -> List[Section]:

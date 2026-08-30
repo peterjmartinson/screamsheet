@@ -63,8 +63,8 @@ def test_briefing_screamsheet_creation(tmp_path):
         date=datetime(2026, 8, 28),
     )
     assert isinstance(sheet, MorningBriefingScreamsheet)
-    assert sheet.get_title() == "Screamsheet"
-    assert sheet.get_subtitle() == "Peter's Morning Briefing"
+    assert sheet.get_title() == "Peter's Screamsheet"
+    assert sheet.get_subtitle() == "Morning Briefing"
 
 
 def test_briefing_screamsheet_generate(tmp_path):

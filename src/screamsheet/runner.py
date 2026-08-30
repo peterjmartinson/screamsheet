@@ -244,6 +244,7 @@ def _run_briefing(
         "output_filename": _output_path(output_dir, f"BRIEFING_{today_str}.pdf"),
         "subscriber_name": options.subscriber_name,
         "payload": options.payload,
+        "upcoming_days": options.upcoming_days,
         "date": today,
     }
     if options.api_url:

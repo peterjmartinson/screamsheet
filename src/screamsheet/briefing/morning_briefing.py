@@ -31,6 +31,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
+        upcoming_days: int = 1,
         date: Optional[datetime] = None,
     ):
         target_date = date if date is not None else datetime.now()
@@ -43,14 +44,15 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon
         self.weather_location_name = weather_location_name
+        self.upcoming_days = upcoming_days
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
 
     def get_title(self) -> str:
+        if self.subscriber_name:
+            return f"{self.subscriber_name}'s Screamsheet"
         return "Screamsheet"
 
     def get_subtitle(self) -> Optional[str]:
-        if self.subscriber_name:
-            return f"{self.subscriber_name}'s Morning Briefing"
         return "Morning Briefing"
 
     def build_sections(self) -> List[Section]:
@@ -65,14 +67,16 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                     lat=self.weather_lat,
                     lon=self.weather_lon,
                     location_name=self.weather_location_name,
+                    show_description=False,
                 )
             )
 
-        # 2. Two-column Agenda (Today on Left, Next 5 Days on Right)
+        # 2. Two-column Agenda
         agenda_sec = TwoColumnAgendaSection(
             date=self.date,
             provider=self.provider,
             title="Agenda",
+            upcoming_days=self.upcoming_days,
         )
         sections.append(agenda_sec)
 

@@ -85,6 +85,7 @@ class BriefingConfig:
     api_url: str = ""
     subscriber_name: str = ""
     payload: dict = field(default_factory=dict)
+    upcoming_days: int = 1
     weather: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
@@ -242,6 +243,7 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     api_url = str(raw.get("api_url", ""))
     subscriber_name = str(raw.get("subscriber_name", raw.get("name", "")))
     payload = raw.get("payload", {})
+    upcoming_days = int(raw.get("upcoming_days", 1))
     weather_raw = raw.get("weather", {})
     if weather_raw:
         weather_loc = _parse_weather_location(weather_raw, 40.02, -75.34, "Bryn Mawr, PA")
@@ -251,6 +253,7 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
         api_url=api_url,
         subscriber_name=subscriber_name,
         payload=payload,
+        upcoming_days=upcoming_days,
         weather=weather_loc,
     )
 

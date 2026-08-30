@@ -76,8 +76,12 @@ def convert_time_to_eastern_and_duration(time_str: str) -> str:
 class TwoColumnAgendaSection(Section):
     """
     Renders a two-column briefing section:
-    Left Column: Today's Agenda (Events + Tasks grouped by Board/List)
-    Right Column: Next 5 Days (Chronological Multi-Day Schedule)
+    If upcoming_days == 1:
+        Left Column: Today's Agenda + Tomorrow's Agenda
+        Right Column: Tasks & Projects (grouped by Board/List)
+    If upcoming_days > 1:
+        Left Column: Today's Agenda (Events + Tasks)
+        Right Column: Next N Days (Chronological Multi-Day Schedule)
     """
 
     def __init__(
@@ -86,11 +90,13 @@ class TwoColumnAgendaSection(Section):
         multi_day_data: Optional[List[Dict[str, Any]]] = None,
         provider: Optional[AgendaProvider] = None,
         title: str = "Agenda",
+        upcoming_days: int = 1,
     ):
         super().__init__(title)
         self.date = date
         self.provider = provider
         self.multi_day_data: List[Dict[str, Any]] = multi_day_data or []
+        self.upcoming_days = max(1, upcoming_days)
         self._setup_styles()
 
     def _setup_styles(self):
@@ -99,8 +105,8 @@ class TwoColumnAgendaSection(Section):
             "ColH1",
             parent=base["Heading2"],
             fontName="Helvetica-Bold",
-            fontSize=11,
-            leading=13,
+            fontSize=12,
+            leading=14,
             spaceBefore=0,
             spaceAfter=2,
             textColor=colors.HexColor("#111111"),
@@ -109,63 +115,59 @@ class TwoColumnAgendaSection(Section):
             "ColSubHdr",
             parent=base["Heading3"],
             fontName="Helvetica-Bold",
-            fontSize=8.5,
-            leading=10.5,
-            spaceBefore=4,
-            spaceAfter=1.5,
+            fontSize=10.5,
+            leading=12.5,
+            spaceBefore=5,
+            spaceAfter=2,
             textColor=colors.HexColor("#222222"),
         )
         self._day_hdr = ParagraphStyle(
             "DayHdr",
             parent=base["Heading3"],
             fontName="Helvetica-Bold",
-            fontSize=8.5,
-            leading=10.5,
-            spaceBefore=3.5,
-            spaceAfter=1,
+            fontSize=10.5,
+            leading=12.5,
+            spaceBefore=4.5,
+            spaceAfter=1.5,
             textColor=colors.HexColor("#222222"),
         )
         self._item_style = ParagraphStyle(
             "ColItem",
             parent=base["Normal"],
             fontName="Helvetica",
-            fontSize=7.5,
-            leading=9.5,
+            fontSize=10,
+            leading=12,
             textColor=colors.HexColor("#222222"),
         )
         self._accessory_style = ParagraphStyle(
             "ColAccessory",
             parent=base["Normal"],
             fontName="Helvetica-Oblique",
-            fontSize=6.8,
-            leading=8.5,
+            fontSize=8.5,
+            leading=10.5,
             textColor=colors.HexColor("#555555"),
         )
         self._empty_style = ParagraphStyle(
             "ColEmpty",
             parent=base["Normal"],
             fontName="Helvetica-Oblique",
-            fontSize=7.5,
-            leading=9.5,
+            fontSize=9.5,
+            leading=11.5,
             textColor=colors.HexColor("#777777"),
         )
 
     def fetch_data(self):
         if not self.multi_day_data and self.provider:
-            self.multi_day_data = self.provider.get_multi_day_agenda(self.date, num_days=6)
+            # For 1 upcoming day (Tomorrow), we need 2 days total (Today + Tomorrow).
+            # For N upcoming days, we need 1 + N days total.
+            num_days_to_fetch = 1 + self.upcoming_days
+            self.multi_day_data = self.provider.get_multi_day_agenda(self.date, num_days=num_days_to_fetch)
 
     def has_content(self) -> bool:
         return True
 
-    def _build_left_column_flowables(self, today_data: Dict[str, Any]) -> List[Any]:
+    def _render_events_block(self, events: List[Dict[str, Any]]) -> List[Any]:
         flowables: List[Any] = []
-        flowables.append(Paragraph("<b>TODAY'S AGENDA</b>", self._col_h1))
-        flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
-
-        events = today_data.get("agenda", [])
-        sections = today_data.get("sections", [])
-
-        # 1. Events
         if not events:
             flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
         else:
@@ -182,79 +184,122 @@ class TwoColumnAgendaSection(Section):
                     acc_clean = accessory.replace("\n", " &bull; ")
                     flowables.append(Paragraph(f"<i>{acc_clean}</i>", self._accessory_style))
                 flowables.append(Spacer(1, 1.5))
+        return flowables
 
-        flowables.append(Spacer(1, 4))
-
-        # 2. Tasks grouped by section/board/list
+    def _render_tasks_block(self, sections: List[Dict[str, Any]]) -> List[Any]:
+        flowables: List[Any] = []
         for sec in sections:
             tasks = sec.get("tasks", [])
             if not tasks:
                 continue
             sec_title = sec.get("title", "Tasks")
-            flowables.append(Paragraph(f"<b>{sec_title}</b>", self._sub_hdr))
-            flowables.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2))
 
+            # Group tasks by assignee preserving order of appearance
+            grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
             for task in tasks:
-                t_title = task.get("title", "")
-                assignee = task.get("assignee", "")
-                due = task.get("due", "")
-                accessory = task.get("accessory", "")
+                assignee = (task.get("assignee") or "").strip()
+                if assignee not in grouped_tasks:
+                    grouped_tasks[assignee] = []
+                grouped_tasks[assignee].append(task)
 
+            for assignee, t_list in grouped_tasks.items():
                 if assignee:
-                    task_line = f"<b>{assignee}</b> - {t_title}"
+                    hdr_title = f"{sec_title} &mdash; {assignee}"
                 else:
+                    hdr_title = sec_title
+
+                flowables.append(Paragraph(f"<b>{hdr_title}</b>", self._sub_hdr))
+                flowables.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2))
+
+                for task in t_list:
+                    t_title = task.get("title", "")
+                    due = task.get("due", "")
+                    accessory = task.get("accessory", "")
+
                     task_line = t_title
+                    if due:
+                        task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
+                    if accessory:
+                        task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
 
-                if due:
-                    task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
-                if accessory:
-                    task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
+                    flowables.append(Paragraph(task_line, self._item_style))
+                    flowables.append(Spacer(1, 1))
 
-                flowables.append(Paragraph(task_line, self._item_style))
-                flowables.append(Spacer(1, 1))
+                flowables.append(Spacer(1, 3))
+        return flowables
 
-            flowables.append(Spacer(1, 3))
+    def _build_left_column_flowables(self, today_data: Dict[str, Any], tomorrow_data: Optional[Dict[str, Any]] = None) -> List[Any]:
+        flowables: List[Any] = []
+        flowables.append(Paragraph("<b>TODAY'S AGENDA</b>", self._col_h1))
+        flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+
+        events = today_data.get("agenda", [])
+        flowables.extend(self._render_events_block(events))
+
+        if self.upcoming_days == 1:
+            # Show Tomorrow in left column right below Today
+            flowables.append(Spacer(1, 6))
+            flowables.append(Paragraph("<b>TOMORROW'S AGENDA</b>", self._col_h1))
+            flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+            tomorrow_events = (tomorrow_data or {}).get("agenda", [])
+            flowables.extend(self._render_events_block(tomorrow_events))
+        else:
+            # Multi-day mode: Tasks go in left column under Today
+            flowables.append(Spacer(1, 4))
+            sections = today_data.get("sections", [])
+            flowables.extend(self._render_tasks_block(sections))
 
         return flowables
 
-    def _build_right_column_flowables(self, next_5_days_data: List[Dict[str, Any]]) -> List[Any]:
+    def _build_right_column_flowables(self, upcoming_days_data: List[Dict[str, Any]], today_data: Optional[Dict[str, Any]] = None) -> List[Any]:
         flowables: List[Any] = []
-        flowables.append(Paragraph("<b>NEXT 5 DAYS</b>", self._col_h1))
-        flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
 
-        for day_dict in next_5_days_data:
-            d_str = day_dict.get("date", "")
-            try:
-                d_obj = datetime.strptime(d_str, "%Y-%m-%d")
-                day_name = d_obj.strftime("%A")
-                date_fmt = d_obj.strftime("%m/%d")
-                heading_str = f"{day_name}, {date_fmt}"
-            except Exception:
-                heading_str = d_str
-
-            flowables.append(Paragraph(f"<b>{heading_str}</b>", self._day_hdr))
-
-            events = day_dict.get("agenda", [])
-            if not events:
-                flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
+        if self.upcoming_days == 1:
+            # Tomorrow-only mode: Right column is dedicated to Board / List sections directly
+            sections = (today_data or {}).get("sections", [])
+            if not sections or not any(s.get("tasks") for s in sections):
+                flowables.append(Paragraph("<i>No active tasks</i>", self._empty_style))
             else:
-                for ev in events:
-                    time_raw = ev.get("time", "")
-                    converted_time = convert_time_to_eastern_and_duration(time_raw)
-                    title = ev.get("title", "")
-                    accessory = ev.get("accessory", "")
+                flowables.extend(self._render_tasks_block(sections))
+        else:
+            # Multi-day mode: Right column is Next N Days
+            title = f"NEXT {len(upcoming_days_data)} DAYS" if len(upcoming_days_data) != 5 else "NEXT 5 DAYS"
+            flowables.append(Paragraph(f"<b>{title}</b>", self._col_h1))
+            flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
 
-                    if accessory:
-                        acc_short = accessory.split("\n")[0]
-                        acc_part = f" <font color='#555555'>({acc_short})</font>"
-                    else:
-                        acc_part = ""
+            for day_dict in upcoming_days_data:
+                d_str = day_dict.get("date", "")
+                try:
+                    d_obj = datetime.strptime(d_str, "%Y-%m-%d")
+                    day_name = d_obj.strftime("%A")
+                    date_fmt = d_obj.strftime("%m/%d")
+                    heading_str = f"{day_name}, {date_fmt}"
+                except Exception:
+                    heading_str = d_str
 
-                    line_text = f"<b>{converted_time}</b> - {title}{acc_part}"
-                    flowables.append(Paragraph(line_text, self._item_style))
-                    flowables.append(Spacer(1, 1))
+                flowables.append(Paragraph(f"<b>{heading_str}</b>", self._day_hdr))
 
-            flowables.append(Spacer(1, 3))
+                events = day_dict.get("agenda", [])
+                if not events:
+                    flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
+                else:
+                    for ev in events:
+                        time_raw = ev.get("time", "")
+                        converted_time = convert_time_to_eastern_and_duration(time_raw)
+                        title = ev.get("title", "")
+                        accessory = ev.get("accessory", "")
+
+                        if accessory:
+                            acc_short = accessory.split("\n")[0]
+                            acc_part = f" <font color='#555555'>({acc_short})</font>"
+                        else:
+                            acc_part = ""
+
+                        line_text = f"<b>{converted_time}</b> - {title}{acc_part}"
+                        flowables.append(Paragraph(line_text, self._item_style))
+                        flowables.append(Spacer(1, 1))
+
+                flowables.append(Spacer(1, 3))
 
         return flowables
 
@@ -263,10 +308,11 @@ class TwoColumnAgendaSection(Section):
             self.fetch_data()
 
         today_data = self.multi_day_data[0] if self.multi_day_data else {}
-        next_5_days_data = self.multi_day_data[1:6] if len(self.multi_day_data) > 1 else []
+        tomorrow_data = self.multi_day_data[1] if len(self.multi_day_data) > 1 else {}
+        upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []
 
-        left_flowables = self._build_left_column_flowables(today_data)
-        right_flowables = self._build_right_column_flowables(next_5_days_data)
+        left_flowables = self._build_left_column_flowables(today_data, tomorrow_data=tomorrow_data)
+        right_flowables = self._build_right_column_flowables(upcoming_data, today_data=today_data)
 
         # 2-column table layout: page width is 612, margin 36 on each side -> 540 pt usable width
         # Left col: 260 pt, Gap: 20 pt, Right col: 260 pt
@@ -289,8 +335,6 @@ class TwoColumnAgendaSection(Section):
             self.fetch_data()
 
         today_data = self.multi_day_data[0] if self.multi_day_data else {}
-        next_5_days_data = self.multi_day_data[1:6] if len(self.multi_day_data) > 1 else []
-
         lines = []
         lines.append("## TODAY'S AGENDA\n")
         events = today_data.get("agenda", [])
@@ -308,38 +352,82 @@ class TwoColumnAgendaSection(Section):
                     lines.append(f"_{acc_clean}_")
             lines.append("")
 
-        for sec in today_data.get("sections", []):
-            sec_title = sec.get("title", "Tasks")
-            lines.append(f"### {sec_title}\n")
-            for task in sec.get("tasks", []):
-                t_title = task.get("title", "")
-                assignee = task.get("assignee", "")
-                prefix = f"{assignee} - " if assignee else ""
-                lines.append(f"{prefix}{t_title}")
-            lines.append("")
-
-        lines.append("---\n")
-        lines.append("## NEXT 5 DAYS\n")
-        for day_dict in next_5_days_data:
-            d_str = day_dict.get("date", "")
-            try:
-                d_obj = datetime.strptime(d_str, "%Y-%m-%d")
-                heading_str = f"{d_obj.strftime('%A')}, {d_obj.strftime('%m/%d')}"
-            except Exception:
-                heading_str = d_str
-
-            lines.append(f"### {heading_str}\n")
-            evs = day_dict.get("agenda", [])
-            if not evs:
+        if self.upcoming_days == 1:
+            tomorrow_data = self.multi_day_data[1] if len(self.multi_day_data) > 1 else {}
+            lines.append("## TOMORROW'S AGENDA\n")
+            t_evs = tomorrow_data.get("agenda", [])
+            if not t_evs:
                 lines.append("_No scheduled events_\n")
             else:
-                for ev in evs:
+                for ev in t_evs:
                     time_raw = ev.get("time", "")
                     c_time = convert_time_to_eastern_and_duration(time_raw)
                     title = ev.get("title", "")
                     accessory = ev.get("accessory", "")
-                    acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""
-                    lines.append(f"{c_time} - {title}{acc_str}")
+                    lines.append(f"{c_time} - {title}")
+                    if accessory:
+                        acc_clean = accessory.replace("\n", " • ")
+                        lines.append(f"_{acc_clean}_")
                 lines.append("")
+
+            lines.append("---\n")
+            for sec in today_data.get("sections", []):
+                sec_title = sec.get("title", "Tasks")
+                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+                for task in sec.get("tasks", []):
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    lines.append(f"### {sub_title}\n")
+                    for task in t_list:
+                        t_title = task.get("title", "")
+                        lines.append(f"{t_title}")
+                    lines.append("")
+        else:
+            for sec in today_data.get("sections", []):
+                sec_title = sec.get("title", "Tasks")
+                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+                for task in sec.get("tasks", []):
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    lines.append(f"### {sub_title}\n")
+                    for task in t_list:
+                        t_title = task.get("title", "")
+                        lines.append(f"{t_title}")
+                    lines.append("")
+
+            lines.append("---\n")
+            upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []
+            lines.append(f"## NEXT {len(upcoming_data)} DAYS\n")
+            for day_dict in upcoming_data:
+                d_str = day_dict.get("date", "")
+                try:
+                    d_obj = datetime.strptime(d_str, "%Y-%m-%d")
+                    heading_str = f"{d_obj.strftime('%A')}, {d_obj.strftime('%m/%d')}"
+                except Exception:
+                    heading_str = d_str
+
+                lines.append(f"### {heading_str}\n")
+                evs = day_dict.get("agenda", [])
+                if not evs:
+                    lines.append("_No scheduled events_\n")
+                else:
+                    for ev in evs:
+                        time_raw = ev.get("time", "")
+                        c_time = convert_time_to_eastern_and_duration(time_raw)
+                        title = ev.get("title", "")
+                        accessory = ev.get("accessory", "")
+                        acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""
+                        lines.append(f"{c_time} - {title}{acc_str}")
+                    lines.append("")
 
         return "\n".join(lines)

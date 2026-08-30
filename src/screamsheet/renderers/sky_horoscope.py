@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 _UNICODE_FONT = "Helvetica"
 _UNICODE_FONT_BOLD = "Helvetica-Bold"
 
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+
 _FONT_CANDIDATES = [
     ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
     ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
@@ -44,8 +46,10 @@ for _reg, _bold in _FONT_CANDIDATES:
             if os.path.exists(_bold):
                 pdfmetrics.registerFont(TTFont("_HoroUnicodeBold", _bold))
                 _UNICODE_FONT_BOLD = "_HoroUnicodeBold"
+                registerFontFamily("_HoroUnicode", normal="_HoroUnicode", bold="_HoroUnicodeBold", italic="_HoroUnicode", boldItalic="_HoroUnicodeBold")
             else:
                 _UNICODE_FONT_BOLD = "_HoroUnicode"
+                registerFontFamily("_HoroUnicode", normal="_HoroUnicode", bold="_HoroUnicode", italic="_HoroUnicode", boldItalic="_HoroUnicode")
         except Exception:
             pass
         break

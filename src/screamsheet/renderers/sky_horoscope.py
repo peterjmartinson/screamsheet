@@ -73,9 +73,17 @@ class SkyHoroscopeSection(Section):
         self._body_style = ParagraphStyle(
             "HoroBody",
             parent=base["Normal"],
-            fontSize=11,
-            leading=15,
+            fontSize=10,
+            leading=13.5,
             alignment=TA_LEFT,
+        )
+        self._aspect_style = ParagraphStyle(
+            "HoroAspect",
+            parent=base["Normal"],
+            fontSize=9,
+            leading=12,
+            alignment=TA_LEFT,
+            textColor=HexColor("#333333"),
         )
 
     # ------------------------------------------------------------------
@@ -110,8 +118,36 @@ class SkyHoroscopeSection(Section):
             reading = self._get_horoscope(person)
             col: List[Any] = [
                 Paragraph(person.name, self._name_style),
-                Paragraph(reading, self._body_style),
             ]
+            # Split by double or single newlines to preserve paragraphs and aspect bullets
+            paragraphs = [p.strip() for p in reading.split("\n") if p.strip()]
+            for p_text in paragraphs:
+                if p_text.startswith("•") or p_text.startswith("-"):
+                    # Aspect / influence list items
+                    p_clean = p_text.lstrip("•- ").strip()
+                    col.append(Paragraph(f"&bull; {p_clean}", self._aspect_style))
+                    col.append(Spacer(1, 2))
+                else:
+                    # Bold only the lead-in prefix if present
+                    lower_p = p_text.lower()
+                    if lower_p.startswith("where to watch your step:"):
+                        prefix_len = len("where to watch your step:")
+                        lead = p_text[:prefix_len]
+                        rest = p_text[prefix_len:]
+                        p_html = f"<b>{lead}</b>{rest}"
+                    elif lower_p.startswith("your move:"):
+                        prefix_len = len("your move:")
+                        lead = p_text[:prefix_len]
+                        rest = p_text[prefix_len:]
+                        p_html = f"<b>{lead}</b>{rest}"
+                    elif lower_p.startswith("key influences & aspects:") or lower_p.startswith("key influences and aspects:"):
+                        p_html = f"<b>{p_text}</b>"
+                    else:
+                        p_html = p_text
+
+                    col.append(Paragraph(p_html, self._body_style))
+                    col.append(Spacer(1, 4))
+
             col_contents.append(col)
 
         # Pad to exactly 2 columns so the Table always has 2 cells.

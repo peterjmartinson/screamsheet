@@ -55,6 +55,23 @@ for _reg, _bold in _FONT_CANDIDATES:
         break
 
 
+# Set of astrological unicode glyphs for selective enlargement
+_ASTRO_GLYPHS = set("☉☽☿♀♂♃♄♅♆♇☌□△☍⚻♈♉♊♋♌♍♎♏♐♑♒♓∗✱*")
+
+
+def _enlarge_astro_glyphs(text: str, size: int = 11) -> str:
+    """Enlarge astrological symbols within text using ReportLab inline font tags."""
+    # Normalize missing font sextile glyph U+26B9 to standard asterisk operator U+2217 (∗)
+    normalized = text.replace("\u26b9", "\u2217")
+    chars = []
+    for ch in normalized:
+        if ch in _ASTRO_GLYPHS:
+            chars.append(f"<font size='{size}'>{ch}</font>")
+        else:
+            chars.append(ch)
+    return "".join(chars)
+
+
 class SkyHoroscopeSection(Section):
     """Renders two horoscope readings side-by-side for configured people.
 
@@ -165,19 +182,9 @@ class SkyHoroscopeSection(Section):
                 if p_text.startswith("•") or p_text.startswith("-"):
                     # Aspect / influence list items
                     p_clean = p_text.lstrip("•- ").strip()
-                    # Make leading aspect symbols bold (up to the dash or orb)
-                    if "—" in p_clean:
-                        parts = p_clean.split("—", 1)
-                        sym_part = parts[0].strip()
-                        desc_part = parts[1]
-                        line_html = f"&bull; <b>{sym_part}</b> &mdash;{desc_part}"
-                    elif " - " in p_clean:
-                        parts = p_clean.split(" - ", 1)
-                        sym_part = parts[0].strip()
-                        desc_part = parts[1]
-                        line_html = f"&bull; <b>{sym_part}</b> &mdash; {desc_part}"
-                    else:
-                        line_html = f"&bull; {p_clean}"
+                    # Enlarge only the glyphs (to 11.5pt) while keeping text and degrees at normal 9pt
+                    p_enlarged = _enlarge_astro_glyphs(p_clean, size=12)
+                    line_html = f"&bull; {p_enlarged}"
 
                     col.append(Paragraph(line_html, self._aspect_style))
                     col.append(Spacer(1, 2))
@@ -228,14 +235,15 @@ class SkyHoroscopeSection(Section):
         elements.append(table)
         elements.append(Spacer(1, 6))
 
-        # Aspect Symbol Legend anchored at the bottom of the page
+        # Aspect Symbol Legend anchored at the bottom of the page (glyphs enlarged)
         legend_text = (
-            "<b>Aspects:</b> &nbsp; <b>&xcirc;</b> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
-            "<b>&#x26B9;</b> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
-            "<b>&#x25A1;</b> Square (90&deg;) &nbsp;&bull;&nbsp; "
-            "<b>&#x25B3;</b> Trine (120&deg;) &nbsp;&bull;&nbsp; "
-            "<b>&#x260D;</b> Opposition (180&deg;)"
-        ).replace("&xcirc;", "&#x260C;")
+            "<b>Aspects:</b> &nbsp; "
+            "<font size='10'>&#x260C;</font> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x2217;</font> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25A1;</font> Square (90&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25B3;</font> Trine (120&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x260D;</font> Opposition (180&deg;)"
+        )
         elements.append(HRFlowable(width="100%", thickness=0.4, color=HexColor("#DDDDDD"), spaceAfter=3))
         elements.append(Paragraph(legend_text, self._legend_style))
         return elements

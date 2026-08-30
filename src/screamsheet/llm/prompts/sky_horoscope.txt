@@ -29,11 +29,17 @@ Writing Guidelines:
    Start with "Your move:" followed by a punchy, 1-2 sentence bottom-line strategy on how to act, what mindset to maintain, and where to focus energy today.
 
    Section 4 — Key Influences & Aspects:
-   Provide a clean bulleted list of the 2-4 most influential planetary aspects/transits active today with their real-world meaning. Format each on its own line:
-   • [Aspect Name] (Orb / Status) — [Short Plain-English Theme]: [1 sentence explanation of how it feels or what it affects]
-   Example:
-   • Mercury Sextile Midheaven (0.8°) — Career Clarity: Sharp communication and persuasive power in professional conversations.
-   • Mars Square 8th House (2.1°) — Financial Friction: Avoid impulsive decisions or heated arguments over shared expenses.
+   Provide a clean bulleted list of the 2-4 most influential planetary aspects/transits active today.
+   Use the astrological symbols for planets and aspects:
+   Planets: ☉ (Sun), ☽ (Moon), ☿ (Mercury), ♀ (Venus), ♂ (Mars), ♃ (Jupiter), ♄ (Saturn), ♅ (Uranus), ♆ (Neptune)
+   Aspects: ☌ (Conjunction), ⚹ (Sextile), □ (Square), △ (Trine), ☍ (Opposition)
+
+   Format each on its own line:
+   • [Planet Symbol] [Aspect Symbol] [Planet Symbol/Angle] (Orb) — [Short Theme]: [1 sentence explanation of how it feels or what it affects]
+   Examples:
+   • ☿ ⚹ ☉ (0.8°) — Career Clarity: Sharp communication and persuasive power in professional conversations.
+   • ♂ □ ♄ (2.1°) — Financial Friction: Avoid impulsive decisions or heated arguments over shared expenses.
+   • ☽ △ ♃ (1.4°) — Social Harmony: Warm connections and mutual understanding with close friends.
 
 3. Constraints:
    - Total word count: Under 220 words.

@@ -12,9 +12,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from ..base import Section
 from ..config import PersonConfig
@@ -23,6 +25,30 @@ from ..llm.summarizers import HoroscopeSummarizer
 from ..providers.astro_provider import AstroDataProvider
 
 logger = logging.getLogger(__name__)
+
+# Register Unicode-capable TTF fonts for rendering astrological symbols
+_UNICODE_FONT = "Helvetica"
+_UNICODE_FONT_BOLD = "Helvetica-Bold"
+
+_FONT_CANDIDATES = [
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
+    ("/usr/share/fonts/truetype/freefont/FreeSans.ttf", "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"),
+    ("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"),
+]
+for _reg, _bold in _FONT_CANDIDATES:
+    if os.path.exists(_reg):
+        try:
+            pdfmetrics.registerFont(TTFont("_HoroUnicode", _reg))
+            _UNICODE_FONT = "_HoroUnicode"
+            if os.path.exists(_bold):
+                pdfmetrics.registerFont(TTFont("_HoroUnicodeBold", _bold))
+                _UNICODE_FONT_BOLD = "_HoroUnicodeBold"
+            else:
+                _UNICODE_FONT_BOLD = "_HoroUnicode"
+        except Exception:
+            pass
+        break
 
 
 class SkyHoroscopeSection(Section):
@@ -80,10 +106,20 @@ class SkyHoroscopeSection(Section):
         self._aspect_style = ParagraphStyle(
             "HoroAspect",
             parent=base["Normal"],
-            fontSize=9,
-            leading=12,
+            fontName=_UNICODE_FONT,
+            fontSize=8.5,
+            leading=11.5,
             alignment=TA_LEFT,
-            textColor=HexColor("#333333"),
+            textColor=HexColor("#222222"),
+        )
+        self._legend_style = ParagraphStyle(
+            "HoroLegend",
+            parent=base["Normal"],
+            fontName=_UNICODE_FONT,
+            fontSize=7.5,
+            leading=10,
+            alignment=TA_CENTER,
+            textColor=HexColor("#555555"),
         )
 
     # ------------------------------------------------------------------
@@ -125,7 +161,21 @@ class SkyHoroscopeSection(Section):
                 if p_text.startswith("•") or p_text.startswith("-"):
                     # Aspect / influence list items
                     p_clean = p_text.lstrip("•- ").strip()
-                    col.append(Paragraph(f"&bull; {p_clean}", self._aspect_style))
+                    # Make leading aspect symbols bold (up to the dash or orb)
+                    if "—" in p_clean:
+                        parts = p_clean.split("—", 1)
+                        sym_part = parts[0].strip()
+                        desc_part = parts[1]
+                        line_html = f"&bull; <b>{sym_part}</b> &mdash;{desc_part}"
+                    elif " - " in p_clean:
+                        parts = p_clean.split(" - ", 1)
+                        sym_part = parts[0].strip()
+                        desc_part = parts[1]
+                        line_html = f"&bull; <b>{sym_part}</b> &mdash; {desc_part}"
+                    else:
+                        line_html = f"&bull; {p_clean}"
+
+                    col.append(Paragraph(line_html, self._aspect_style))
                     col.append(Spacer(1, 2))
                 else:
                     # Bold only the lead-in prefix if present
@@ -172,6 +222,18 @@ class SkyHoroscopeSection(Section):
             ("LINEAFTER",     (0, 0), (0, -1),  0.5, HexColor("#CCCCCC")),
         ]))
         elements.append(table)
+        elements.append(Spacer(1, 6))
+
+        # Aspect Symbol Legend anchored at the bottom of the page
+        legend_text = (
+            "<b>Aspects:</b> &nbsp; <b>&xcirc;</b> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
+            "<b>&#x26B9;</b> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
+            "<b>&#x25A1;</b> Square (90&deg;) &nbsp;&bull;&nbsp; "
+            "<b>&#x25B3;</b> Trine (120&deg;) &nbsp;&bull;&nbsp; "
+            "<b>&#x260D;</b> Opposition (180&deg;)"
+        ).replace("&xcirc;", "&#x260C;")
+        elements.append(HRFlowable(width="100%", thickness=0.4, color=HexColor("#DDDDDD"), spaceAfter=3))
+        elements.append(Paragraph(legend_text, self._legend_style))
         return elements
 
     def render_markdown(self) -> str:

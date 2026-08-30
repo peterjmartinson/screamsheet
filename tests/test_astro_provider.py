@@ -421,3 +421,24 @@ class TestIssue104AstroEnhancements:
         assert "eclipses" in data
         assert "retrogrades" in data
 
+class TestCalculateAscendantAndNatalSigns:
+    def test_calculate_ascendant(self) -> None:
+        # 1980-03-15 14:30 in Philadelphia (lat 39.95, lon -75.16)
+        asc = AstroDataProvider.calculate_ascendant("1980-03-15", "14:30", 39.95, -75.16, location_str="Philadelphia, PA")
+        assert asc in [
+            "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+            "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+        ]
+
+    def test_compute_natal_signs(self) -> None:
+        signs = AstroDataProvider.compute_natal_signs("1980-03-15", "14:30", location_str="Philadelphia, PA", lat=39.95, lon=-75.16)
+        assert signs["sun_sign"] == "Pisces"
+        assert "moon_sign" in signs
+        assert "ascendant" in signs
+
+    def test_compute_natal_signs_wauwatosa_wi(self) -> None:
+        # 1978-02-26 01:20 in Wauwatosa, WI is UTC-6 CST -> Pisces Sun, Libra Moon, Sagittarius Rising
+        signs = AstroDataProvider.compute_natal_signs("1978-02-26", "01:20", location_str="Wauwatosa, WI", lat=43.0495, lon=-88.0076)
+        assert signs["sun_sign"] == "Pisces"
+        assert signs["moon_sign"] == "Libra"
+        assert signs["ascendant"] == "Sagittarius"

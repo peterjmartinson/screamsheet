@@ -228,11 +228,30 @@ class SkyHoroscopeSection(Section):
             ingresses: List[Dict[str, Any]] = astro.get("ingresses", []) if astro else []
             eclipses: List[Dict[str, Any]] = astro.get("eclipses", []) if astro else []
 
+            # Auto-compute Sun, Moon, and Ascendant signs if omitted in config
+            sun_sign = person.sun_sign
+            moon_sign = person.moon_sign
+            ascendant = person.ascendant
+
+            if person.birth_date and (not sun_sign or not moon_sign or not ascendant):
+                obs_lat = person.lat if person.lat is not None else getattr(self.provider, "lat", None)
+                obs_lon = person.lon if person.lon is not None else getattr(self.provider, "lon", None)
+                computed = AstroDataProvider.compute_natal_signs(
+                    person.birth_date,
+                    person.birth_time,
+                    location_str=person.birth_location,
+                    lat=obs_lat,
+                    lon=obs_lon,
+                )
+                sun_sign = sun_sign or computed.get("sun_sign", "")
+                moon_sign = moon_sign or computed.get("moon_sign", "")
+                ascendant = ascendant or computed.get("ascendant", "")
+
             # Enrich each transit planet with whole-sign house + dignity.
-            house_map = AstroDataProvider.get_whole_sign_houses(person.ascendant) if person.ascendant else {}
+            house_map = AstroDataProvider.get_whole_sign_houses(ascendant) if ascendant else {}
             transit_enriched: List[Dict[str, Any]] = []
             for p in transit_source:
-                house_num = AstroDataProvider._assign_house(p["zodiac"], person.ascendant) if person.ascendant else 0
+                house_num = AstroDataProvider._assign_house(p["zodiac"], ascendant) if ascendant else 0
                 house_info = house_map.get(house_num, {})
                 dignity = AstroDataProvider._get_planet_dignity(p["name"], p["zodiac"])
                 transit_enriched.append({
@@ -251,7 +270,7 @@ class SkyHoroscopeSection(Section):
             )
             natal_line = f"Natal planets: {natal_planet_str}\n" if natal_planet_str else ""
             subject_natal = (
-                f"Sun: {person.sun_sign} | Moon: {person.moon_sign} | Ascendant: {person.ascendant}\n"
+                f"Sun: {sun_sign} | Moon: {moon_sign} | Ascendant: {ascendant}\n"
                 f"{natal_line}"
             ).strip()
 

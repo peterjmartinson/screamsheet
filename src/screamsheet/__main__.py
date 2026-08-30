@@ -298,6 +298,8 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
                     sun_sign=p.sun_sign,
                     moon_sign=p.moon_sign,
                     ascendant=p.ascendant,
+                    lat=p.lat,
+                    lon=p.lon,
                 )
                 for p in cfg.sky.people
             ],

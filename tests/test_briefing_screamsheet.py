@@ -87,6 +87,7 @@ def test_runner_briefing_order(tmp_path):
         briefing=BriefingOrderOptions(
             payload={},
             api_url="https://test.url",
+            upcoming_days=1,
         ),
     )
     with patch.object(AgendaProvider, "get_day_agenda", return_value=MOCK_AGENDA_DATA), \
@@ -94,3 +95,30 @@ def test_runner_briefing_order(tmp_path):
         res = run_order(order, today=datetime(2026, 8, 28))
         assert not res.errors
         assert any("BRIEFING" in name for name in res.sheets_generated)
+
+
+def test_briefing_upcoming_days_modes(tmp_path):
+    # Test upcoming_days = 1 (Today + Tomorrow mode)
+    sheet_1 = ScreamsheetFactory.create_briefing_screamsheet(
+        output_filename=str(tmp_path / "briefing_1.pdf"),
+        payload={},
+        include_weather=False,
+        upcoming_days=1,
+        date=datetime(2026, 8, 28),
+    )
+    with patch.object(AgendaProvider, "get_day_agenda", return_value=MOCK_AGENDA_DATA):
+        pdf_1 = sheet_1.generate()
+        assert pdf_1
+
+    # Test upcoming_days = 5 (Next 5 Days mode)
+    sheet_5 = ScreamsheetFactory.create_briefing_screamsheet(
+        output_filename=str(tmp_path / "briefing_5.pdf"),
+        payload={},
+        include_weather=False,
+        upcoming_days=5,
+        date=datetime(2026, 8, 28),
+    )
+    with patch.object(AgendaProvider, "get_day_agenda", return_value=MOCK_AGENDA_DATA):
+        pdf_5 = sheet_5.generate()
+        assert pdf_5
+

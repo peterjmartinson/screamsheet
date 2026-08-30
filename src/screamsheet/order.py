@@ -158,6 +158,7 @@ class BriefingOrderOptions:
     payload: dict = field(default_factory=dict)
     api_url: str = ""
     weather: WeatherLocationOptions | None = None
+    upcoming_days: int = 1
 
 
 @dataclass

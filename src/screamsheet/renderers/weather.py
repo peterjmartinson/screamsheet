@@ -35,9 +35,11 @@ class WeatherSection(Section):
         lat: float = 40.02,
         lon: float = -75.34,
         location_name: str = 'Bryn Mawr, PA',
+        show_description: bool = True,
     ):
         super().__init__(title)
         self.date = date
+        self.show_description = show_description
         self.provider = WeatherProvider(lat=lat, lon=lon, location_name=location_name)
 
         # Build styles once
@@ -152,14 +154,17 @@ class WeatherSection(Section):
             ]))
             icon_temp_row.append(nested)
 
-        # Row 3 — Short description
-        desc_row = [
-            Paragraph(d['description'], self._desc_style)
-            for d in forecast_data
-        ]
+        table_data = [day_row, icon_temp_row]
+        if self.show_description:
+            # Row 3 — Short description
+            desc_row = [
+                Paragraph(d['description'], self._desc_style)
+                for d in forecast_data
+            ]
+            table_data.append(desc_row)
 
         table = Table(
-            [day_row, icon_temp_row, desc_row],
+            table_data,
             colWidths=[col_width] * len(forecast_data),
         )
         table.setStyle(TableStyle([

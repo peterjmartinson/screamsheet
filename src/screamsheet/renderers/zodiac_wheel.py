@@ -134,10 +134,11 @@ class ZodiacWheelSection(Section):
 
         styles = getSampleStyleSheet()
         elements: List[Any] = []
-        elements.append(Paragraph(self.title, styles["Heading2"]))
-        elements.append(Spacer(1, 4))
+        if self.title:
+            elements.append(Paragraph(self.title, styles["Heading2"]))
+            elements.append(Spacer(1, 4))
         elements.append(self._build_drawing())
-        elements.append(Spacer(1, 6))
+        elements.append(Spacer(1, 10))
         elements.extend(self._build_glossary())
         return elements
 
@@ -146,11 +147,11 @@ class ZodiacWheelSection(Section):
         base = getSampleStyleSheet()
         glyph_style = ParagraphStyle(
             "WheelGlyph", parent=base["Normal"],
-            fontSize=9, leading=11, alignment=TA_CENTER,
+            fontSize=16, leading=19, alignment=TA_CENTER,
         )
         gloss_style = ParagraphStyle(
             "WheelGloss", parent=base["Normal"],
-            fontSize=8, leading=11, alignment=TA_CENTER,
+            fontSize=10, leading=13, fontName="Helvetica-Bold", alignment=TA_CENTER,
         )
         ordered = [
             "Sun", "Moon", "Mercury", "Venus", "Mars",
@@ -158,19 +159,19 @@ class ZodiacWheelSection(Section):
         ]
         symbol_cells = [
             Paragraph(
-                f"<font name='{_UNICODE_FONT}' size='11'>{_PLANET_SYMBOLS[n]}</font>",
+                f"<font name='{_UNICODE_FONT}' size='16'>{_PLANET_SYMBOLS[n]}</font>",
                 glyph_style,
             )
             for n in ordered
         ]
         name_cells = [Paragraph(n, gloss_style) for n in ordered]
-        col_w = 50
+        col_w = 54
         table = Table([symbol_cells, name_cells], colWidths=[col_w] * len(ordered))
         table.setStyle(TableStyle([
             ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
             ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING",    (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("LINEABOVE",     (0, 0), (-1, 0),  0.5, HexColor("#AAAAAA")),
         ]))
         return [table]
@@ -179,10 +180,17 @@ class ZodiacWheelSection(Section):
     # Drawing construction
     # ------------------------------------------------------------------
 
-    def _build_drawing(self) -> Drawing:
-        cx = cy = _WHEEL_SIZE / 2
-        d = Drawing(_WHEEL_SIZE, _WHEEL_SIZE)
+    def _build_drawing(self, size: float = 460.0) -> Drawing:
+        """Build the vector Zodiac Wheel scaled to *size*."""
+        cx = cy = size / 2.0
+        d = Drawing(size, size)
         d.hAlign = "CENTER"
+
+        # Scale radii proportionally based on size
+        scale = size / 520.0
+        outer_r = _OUTER_R * scale
+        rim_r   = _RIM_R * scale
+        inner_r = _INNER_R * scale
 
         sky_data: Dict[str, Any] = cast(Dict[str, Any], self.data) if isinstance(self.data, dict) else {}
         visible: List[str] = sky_data.get("visible_constellations", [])
@@ -198,7 +206,7 @@ class ZodiacWheelSection(Section):
             fill       = _VISIBLE_FILL   if is_visible else _INVISIBLE_FILL
             text_col   = _VISIBLE_TEXT   if is_visible else _INVISIBLE_TEXT
 
-            w = Wedge(cx, cy, _OUTER_R, start_deg, start_deg + 30, radius1=_INNER_R)
+            w = Wedge(cx, cy, outer_r, start_deg, start_deg + 30, radius1=inner_r)
             w.fillColor   = fill
             w.strokeColor = black
             w.strokeWidth = 0.8
@@ -206,15 +214,14 @@ class ZodiacWheelSection(Section):
 
             mid_deg = float(start_deg + 15)
             mid_rad = math.radians(mid_deg)
-            lx = cx + _RIM_R * math.cos(mid_rad)
-            ly = cy + _RIM_R * math.sin(mid_rad)
-            # Tangential label: baseline follows the arc, letter tops pointing
-            # outward toward the rim.  fontSize=7 keeps "Sagittarius" inside
-            # the 30° arc at _RIM_R without overflowing into adjacent sectors.
+            lx = cx + rim_r * math.cos(mid_rad)
+            ly = cy + rim_r * math.sin(mid_rad)
+            # Tangential label: baseline follows the arc, letter tops pointing outward.
+            # Bumping font size to 15pt bold keeps even 'Sagittarius' clean and readable.
             rot_rad = math.radians(mid_deg - 90.0)
             cos_t, sin_t = math.cos(rot_rad), math.sin(rot_rad)
-            s = String(0, 0, full, fontSize=13, textAnchor="middle",
-                       fillColor=text_col)
+            s = String(0, -3, full, fontSize=15, textAnchor="middle",
+                       fontName="Helvetica-Bold", fillColor=text_col)
             g = Group(s)
             g.transform = (cos_t, sin_t, -sin_t, cos_t, lx, ly)
             d.add(g)
@@ -222,7 +229,7 @@ class ZodiacWheelSection(Section):
         # ------------------------------------------------------------------
         # 2. Inner circle — white background for the planet zone.
         # ------------------------------------------------------------------
-        inner_circle = Circle(cx, cy, _INNER_R)
+        inner_circle = Circle(cx, cy, inner_r)
         inner_circle.fillColor   = HexColor("#FFFFFF")
         inner_circle.strokeColor = black
         inner_circle.strokeWidth = 1.0
@@ -230,12 +237,11 @@ class ZodiacWheelSection(Section):
 
         # ------------------------------------------------------------------
         # 3. Spoke lines — extend each sector boundary into the inner circle
-        #    so it is easy to read which sign each planet sits in.
         # ------------------------------------------------------------------
         for i in range(12):
             angle_rad = math.radians(i * 30)
-            sx = cx + _INNER_R * math.cos(angle_rad)
-            sy = cy + _INNER_R * math.sin(angle_rad)
+            sx = cx + inner_r * math.cos(angle_rad)
+            sy = cy + inner_r * math.sin(angle_rad)
             spoke = Line(cx, cy, sx, sy)
             spoke.strokeColor = black
             spoke.strokeWidth = 0.5
@@ -250,7 +256,7 @@ class ZodiacWheelSection(Section):
             name       = str(planet.get("name", ""))
             two_letter = str(planet.get("two_letter", name[:2]))
 
-            radius    = _PLANET_RADII.get(name, _OUTER_R * 0.54)
+            radius    = _PLANET_RADII.get(name, _OUTER_R * 0.54) * scale
             angle_rad = math.radians(lon_deg)
             px = cx + radius * math.cos(angle_rad)
             py = cy + radius * math.sin(angle_rad)
@@ -258,7 +264,7 @@ class ZodiacWheelSection(Section):
             symbol = _PLANET_SYMBOLS.get(name, two_letter)
             font   = _UNICODE_FONT if name in _PLANET_SYMBOLS else "Helvetica"
 
-            d.add(String(px, py - 8, symbol, fontSize=20, textAnchor="middle",
+            d.add(String(px, py - 10, symbol, fontSize=28, textAnchor="middle",
                          fontName=font, fillColor=black))
 
         # ------------------------------------------------------------------

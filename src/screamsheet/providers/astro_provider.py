@@ -7,8 +7,9 @@ Moshier built-in ephemeris — no external data files are required.
 from __future__ import annotations
 
 import math
+import zoneinfo
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import swisseph as swe  # type: ignore[import-untyped]
 
@@ -372,20 +373,102 @@ class AstroDataProvider(DataProvider):
 
         return eclipses
 
-    def get_natal_positions(self, birth_date: str, birth_time: str) -> List[Dict[str, Any]]:
+    @staticmethod
+    def resolve_timezone(location_str: str = "", lat: Optional[float] = None, lon: Optional[float] = None) -> zoneinfo.ZoneInfo:
+        """Resolve a ZoneInfo timezone object from a location name or coordinates."""
+        us_state_tz = {
+            "AL": "America/Chicago", "AK": "America/Anchorage", "AZ": "America/Phoenix",
+            "AR": "America/Chicago", "CA": "America/Los_Angeles", "CO": "America/Denver",
+            "CT": "America/New_York", "DE": "America/New_York", "FL": "America/New_York",
+            "GA": "America/New_York", "HI": "Pacific/Honolulu", "ID": "America/Boise",
+            "IL": "America/Chicago", "IN": "America/Indiana/Indianapolis", "IA": "America/Chicago",
+            "KS": "America/Chicago", "KY": "America/New_York", "LA": "America/Chicago",
+            "ME": "America/New_York", "MD": "America/New_York", "MA": "America/New_York",
+            "MI": "America/Detroit", "MN": "America/Chicago", "MS": "America/Chicago",
+            "MO": "America/Chicago", "MT": "America/Denver", "NE": "America/Chicago",
+            "NV": "America/Los_Angeles", "NH": "America/New_York", "NJ": "America/New_York",
+            "NM": "America/Denver", "NY": "America/New_York", "NC": "America/New_York",
+            "ND": "America/Chicago", "OH": "America/New_York", "OK": "America/Chicago",
+            "OR": "America/Los_Angeles", "PA": "America/New_York", "RI": "America/New_York",
+            "SC": "America/New_York", "SD": "America/Chicago", "TN": "America/Chicago",
+            "TX": "America/Chicago", "UT": "America/Denver", "VT": "America/New_York",
+            "VA": "America/New_York", "WA": "America/Los_Angeles", "WV": "America/New_York",
+            "WI": "America/Chicago", "WY": "America/Denver",
+        }
+        loc = (location_str or "").upper().strip()
+        for state, tz_name in us_state_tz.items():
+            if f", {state}" in loc or f" {state}" in loc or loc.endswith(f",{state}") or loc.endswith(state):
+                try:
+                    return zoneinfo.ZoneInfo(tz_name)
+                except Exception:
+                    pass
+
+        # Longitude-based US fallback if coordinates available
+        if lon is not None:
+            if lon > -85.0:
+                return zoneinfo.ZoneInfo("America/New_York")
+            elif lon > -103.0:
+                return zoneinfo.ZoneInfo("America/Chicago")
+            elif lon > -114.0:
+                return zoneinfo.ZoneInfo("America/Denver")
+            else:
+                return zoneinfo.ZoneInfo("America/Los_Angeles")
+
+        # Default fallback
+        return zoneinfo.ZoneInfo("America/New_York")
+
+    @classmethod
+    def _get_birth_utc_julian_day(
+        cls,
+        birth_date: str,
+        birth_time: str,
+        location_str: str = "",
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+        tz_name: Optional[str] = None,
+    ) -> float:
+        """Calculate the UTC Julian Day number for a local birth date and time."""
+        year, month, day = (int(x) for x in birth_date.split("-"))
+        time_part = birth_time if birth_time else "12:00"
+        hour, minute = (int(x) for x in time_part.split(":"))
+
+        if tz_name:
+            try:
+                tz = zoneinfo.ZoneInfo(tz_name)
+            except Exception:
+                tz = cls.resolve_timezone(location_str, lat, lon)
+        else:
+            tz = cls.resolve_timezone(location_str, lat, lon)
+
+        local_dt = datetime(year, month, day, hour, minute, tzinfo=tz)
+        utc_dt = local_dt.astimezone(zoneinfo.ZoneInfo("UTC"))
+        utc_hour = utc_dt.hour + utc_dt.minute / 60.0 + utc_dt.second / 3600.0
+        return swe.julday(utc_dt.year, utc_dt.month, utc_dt.day, utc_hour)
+
+    @classmethod
+    def get_natal_positions(
+        cls,
+        birth_date: str,
+        birth_time: str,
+        location_str: str = "",
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+        tz_name: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Compute tropical ecliptic positions for a birth chart.
 
         Args:
             birth_date: ISO date string ``YYYY-MM-DD``.
             birth_time: 24-hour time string ``HH:MM``.
+            location_str: Optional birth location name (e.g. "Wauwatosa, WI").
+            lat: Optional birth latitude.
+            lon: Optional birth longitude.
+            tz_name: Optional IANA timezone name.
 
         Returns:
             List of 9 planet dicts matching the format of :meth:`get_planet_longitudes`.
         """
-        year, month, day = (int(x) for x in birth_date.split("-"))
-        hour, minute = (int(x) for x in birth_time.split(":"))
-        birth_hour = hour + minute / 60.0
-        jd = swe.julday(year, month, day, birth_hour)
+        jd = cls._get_birth_utc_julian_day(birth_date, birth_time, location_str, lat, lon, tz_name)
         flags = swe.FLG_MOSEPH
         planets: List[Dict[str, Any]] = []
         for name, planet_id in _PLANET_IDS.items():
@@ -405,7 +488,7 @@ class AstroDataProvider(DataProvider):
             planets.append({
                 "name": name,
                 "ecliptic_lon": lon_deg,
-                "zodiac": self._ecliptic_lon_to_zodiac(lon_deg),
+                "zodiac": cls._ecliptic_lon_to_zodiac(lon_deg),
                 "two_letter": _PLANET_TWO_LETTER[name],
                 "speed_lon": speed_lon,
                 "is_retrograde": is_retrograde,
@@ -413,6 +496,67 @@ class AstroDataProvider(DataProvider):
                 "motion_status": motion_status,
             })
         return planets
+
+    @classmethod
+    def calculate_ascendant(
+        cls,
+        birth_date: str,
+        birth_time: str,
+        lat: float,
+        lon: float,
+        location_str: str = "",
+        tz_name: Optional[str] = None,
+    ) -> str:
+        """Calculate the Ascendant (Rising sign) from birth date, time, and coordinates in local time.
+
+        Args:
+            birth_date: ``YYYY-MM-DD``
+            birth_time: ``HH:MM`` (24-hour)
+            lat: Latitude (positive North)
+            lon: Longitude (positive East)
+            location_str: Optional location name
+            tz_name: Optional IANA timezone name
+
+        Returns:
+            Zodiac sign name of the Ascendant.
+        """
+        jd = cls._get_birth_utc_julian_day(birth_date, birth_time, location_str, lat, lon, tz_name)
+        # swe.houses returns (cusps_tuple, ascmc_tuple) where ascmc[0] is the Ascendant longitude
+        cusps, ascmc = swe.houses(jd, lat, lon, b"W")
+        asc_lon = float(ascmc[0])
+        return cls._ecliptic_lon_to_zodiac(asc_lon)
+
+    @classmethod
+    def compute_natal_signs(
+        cls,
+        birth_date: str,
+        birth_time: str,
+        location_str: str = "",
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+        tz_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Compute Sun, Moon, and Ascendant signs from birth data.
+
+        Returns:
+            Dict with keys 'sun_sign', 'moon_sign', and 'ascendant' (if lat/lon provided).
+        """
+        signs: Dict[str, str] = {}
+        if not birth_date:
+            return signs
+
+        time_str = birth_time if birth_time else "12:00"
+        planets = cls.get_natal_positions(birth_date, time_str, location_str, lat, lon, tz_name)
+        for p in planets:
+            if p["name"] == "Sun":
+                signs["sun_sign"] = p["zodiac"]
+            elif p["name"] == "Moon":
+                signs["moon_sign"] = p["zodiac"]
+
+        if lat is not None and lon is not None and birth_time:
+            signs["ascendant"] = cls.calculate_ascendant(birth_date, birth_time, lat, lon, location_str, tz_name)
+
+        return signs
 
     def get_aspects(self, date: datetime) -> List[Dict[str, Any]]:
         """Return all major astrological aspects for *date*."""

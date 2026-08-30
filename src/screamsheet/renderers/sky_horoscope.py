@@ -12,9 +12,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 from ..base import Section
 from ..config import PersonConfig
@@ -23,6 +25,51 @@ from ..llm.summarizers import HoroscopeSummarizer
 from ..providers.astro_provider import AstroDataProvider
 
 logger = logging.getLogger(__name__)
+
+# Register Unicode-capable TTF fonts for rendering astrological symbols
+_UNICODE_FONT = "Helvetica"
+_UNICODE_FONT_BOLD = "Helvetica-Bold"
+
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+
+_FONT_CANDIDATES = [
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
+    ("/usr/share/fonts/truetype/freefont/FreeSans.ttf", "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"),
+    ("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"),
+]
+for _reg, _bold in _FONT_CANDIDATES:
+    if os.path.exists(_reg):
+        try:
+            pdfmetrics.registerFont(TTFont("_HoroUnicode", _reg))
+            _UNICODE_FONT = "_HoroUnicode"
+            if os.path.exists(_bold):
+                pdfmetrics.registerFont(TTFont("_HoroUnicodeBold", _bold))
+                _UNICODE_FONT_BOLD = "_HoroUnicodeBold"
+                registerFontFamily("_HoroUnicode", normal="_HoroUnicode", bold="_HoroUnicodeBold", italic="_HoroUnicode", boldItalic="_HoroUnicodeBold")
+            else:
+                _UNICODE_FONT_BOLD = "_HoroUnicode"
+                registerFontFamily("_HoroUnicode", normal="_HoroUnicode", bold="_HoroUnicode", italic="_HoroUnicode", boldItalic="_HoroUnicode")
+        except Exception:
+            pass
+        break
+
+
+# Set of astrological unicode glyphs for selective enlargement
+_ASTRO_GLYPHS = set("☉☽☿♀♂♃♄♅♆♇☌□△☍⚻♈♉♊♋♌♍♎♏♐♑♒♓∗✱*")
+
+
+def _enlarge_astro_glyphs(text: str, size: int = 11) -> str:
+    """Enlarge astrological symbols within text using ReportLab inline font tags."""
+    # Normalize missing font sextile glyph U+26B9 to standard asterisk operator U+2217 (∗)
+    normalized = text.replace("\u26b9", "\u2217")
+    chars = []
+    for ch in normalized:
+        if ch in _ASTRO_GLYPHS:
+            chars.append(f"<font size='{size}'>{ch}</font>")
+        else:
+            chars.append(ch)
+    return "".join(chars)
 
 
 class SkyHoroscopeSection(Section):
@@ -73,9 +120,27 @@ class SkyHoroscopeSection(Section):
         self._body_style = ParagraphStyle(
             "HoroBody",
             parent=base["Normal"],
-            fontSize=11,
-            leading=15,
+            fontSize=10,
+            leading=13.5,
             alignment=TA_LEFT,
+        )
+        self._aspect_style = ParagraphStyle(
+            "HoroAspect",
+            parent=base["Normal"],
+            fontName=_UNICODE_FONT,
+            fontSize=8.5,
+            leading=11.5,
+            alignment=TA_LEFT,
+            textColor=HexColor("#222222"),
+        )
+        self._legend_style = ParagraphStyle(
+            "HoroLegend",
+            parent=base["Normal"],
+            fontName=_UNICODE_FONT,
+            fontSize=7.5,
+            leading=10,
+            alignment=TA_CENTER,
+            textColor=HexColor("#555555"),
         )
 
     # ------------------------------------------------------------------
@@ -110,8 +175,40 @@ class SkyHoroscopeSection(Section):
             reading = self._get_horoscope(person)
             col: List[Any] = [
                 Paragraph(person.name, self._name_style),
-                Paragraph(reading, self._body_style),
             ]
+            # Split by double or single newlines to preserve paragraphs and aspect bullets
+            paragraphs = [p.strip() for p in reading.split("\n") if p.strip()]
+            for p_text in paragraphs:
+                if p_text.startswith("•") or p_text.startswith("-"):
+                    # Aspect / influence list items
+                    p_clean = p_text.lstrip("•- ").strip()
+                    # Enlarge only the glyphs (to 11.5pt) while keeping text and degrees at normal 9pt
+                    p_enlarged = _enlarge_astro_glyphs(p_clean, size=12)
+                    line_html = f"&bull; {p_enlarged}"
+
+                    col.append(Paragraph(line_html, self._aspect_style))
+                    col.append(Spacer(1, 2))
+                else:
+                    # Bold only the lead-in prefix if present
+                    lower_p = p_text.lower()
+                    if lower_p.startswith("where to watch your step:"):
+                        prefix_len = len("where to watch your step:")
+                        lead = p_text[:prefix_len]
+                        rest = p_text[prefix_len:]
+                        p_html = f"<b>{lead}</b>{rest}"
+                    elif lower_p.startswith("your move:"):
+                        prefix_len = len("your move:")
+                        lead = p_text[:prefix_len]
+                        rest = p_text[prefix_len:]
+                        p_html = f"<b>{lead}</b>{rest}"
+                    elif lower_p.startswith("key influences & aspects:") or lower_p.startswith("key influences and aspects:"):
+                        p_html = f"<b>{p_text}</b>"
+                    else:
+                        p_html = p_text
+
+                    col.append(Paragraph(p_html, self._body_style))
+                    col.append(Spacer(1, 4))
+
             col_contents.append(col)
 
         # Pad to exactly 2 columns so the Table always has 2 cells.
@@ -136,6 +233,19 @@ class SkyHoroscopeSection(Section):
             ("LINEAFTER",     (0, 0), (0, -1),  0.5, HexColor("#CCCCCC")),
         ]))
         elements.append(table)
+        elements.append(Spacer(1, 6))
+
+        # Aspect Symbol Legend anchored at the bottom of the page (glyphs enlarged)
+        legend_text = (
+            "<b>Aspects:</b> &nbsp; "
+            "<font size='10'>&#x260C;</font> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x2217;</font> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25A1;</font> Square (90&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25B3;</font> Trine (120&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x260D;</font> Opposition (180&deg;)"
+        )
+        elements.append(HRFlowable(width="100%", thickness=0.4, color=HexColor("#DDDDDD"), spaceAfter=3))
+        elements.append(Paragraph(legend_text, self._legend_style))
         return elements
 
     def render_markdown(self) -> str:
@@ -192,11 +302,30 @@ class SkyHoroscopeSection(Section):
             ingresses: List[Dict[str, Any]] = astro.get("ingresses", []) if astro else []
             eclipses: List[Dict[str, Any]] = astro.get("eclipses", []) if astro else []
 
+            # Auto-compute Sun, Moon, and Ascendant signs if omitted in config
+            sun_sign = person.sun_sign
+            moon_sign = person.moon_sign
+            ascendant = person.ascendant
+
+            if person.birth_date and (not sun_sign or not moon_sign or not ascendant):
+                obs_lat = person.lat if person.lat is not None else getattr(self.provider, "lat", None)
+                obs_lon = person.lon if person.lon is not None else getattr(self.provider, "lon", None)
+                computed = AstroDataProvider.compute_natal_signs(
+                    person.birth_date,
+                    person.birth_time,
+                    location_str=person.birth_location,
+                    lat=obs_lat,
+                    lon=obs_lon,
+                )
+                sun_sign = sun_sign or computed.get("sun_sign", "")
+                moon_sign = moon_sign or computed.get("moon_sign", "")
+                ascendant = ascendant or computed.get("ascendant", "")
+
             # Enrich each transit planet with whole-sign house + dignity.
-            house_map = AstroDataProvider.get_whole_sign_houses(person.ascendant) if person.ascendant else {}
+            house_map = AstroDataProvider.get_whole_sign_houses(ascendant) if ascendant else {}
             transit_enriched: List[Dict[str, Any]] = []
             for p in transit_source:
-                house_num = AstroDataProvider._assign_house(p["zodiac"], person.ascendant) if person.ascendant else 0
+                house_num = AstroDataProvider._assign_house(p["zodiac"], ascendant) if ascendant else 0
                 house_info = house_map.get(house_num, {})
                 dignity = AstroDataProvider._get_planet_dignity(p["name"], p["zodiac"])
                 transit_enriched.append({
@@ -215,7 +344,7 @@ class SkyHoroscopeSection(Section):
             )
             natal_line = f"Natal planets: {natal_planet_str}\n" if natal_planet_str else ""
             subject_natal = (
-                f"Sun: {person.sun_sign} | Moon: {person.moon_sign} | Ascendant: {person.ascendant}\n"
+                f"Sun: {sun_sign} | Moon: {moon_sign} | Ascendant: {ascendant}\n"
                 f"{natal_line}"
             ).strip()
 

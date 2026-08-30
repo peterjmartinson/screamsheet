@@ -52,6 +52,8 @@ class PersonOptions:
     sun_sign: str = ""
     moon_sign: str = ""
     ascendant: str = ""
+    lat: float | None = None
+    lon: float | None = None
 
 
 @dataclass

@@ -13,7 +13,6 @@ from reportlab.lib.colors import black
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 from reportlab.platypus import Paragraph
-
 from ..base import Section
 from ..llm.summarizers import SkyNightSummarizer
 from ..llm.config import DEFAULT_LLM_CONFIG
@@ -45,10 +44,10 @@ class SkyHighlightsSection(Section):
         self._bullet_style = ParagraphStyle(
             "SkyBullet",
             parent=base["Normal"],
-            fontSize=11,
-            leading=15,
+            fontSize=13,
+            leading=17.5,
             leftIndent=12,
-            spaceAfter=3,
+            spaceAfter=6,
         )
         self._heading_style = base["Heading2"]
 

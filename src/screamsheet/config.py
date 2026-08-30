@@ -101,6 +101,8 @@ class PersonConfig:
     sun_sign: str = ""
     moon_sign: str = ""
     ascendant: str = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
 
 @dataclass
@@ -218,6 +220,8 @@ def _parse_weather(raw: dict) -> WeatherConfig:
 
 
 def _parse_person(raw: dict) -> PersonConfig:
+    lat_val = raw.get("lat")
+    lon_val = raw.get("lon")
     return PersonConfig(
         name=str(raw.get("name", "Unknown")),
         birth_date=str(raw.get("birth_date", "")),
@@ -226,6 +230,8 @@ def _parse_person(raw: dict) -> PersonConfig:
         sun_sign=str(raw.get("sun_sign", "")),
         moon_sign=str(raw.get("moon_sign", "")),
         ascendant=str(raw.get("ascendant", "")),
+        lat=float(lat_val) if lat_val is not None else None,
+        lon=float(lon_val) if lon_val is not None else None,
     )
 
 

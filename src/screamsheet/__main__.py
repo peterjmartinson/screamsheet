@@ -195,6 +195,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 location_name=cfg.sky.location_name,
                 date=today,
                 people=cfg.sky.people,
+                horoscope_style=cfg.sky.horoscope_style,
             ),
         ),
         (
@@ -300,9 +301,11 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
                     ascendant=p.ascendant,
                     lat=p.lat,
                     lon=p.lon,
+                    horoscope_style=p.horoscope_style,
                 )
                 for p in cfg.sky.people
             ],
+            horoscope_style=cfg.sky.horoscope_style,
         ),
     )
 

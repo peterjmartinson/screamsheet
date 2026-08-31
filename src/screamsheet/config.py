@@ -103,6 +103,7 @@ class PersonConfig:
     ascendant: str = ""
     lat: Optional[float] = None
     lon: Optional[float] = None
+    horoscope_style: Optional[str] = None   # "kepler" | "playbook" | None (defaults to sky.horoscope_style)
 
 
 @dataclass
@@ -112,6 +113,7 @@ class SkyConfig:
     lon: float = -75.0
     location_name: str = "My Location"
     people: List[PersonConfig] = field(default_factory=list)
+    horoscope_style: str = "kepler"         # Default horoscope style for the sheet: "kepler" | "playbook"
 
 
 @dataclass
@@ -222,6 +224,8 @@ def _parse_weather(raw: dict) -> WeatherConfig:
 def _parse_person(raw: dict) -> PersonConfig:
     lat_val = raw.get("lat")
     lon_val = raw.get("lon")
+    raw_style = raw.get("horoscope_style")
+    horoscope_style = str(raw_style) if raw_style is not None else None
     return PersonConfig(
         name=str(raw.get("name", "Unknown")),
         birth_date=str(raw.get("birth_date", "")),
@@ -232,16 +236,19 @@ def _parse_person(raw: dict) -> PersonConfig:
         ascendant=str(raw.get("ascendant", "")),
         lat=float(lat_val) if lat_val is not None else None,
         lon=float(lon_val) if lon_val is not None else None,
+        horoscope_style=horoscope_style,
     )
 
 
 def _parse_sky(raw: dict) -> SkyConfig:
+    sheet_style = str(raw.get("horoscope_style", "kepler"))
     people = [_parse_person(p) for p in raw.get("people", [])]
     return SkyConfig(
         lat=float(raw.get("lat", 40.0)),
         lon=float(raw.get("lon", -75.0)),
         location_name=str(raw.get("location_name", "My Location")),
         people=people,
+        horoscope_style=sheet_style,
     )
 
 
@@ -298,8 +305,8 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nfl=_parse_sport(raw.get("nfl", {})),
         worldcup=_parse_worldcup(raw.get("worldcup", {})),
         weather=weather,
-        sky=_parse_sky(raw.get("sky", {})),
-        briefing=_parse_briefing(raw.get("briefing", {}), weather),
+        sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),
+        briefing=_parse_briefing(raw.get("briefing") or raw.get("morning_briefing") or {}, weather),
         branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
         database=_parse_db(raw.get("database", {})),

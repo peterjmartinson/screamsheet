@@ -253,3 +253,52 @@ def test_llm_data_current_sky_contains_hits(monkeypatch) -> None:
     # Transit Moon at 92.0° conjuncts natal Moon at 92.5° (orb 0.5°)
     data = _call_get_horoscope_with_mock_summarizer(monkeypatch, _make_astro_provider())
     assert "conjunct natal Moon" in data["current_sky"]
+
+
+# ---------------------------------------------------------------------------
+# Horoscope Style selection and per-person overrides
+# ---------------------------------------------------------------------------
+
+def test_horoscope_style_defaults_to_kepler(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    with patch("screamsheet.renderers.sky_horoscope.HoroscopeSummarizer") as MockSummarizer:
+        mock_instance = MockSummarizer.return_value
+        mock_instance.generate_summary.return_value = "A reading."
+        section = SkyHoroscopeSection(
+            title="Horoscopes",
+            provider=_make_provider(),
+            date=datetime(2026, 4, 21),
+            location_name="Bryn Mawr, PA",
+            people=[_make_person_with_natal()],
+            astro_provider=_make_astro_provider(),
+        )
+        section.fetch_data()
+        section._get_horoscope(_make_person_with_natal())
+        assert MockSummarizer.call_args.kwargs["style"] == "kepler"
+
+
+def test_horoscope_style_per_person_override(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    person_playbook = PersonConfig(
+        name="Bob",
+        birth_date="1980-06-15",
+        birth_time="14:30",
+        birth_location="Chicago, IL",
+        horoscope_style="playbook",
+    )
+    with patch("screamsheet.renderers.sky_horoscope.HoroscopeSummarizer") as MockSummarizer:
+        mock_instance = MockSummarizer.return_value
+        mock_instance.generate_summary.return_value = "A reading."
+        section = SkyHoroscopeSection(
+            title="Horoscopes",
+            provider=_make_provider(),
+            date=datetime(2026, 4, 21),
+            location_name="Bryn Mawr, PA",
+            people=[person_playbook],
+            astro_provider=_make_astro_provider(),
+            horoscope_style="kepler",
+        )
+        section.fetch_data()
+        section._get_horoscope(person_playbook)
+        assert MockSummarizer.call_args.kwargs["style"] == "playbook"
+

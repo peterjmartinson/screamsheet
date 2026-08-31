@@ -54,6 +54,7 @@ class PersonOptions:
     ascendant: str = ""
     lat: float | None = None
     lon: float | None = None
+    horoscope_style: str | None = None   # "kepler" | "playbook" | None (defaults to sky.horoscope_style)
 
 
 @dataclass
@@ -135,6 +136,7 @@ class SkyOrderOptions:
     lon: float = -75.0
     location_name: str = "My Location"
     people: list[PersonOptions] = field(default_factory=list)
+    horoscope_style: str = "kepler"
 
 
 @dataclass

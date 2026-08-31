@@ -86,6 +86,7 @@ class SkyHoroscopeSection(Section):
         astro_provider: Optional AstroDataProvider (Swiss Ephemeris).  When
                         supplied, planet positions and aspects for the horoscope
                         are sourced from Swiss Ephemeris instead of Skyfield.
+        horoscope_style: Default prompt style ("kepler" or "playbook").
     """
 
     def __init__(
@@ -96,6 +97,7 @@ class SkyHoroscopeSection(Section):
         location_name: str,
         people: List[PersonConfig],
         astro_provider: Optional[AstroDataProvider] = None,
+        horoscope_style: str = "kepler",
     ) -> None:
         super().__init__(title)
         self.page_slot = "back"
@@ -104,6 +106,7 @@ class SkyHoroscopeSection(Section):
         self.location_name = location_name
         self.people = people
         self.astro_provider = astro_provider
+        self.horoscope_style = horoscope_style
         self.astro_data: Optional[dict] = None
         self.natal_data: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -289,10 +292,13 @@ class SkyHoroscopeSection(Section):
             )
 
         try:
+            person_style = getattr(person, "horoscope_style", None) or self.horoscope_style or "kepler"
+            logger.info("Generating horoscope for %s using style='%s'", person.name, person_style)
             summarizer = HoroscopeSummarizer(
                 gemini_api_key=gemini_key,
                 grok_api_key=grok_key,
                 config=DEFAULT_LLM_CONFIG,
+                style=person_style,
             )
 
             # Transit planets: Swiss Ephemeris when available, else Skyfield fallback.

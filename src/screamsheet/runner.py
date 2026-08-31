@@ -211,6 +211,7 @@ def _run_sky(options: SkyOrderOptions, today: datetime, today_str: str, output_d
         location_name=options.location_name,
         date=today,
         people=options.people,
+        horoscope_style=options.horoscope_style,
     )
     return sheet.generate()
 

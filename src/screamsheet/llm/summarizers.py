@@ -14,12 +14,15 @@ Adding a new input source
 3. Wire it where needed (provider's ``get_game_summary`` or a renderer's
    ``fetch_data``), passing the matching ``ExtractedInfo`` dict.
 """
+import logging
 import random
 from pathlib import Path
 from typing import Optional
 
 from .base import BaseGameSummaryGenerator, ExtractedInfo
 from .config import LLMConfig, DEFAULT_LLM_CONFIG
+
+logger = logging.getLogger(__name__)
 
 # Absolute path to the prompts directory next to this file
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -338,9 +341,17 @@ class SkyNightSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+HOROSCOPE_PROMPT_KEPLER = Path("sky_horoscope_kepler.txt")
+HOROSCOPE_PROMPT_PLAYBOOK = Path("sky_horoscope_playbook.txt")
+
+
 class HoroscopeSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates a personalized ~200-word horoscope reading for one person.
+
+    Supports different prompt styles:
+    - ``"kepler"`` (default): Strategic advisor modelled after Johannes Kepler.
+    - ``"playbook"``: Daily playbook with green light / caution / move and aspect breakdown.
 
     Expected ``data`` keys
     ----------------------
@@ -354,13 +365,14 @@ class HoroscopeSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     - ``location``       str  — observer location name
     """
 
-    _PROMPT_FILE = Path("sky_horoscope.txt")
+    _PROMPT_FILE = HOROSCOPE_PROMPT_KEPLER
 
     def __init__(
         self,
         gemini_api_key: Optional[str] = None,
         grok_api_key: Optional[str] = None,
         config: LLMConfig = DEFAULT_LLM_CONFIG,
+        style: str = "kepler",
     ) -> None:
         BaseGameSummaryGenerator.__init__(
             self,
@@ -368,6 +380,13 @@ class HoroscopeSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             grok_api_key=grok_api_key,
             config=config,
         )
+        self.style = style.lower().strip() if style else "kepler"
+        if self.style == "playbook":
+            self._PROMPT_FILE = HOROSCOPE_PROMPT_PLAYBOOK
+        else:
+            self._PROMPT_FILE = HOROSCOPE_PROMPT_KEPLER
+        logger.debug("HoroscopeSummarizer initialized with style='%s' (prompt_file='%s')", self.style, self._PROMPT_FILE)
+
 
 
 class NBAGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):

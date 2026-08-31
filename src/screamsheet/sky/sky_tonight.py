@@ -36,6 +36,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         location_name:   Display name for the observer location.
         date:            Target date; defaults to *today* (not yesterday).
         people:          Up to 2 PersonConfig entries for horoscope readings.
+        horoscope_style: Default horoscope prompt style ("kepler" or "playbook").
     """
 
     def __init__(
@@ -46,6 +47,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         location_name: str,
         date: Optional[datetime] = None,
         people: Optional[List[PersonConfig]] = None,
+        horoscope_style: str = "kepler",
     ) -> None:
         # Default to *today* — we're describing tonight's sky, not last night's.
         super().__init__(output_filename, date=date if date is not None else datetime.now())
@@ -53,6 +55,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         self.lon = lon
         self.location_name = location_name
         self.people: List[PersonConfig] = people if people is not None else []
+        self.horoscope_style = horoscope_style
         self.provider = SkyDataProvider(lat=lat, lon=lon, location_name=location_name)
         self.astro_provider = AstroDataProvider()
 
@@ -74,6 +77,7 @@ class SkyTonightScreamsheet(BaseScreamsheet):
             location_name=self.location_name,
             people=self.people,
             astro_provider=self.astro_provider,
+            horoscope_style=self.horoscope_style,
         )
         horoscope_section.page_slot = "back"
 
@@ -93,4 +97,5 @@ class SkyTonightScreamsheet(BaseScreamsheet):
             highlights_section,
             horoscope_section,
         ]
+
 

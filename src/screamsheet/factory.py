@@ -389,6 +389,7 @@ class ScreamsheetFactory:
         location_name: str = "My Location",
         date: Optional[datetime] = None,
         people: Optional[list] = None,
+        horoscope_style: str = "kepler",
     ) -> SkyTonightScreamsheet:
         """
         Create a Sky Tonight screamsheet.
@@ -404,6 +405,7 @@ class ScreamsheetFactory:
             location_name:   Display name for the observer location.
             date:            Target date (defaults to today).
             people:          Up to 2 PersonConfig entries for horoscope readings.
+            horoscope_style: Default horoscope prompt style ("kepler" or "playbook").
 
         Returns:
             SkyTonightScreamsheet instance
@@ -415,6 +417,7 @@ class ScreamsheetFactory:
             location_name=location_name,
             date=date,
             people=people or [],
+            horoscope_style=horoscope_style,
         )
 
     @staticmethod

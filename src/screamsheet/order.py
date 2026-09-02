@@ -163,6 +163,7 @@ class BriefingOrderOptions:
     api_url: str = ""
     weather: WeatherLocationOptions | None = None
     upcoming_days: int = 1
+    include_xkcd: bool = True
 
 
 @dataclass

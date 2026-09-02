@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Optional
 
 from ..base import BaseScreamsheet, Section
 from ..providers.agenda_provider import AgendaProvider
+from ..providers.xkcd_provider import XKCDProvider
 from ..renderers.agenda import TwoColumnAgendaSection
 from ..renderers.weather import WeatherSection
+from ..renderers.xkcd import XKCDSection
 from .constants import DEFAULT_AGENDA_ENDPOINT
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
     - Subtitle: "<Subscriber>'s Morning Briefing" or "Morning Briefing"
     - Top: 5-Day Weather Forecast
     - Body (2 columns): Left Column (Today's Agenda & Tasks) | Right Column (Next 5 Days)
+    - Bottom: Daily XKCD Comic Strip
     """
 
     def __init__(
@@ -32,6 +35,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         upcoming_days: int = 1,
+        include_xkcd: bool = True,
         date: Optional[datetime] = None,
     ):
         target_date = date if date is not None else datetime.now()
@@ -45,7 +49,9 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.weather_lon = weather_lon
         self.weather_location_name = weather_location_name
         self.upcoming_days = upcoming_days
+        self.include_xkcd = include_xkcd
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
+        self.xkcd_provider = XKCDProvider() if self.include_xkcd else None
 
     def get_title(self) -> str:
         if self.subscriber_name:
@@ -79,5 +85,14 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
             upcoming_days=self.upcoming_days,
         )
         sections.append(agenda_sec)
+
+        # 3. XKCD Comic below the agenda
+        if self.include_xkcd and self.xkcd_provider:
+            sections.append(
+                XKCDSection(
+                    provider=self.xkcd_provider,
+                    title="XKCD",
+                )
+            )
 
         return sections

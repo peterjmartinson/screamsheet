@@ -246,6 +246,7 @@ def _run_briefing(
         "subscriber_name": options.subscriber_name,
         "payload": options.payload,
         "upcoming_days": options.upcoming_days,
+        "include_xkcd": options.include_xkcd,
         "date": today,
     }
     if options.api_url:

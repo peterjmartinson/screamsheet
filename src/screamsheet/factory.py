@@ -457,6 +457,7 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         upcoming_days: int = 1,
+        include_xkcd: bool = True,
         date: Optional[datetime] = None,
     ) -> MorningBriefingScreamsheet:
         """
@@ -472,6 +473,7 @@ class ScreamsheetFactory:
             weather_lon: Longitude for weather forecast.
             weather_location_name: Display name for weather location.
             upcoming_days: Number of upcoming days to show (1 = Tomorrow mode; >1 = multi-day mode).
+            include_xkcd: Whether to include the daily XKCD comic.
             date: Target date (defaults to today).
 
         Returns:
@@ -487,6 +489,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             upcoming_days=upcoming_days,
+            include_xkcd=include_xkcd,
             date=date,
         )
 

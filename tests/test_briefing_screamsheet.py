@@ -67,6 +67,28 @@ def test_briefing_screamsheet_creation(tmp_path):
     assert sheet.get_subtitle() == "Morning Briefing"
 
 
+def test_briefing_xkcd_toggle(tmp_path):
+    out_pdf_with = str(tmp_path / "briefing_with_xkcd.pdf")
+    sheet_with = ScreamsheetFactory.create_briefing_screamsheet(
+        output_filename=out_pdf_with,
+        include_weather=False,
+        include_xkcd=True,
+        date=datetime(2026, 8, 28),
+    )
+    sections_with = sheet_with.build_sections()
+    assert any(s.title == "XKCD" for s in sections_with)
+
+    out_pdf_without = str(tmp_path / "briefing_no_xkcd.pdf")
+    sheet_without = ScreamsheetFactory.create_briefing_screamsheet(
+        output_filename=out_pdf_without,
+        include_weather=False,
+        include_xkcd=False,
+        date=datetime(2026, 8, 28),
+    )
+    sections_without = sheet_without.build_sections()
+    assert not any(s.title == "XKCD" for s in sections_without)
+
+
 def test_briefing_screamsheet_generate(tmp_path):
     out_pdf = str(tmp_path / "test_briefing.pdf")
     sheet = ScreamsheetFactory.create_briefing_screamsheet(

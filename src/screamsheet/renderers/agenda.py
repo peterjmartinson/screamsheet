@@ -2,8 +2,8 @@
 import logging
 import re
 import zoneinfo
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import date as dt_date, datetime, time as dt_time, timedelta
+from typing import Any, Dict, List, Optional, Union
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -17,10 +17,67 @@ EASTERN_TZ = zoneinfo.ZoneInfo("America/New_York")
 UTC_TZ = zoneinfo.ZoneInfo("UTC")
 
 
-def convert_time_to_eastern_and_duration(time_str: str) -> str:
+def parse_eastern_start_time(
+    time_str: str,
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> dt_time:
+    """
+    Extract the event start time in Eastern timezone for within-day sorting.
+    'All Day' or unparseable times sort first (00:00:00).
+    """
+    if not time_str or time_str.strip().lower() == "all day":
+        return dt_time(0, 0)
+
+    m = re.match(
+        r"(\d{1,2}):(\d{2})\s*(AM|PM)",
+        time_str,
+        re.IGNORECASE,
+    )
+    if not m:
+        return dt_time(0, 0)
+
+    h1, m1, p1 = m.groups()
+    h1, m1 = int(h1), int(m1)
+    if p1.upper() == "PM" and h1 != 12:
+        h1 += 12
+    if p1.upper() == "AM" and h1 == 12:
+        h1 = 0
+
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    dt_utc = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
+    dt_est = dt_utc.astimezone(EASTERN_TZ)
+    return dt_est.time()
+
+
+def sort_agenda_events(
+    events: List[Dict[str, Any]],
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Sort events by start time in Eastern Time, then alphabetically by title.
+    """
+    return sorted(
+        events,
+        key=lambda ev: (
+            parse_eastern_start_time(ev.get("time", ""), ref_date=ref_date),
+            (ev.get("title") or "").strip().lower(),
+        ),
+    )
+
+
+def convert_time_to_eastern_and_duration(
+    time_str: str,
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> str:
     """
     Convert a UTC time range string from the API (e.g. '01:30 PM - 02:00 PM' or 'All Day')
     into Eastern timezone with duration, e.g. '9:30 AM (30 min)'.
+    Uses ref_date to determine the correct Daylight Saving Time offset (EDT vs EST).
     """
     if not time_str or time_str.strip().lower() == "all day":
         return "All Day"
@@ -44,9 +101,15 @@ def convert_time_to_eastern_and_duration(time_str: str) -> str:
     if p2.upper() == "AM" and h2 == 12:
         h2 = 0
 
-    # Assume UTC baseline
-    dt_utc1 = datetime(2026, 1, 1, h1, m1, tzinfo=UTC_TZ)
-    dt_utc2 = datetime(2026, 1, 1, h2, m2, tzinfo=UTC_TZ)
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    # Assume UTC baseline for incoming API times
+    dt_utc1 = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
+    dt_utc2 = datetime(year, month, day, h2, m2, tzinfo=UTC_TZ)
 
     dt_est1 = dt_utc1.astimezone(EASTERN_TZ)
     dt_est2 = dt_utc2.astimezone(EASTERN_TZ)
@@ -166,14 +229,16 @@ class TwoColumnAgendaSection(Section):
     def has_content(self) -> bool:
         return True
 
-    def _render_events_block(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _render_events_block(self, events: List[Dict[str, Any]], ref_date: Optional[Union[datetime, dt_date]] = None) -> List[Any]:
         flowables: List[Any] = []
+        target_date = ref_date or self.date
         if not events:
             flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
         else:
-            for ev in events:
+            sorted_events = sort_agenda_events(events, ref_date=target_date)
+            for ev in sorted_events:
                 time_raw = ev.get("time", "")
-                converted_time = convert_time_to_eastern_and_duration(time_raw)
+                converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=target_date)
                 title = ev.get("title", "")
                 accessory = ev.get("accessory", "")
 
@@ -233,16 +298,27 @@ class TwoColumnAgendaSection(Section):
         flowables.append(Paragraph("<b>TODAY'S AGENDA</b>", self._col_h1))
         flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
 
+        today_date_str = today_data.get("date")
+        try:
+            today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+        except Exception:
+            today_dt = self.date
+
         events = today_data.get("agenda", [])
-        flowables.extend(self._render_events_block(events))
+        flowables.extend(self._render_events_block(events, ref_date=today_dt))
 
         if self.upcoming_days == 1:
             # Show Tomorrow in left column right below Today
             flowables.append(Spacer(1, 6))
             flowables.append(Paragraph("<b>TOMORROW'S AGENDA</b>", self._col_h1))
             flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+            tomorrow_date_str = (tomorrow_data or {}).get("date")
+            try:
+                tomorrow_dt = datetime.strptime(tomorrow_date_str, "%Y-%m-%d") if tomorrow_date_str else (today_dt + timedelta(days=1))
+            except Exception:
+                tomorrow_dt = today_dt + timedelta(days=1)
             tomorrow_events = (tomorrow_data or {}).get("agenda", [])
-            flowables.extend(self._render_events_block(tomorrow_events))
+            flowables.extend(self._render_events_block(tomorrow_events, ref_date=tomorrow_dt))
         else:
             # Multi-day mode: Tasks go in left column under Today
             flowables.append(Spacer(1, 4))
@@ -275,6 +351,7 @@ class TwoColumnAgendaSection(Section):
                     date_fmt = d_obj.strftime("%m/%d")
                     heading_str = f"{day_name}, {date_fmt}"
                 except Exception:
+                    d_obj = self.date
                     heading_str = d_str
 
                 flowables.append(Paragraph(f"<b>{heading_str}</b>", self._day_hdr))
@@ -283,9 +360,10 @@ class TwoColumnAgendaSection(Section):
                 if not events:
                     flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
                 else:
-                    for ev in events:
+                    sorted_events = sort_agenda_events(events, ref_date=d_obj)
+                    for ev in sorted_events:
                         time_raw = ev.get("time", "")
-                        converted_time = convert_time_to_eastern_and_duration(time_raw)
+                        converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
                         title = ev.get("title", "")
                         accessory = ev.get("accessory", "")
 
@@ -335,15 +413,22 @@ class TwoColumnAgendaSection(Section):
             self.fetch_data()
 
         today_data = self.multi_day_data[0] if self.multi_day_data else {}
+        today_date_str = today_data.get("date")
+        try:
+            today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+        except Exception:
+            today_dt = self.date
+
         lines = []
         lines.append("## TODAY'S AGENDA\n")
         events = today_data.get("agenda", [])
         if not events:
             lines.append("_No scheduled events_\n")
         else:
-            for ev in events:
+            sorted_events = sort_agenda_events(events, ref_date=today_dt)
+            for ev in sorted_events:
                 time_raw = ev.get("time", "")
-                c_time = convert_time_to_eastern_and_duration(time_raw)
+                c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=today_dt)
                 title = ev.get("title", "")
                 accessory = ev.get("accessory", "")
                 lines.append(f"{c_time} - {title}")
@@ -354,14 +439,21 @@ class TwoColumnAgendaSection(Section):
 
         if self.upcoming_days == 1:
             tomorrow_data = self.multi_day_data[1] if len(self.multi_day_data) > 1 else {}
+            tomorrow_date_str = tomorrow_data.get("date")
+            try:
+                tomorrow_dt = datetime.strptime(tomorrow_date_str, "%Y-%m-%d") if tomorrow_date_str else (today_dt + timedelta(days=1))
+            except Exception:
+                tomorrow_dt = today_dt + timedelta(days=1)
+
             lines.append("## TOMORROW'S AGENDA\n")
             t_evs = tomorrow_data.get("agenda", [])
             if not t_evs:
                 lines.append("_No scheduled events_\n")
             else:
-                for ev in t_evs:
+                sorted_tomorrow = sort_agenda_events(t_evs, ref_date=tomorrow_dt)
+                for ev in sorted_tomorrow:
                     time_raw = ev.get("time", "")
-                    c_time = convert_time_to_eastern_and_duration(time_raw)
+                    c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=tomorrow_dt)
                     title = ev.get("title", "")
                     accessory = ev.get("accessory", "")
                     lines.append(f"{c_time} - {title}")
@@ -414,6 +506,7 @@ class TwoColumnAgendaSection(Section):
                     d_obj = datetime.strptime(d_str, "%Y-%m-%d")
                     heading_str = f"{d_obj.strftime('%A')}, {d_obj.strftime('%m/%d')}"
                 except Exception:
+                    d_obj = self.date
                     heading_str = d_str
 
                 lines.append(f"### {heading_str}\n")
@@ -421,9 +514,10 @@ class TwoColumnAgendaSection(Section):
                 if not evs:
                     lines.append("_No scheduled events_\n")
                 else:
-                    for ev in evs:
+                    sorted_day_evs = sort_agenda_events(evs, ref_date=d_obj)
+                    for ev in sorted_day_evs:
                         time_raw = ev.get("time", "")
-                        c_time = convert_time_to_eastern_and_duration(time_raw)
+                        c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
                         title = ev.get("title", "")
                         accessory = ev.get("accessory", "")
                         acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""

@@ -72,13 +72,27 @@ class FilePromptMixin:
     placeholders in the file are filled via ``str.format_map(data)``.
     Keys that are absent from *data* are left as literals so the prompt
     doesn't crash on partially-populated inputs.
+
+    If ``extra_instructions`` is provided in *data* (as a string or list of strings),
+    it is cleanly appended to the rendered prompt instructions.
     """
 
     _PROMPT_FILE: Path  # must be set by concrete class
 
     def _build_llm_prompt(self, data: ExtractedInfo) -> str:
         template = (_PROMPTS_DIR / self._PROMPT_FILE).read_text(encoding="utf-8")
-        return template.format_map(SafeDict(data))
+        prompt = template.format_map(SafeDict(data))
+
+        extra = data.get("extra_instructions")
+        if extra:
+            if isinstance(extra, list):
+                extra_lines = "\n".join(f"- {item.strip()}" for item in extra if str(item).strip())
+                if extra_lines:
+                    prompt = f"{prompt.rstrip()}\n\nAdditional instructions:\n{extra_lines}\n"
+            elif isinstance(extra, str) and extra.strip():
+                prompt = f"{prompt.rstrip()}\n\nAdditional instructions:\n- {extra.strip()}\n"
+
+        return prompt
 
 
 # ---------------------------------------------------------------------------

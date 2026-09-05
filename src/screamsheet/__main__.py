@@ -302,6 +302,7 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
                     lat=p.lat,
                     lon=p.lon,
                     horoscope_style=p.horoscope_style,
+                    extra_instructions=p.extra_instructions,
                 )
                 for p in cfg.sky.people
             ],

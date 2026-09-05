@@ -103,6 +103,8 @@ sky:
       sun_sign: "__PERSON1_SUN_SIGN__"
       moon_sign: "__PERSON1_MOON_SIGN__"
       ascendant: "__PERSON1_ASCENDANT__"
+      # Optional: inject specific instructions/notes into the LLM prompt for this person's reading
+      # extra_instructions: "Note that she got a haircut yesterday, make sure to give some kind of astrological compliment."
     - name: "__PERSON2_NAME__"
       sun_sign: "__PERSON2_SUN_SIGN__"
       moon_sign: "__PERSON2_MOON_SIGN__"

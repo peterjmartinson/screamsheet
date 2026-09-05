@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Union
 
 import yaml
 
@@ -105,6 +105,7 @@ class PersonConfig:
     lat: Optional[float] = None
     lon: Optional[float] = None
     horoscope_style: Optional[str] = None   # "kepler" | "playbook" | None (defaults to sky.horoscope_style)
+    extra_instructions: Optional[Union[str, List[str]]] = None   # Custom prompt instructions for this person
 
 
 @dataclass
@@ -227,6 +228,12 @@ def _parse_person(raw: dict) -> PersonConfig:
     lon_val = raw.get("lon")
     raw_style = raw.get("horoscope_style")
     horoscope_style = str(raw_style) if raw_style is not None else None
+    raw_extra = raw.get("extra_instructions")
+    extra_instructions: Optional[Union[str, List[str]]] = None
+    if isinstance(raw_extra, list):
+        extra_instructions = [str(x) for x in raw_extra]
+    elif raw_extra is not None:
+        extra_instructions = str(raw_extra)
     return PersonConfig(
         name=str(raw.get("name", "Unknown")),
         birth_date=str(raw.get("birth_date", "")),
@@ -238,6 +245,7 @@ def _parse_person(raw: dict) -> PersonConfig:
         lat=float(lat_val) if lat_val is not None else None,
         lon=float(lon_val) if lon_val is not None else None,
         horoscope_style=horoscope_style,
+        extra_instructions=extra_instructions,
     )
 
 

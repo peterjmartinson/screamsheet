@@ -55,6 +55,7 @@ class PersonOptions:
     lat: float | None = None
     lon: float | None = None
     horoscope_style: str | None = None   # "kepler" | "playbook" | None (defaults to sky.horoscope_style)
+    extra_instructions: str | list[str] | None = None
 
 
 @dataclass

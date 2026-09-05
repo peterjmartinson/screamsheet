@@ -21,6 +21,7 @@ class GameSummarySection(Section):
         self.provider = provider
         self.team_id = team_id
         self.date = date
+        self.page_slot = "back"
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -55,7 +56,20 @@ class GameSummarySection(Section):
         
         # Section title suppressed (document top-level title used instead)
         
-        # Add summary text
-        elements.append(Paragraph(self.data, self.summary_text_style))
+        # Add summary paragraphs
+        paragraphs = [p for p in str(self.data).split("\n\n") if p.strip()]
+        for p in paragraphs:
+            elements.append(Paragraph(p, self.summary_text_style))
+            elements.append(Spacer(1, 6))
         
         return elements
+
+    def render_markdown(self) -> str:
+        """Render the game summary in Markdown format."""
+        if self.data is None:
+            self.fetch_data()
+
+        if not self.data:
+            return ""
+
+        return f"### {self.title}\n\n{self.data}"

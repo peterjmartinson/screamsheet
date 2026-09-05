@@ -1,5 +1,6 @@
 """Standings section renderer."""
-from typing import List, Any
+from datetime import datetime
+from typing import List, Any, Optional
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -16,9 +17,10 @@ class StandingsSection(Section):
     Displays standings in a formatted table. Format varies by sport.
     """
     
-    def __init__(self, title: str, provider: DataProvider):
+    def __init__(self, title: str, provider: DataProvider, date: Optional[datetime] = None):
         super().__init__(title)
         self.provider = provider
+        self.date = date
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -37,7 +39,12 @@ class StandingsSection(Section):
     
     def fetch_data(self):
         """Fetch standings from the provider."""
-        self.data = self.provider.get_standings()
+        import inspect
+        sig = inspect.signature(self.provider.get_standings)
+        if "date" in sig.parameters and self.date is not None:
+            self.data = self.provider.get_standings(self.date)
+        else:
+            self.data = self.provider.get_standings()
     
     def render(self) -> List[Any]:
         """Render the standings section."""

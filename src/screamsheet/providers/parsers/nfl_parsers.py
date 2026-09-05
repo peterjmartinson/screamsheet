@@ -73,14 +73,29 @@ def extract_scoreboard(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         home_team_name = home_comp.get("team", {}).get("displayName", home_comp.get("team", {}).get("name", "Home Team"))
         away_team_name = away_comp.get("team", {}).get("displayName", away_comp.get("team", {}).get("name", "Away Team"))
 
+        home_team_id = home_comp.get("team", {}).get("id")
+        away_team_id = away_comp.get("team", {}).get("id")
+        try:
+            home_team_id = int(home_team_id) if home_team_id is not None else None
+        except (ValueError, TypeError):
+            home_team_id = None
+        try:
+            away_team_id = int(away_team_id) if away_team_id is not None else None
+        except (ValueError, TypeError):
+            away_team_id = None
+
         games.append({
+            "gameId": game_id,
             "game_id": game_id,
+            "gameDate": game_date,
             "game_date": game_date,
             "status": status_name,
             "away_team": away_team_name,
             "away_score": parse_score(away_comp.get("score")),
+            "away_team_id": away_team_id,
             "home_team": home_team_name,
             "home_score": parse_score(home_comp.get("score")),
+            "home_team_id": home_team_id,
             "quarter_scores": {
                 "away": parse_linescores(away_comp),
                 "home": parse_linescores(home_comp),
@@ -160,37 +175,77 @@ def extract_game_summary(raw_json: Dict[str, Any], favorite_team_id: Optional[in
             "possession_time": stat_map.get("possessionTime", ""),
         }
 
+    # Extract header / matchup info if available
+    away_team = ""
+    home_team = ""
+    away_score = 0
+    home_score = 0
+    header_comps = raw_json.get("header", {}).get("competitions", []) if isinstance(raw_json.get("header"), dict) else []
+    if header_comps and isinstance(header_comps, list):
+        comp = header_comps[0]
+        for c in comp.get("competitors", []):
+            if c.get("homeAway") == "home":
+                home_team = c.get("team", {}).get("displayName", "")
+                try:
+                    home_score = int(c.get("score", 0))
+                except (ValueError, TypeError):
+                    home_score = 0
+            elif c.get("homeAway") == "away":
+                away_team = c.get("team", {}).get("displayName", "")
+                try:
+                    away_score = int(c.get("score", 0))
+                except (ValueError, TypeError):
+                    away_score = 0
+
     # 3. Top performers (leaders)
     leaders = {"passing": [], "rushing": [], "receiving": []}
     leaders_data = raw_json.get("leaders", [])
     if isinstance(leaders_data, list):
-        for leader_category in leaders_data:
-            if not isinstance(leader_category, dict):
+        for entry in leaders_data:
+            if not isinstance(entry, dict):
                 continue
-            cat_name = leader_category.get("name", "").lower()
-            target_key = None
-            if "pass" in cat_name:
-                target_key = "passing"
-            elif "rush" in cat_name:
-                target_key = "rushing"
-            elif "receiv" in cat_name:
-                target_key = "receiving"
+            cat_name = entry.get("name", "").lower()
+            if "pass" in cat_name or "rush" in cat_name or "receiv" in cat_name:
+                category_list = [entry]
+                entry_team_name = ""
+            elif "leaders" in entry and isinstance(entry.get("leaders"), list):
+                category_list = entry.get("leaders", [])
+                entry_team_name = entry.get("team", {}).get("displayName", "")
+            else:
+                category_list = [entry]
+                entry_team_name = entry.get("team", {}).get("displayName", "")
 
-            if target_key:
-                for leader_entry in leader_category.get("leaders", []):
-                    if not isinstance(leader_entry, dict):
-                        continue
-                    athlete = leader_entry.get("athlete", {})
-                    name = athlete.get("displayName", athlete.get("name", "Unknown"))
-                    stat_display = leader_entry.get("displayValue", "")
-                    team_name = leader_entry.get("team", {}).get("displayName", "")
-                    leaders[target_key].append({
-                        "name": name,
-                        "team": team_name,
-                        "display_stat": stat_display,
-                    })
+            for leader_category in category_list:
+                if not isinstance(leader_category, dict):
+                    continue
+                cat_name = leader_category.get("name", "").lower()
+                target_key = None
+                if "pass" in cat_name:
+                    target_key = "passing"
+                elif "rush" in cat_name:
+                    target_key = "rushing"
+                elif "receiv" in cat_name:
+                    target_key = "receiving"
+
+                if target_key:
+                    for leader_entry in leader_category.get("leaders", []):
+                        if not isinstance(leader_entry, dict):
+                            continue
+                        athlete = leader_entry.get("athlete", {})
+                        name = athlete.get("displayName", athlete.get("name", "Unknown"))
+                        stat_display = leader_entry.get("displayValue", "")
+                        team_name = leader_entry.get("team", {}).get("displayName", entry_team_name)
+                        leaders[target_key].append({
+                            "name": name,
+                            "team": team_name,
+                            "display_stat": stat_display,
+                        })
 
     return {
+        "away_team": away_team,
+        "home_team": home_team,
+        "away_score": away_score,
+        "home_score": home_score,
         "team_totals": team_totals,
         "scoring_drives": scoring_drives,
         "leaders": leaders,

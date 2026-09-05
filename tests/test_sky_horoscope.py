@@ -302,3 +302,29 @@ def test_horoscope_style_per_person_override(monkeypatch) -> None:
         section._get_horoscope(person_playbook)
         assert MockSummarizer.call_args.kwargs["style"] == "playbook"
 
+
+def test_extra_instructions_passed_to_horoscope_summarizer(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-key")
+    person_with_extra = PersonConfig(
+        name="Jane",
+        birth_date="1985-04-12",
+        birth_time="14:30",
+        birth_location="Philadelphia, PA",
+        extra_instructions="Compliment her new haircut.",
+    )
+    with patch("screamsheet.renderers.sky_horoscope.HoroscopeSummarizer") as MockSummarizer:
+        mock_instance = MockSummarizer.return_value
+        mock_instance.generate_summary.return_value = "A reading."
+        section = SkyHoroscopeSection(
+            title="Horoscopes",
+            provider=_make_provider(),
+            date=datetime(2026, 4, 21),
+            location_name="Bryn Mawr, PA",
+            people=[person_with_extra],
+            astro_provider=_make_astro_provider(),
+        )
+        section.fetch_data()
+        section._get_horoscope(person_with_extra)
+        call_kwargs = mock_instance.generate_summary.call_args.kwargs
+        assert call_kwargs["data"]["extra_instructions"] == "Compliment her new haircut."
+

@@ -387,19 +387,24 @@ class SkyHoroscopeSection(Section):
                 f"Moon phase: {moon_phase}"
             )
 
+            data_payload = {
+                "name": person.name,
+                "birth_date": person.birth_date,
+                "birth_time": person.birth_time,
+                "birth_location": person.birth_location,
+                "date": self.date.strftime("%B %d, %Y"),
+                "location": self.location_name,
+                "subject_natal": subject_natal,
+                "current_sky": current_sky,
+            }
+            extra = getattr(person, "extra_instructions", None)
+            if extra:
+                data_payload["extra_instructions"] = extra
+
             llm_choice = "gemini" if gemini_key else "grok"
             result = summarizer.generate_summary(
                 llm_choice=llm_choice,
-                data={
-                    "name": person.name,
-                    "birth_date": person.birth_date,
-                    "birth_time": person.birth_time,
-                    "birth_location": person.birth_location,
-                    "date": self.date.strftime("%B %d, %Y"),
-                    "location": self.location_name,
-                    "subject_natal": subject_natal,
-                    "current_sky": current_sky,
-                },
+                data=data_payload,
             )
             result_text = str(result).strip() if result else f"Horoscope unavailable for {person.name}."
             word_count = len(result_text.split())

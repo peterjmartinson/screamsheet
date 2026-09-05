@@ -231,3 +231,43 @@ class TestSkyPeopleConfig:
             moon_sign="Leo",
             ascendant="Sagittarius",
         )
+
+    def test_sky_person_with_extra_instructions_string(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "sky": {
+                    "people": [
+                        {
+                            "name": "Alice",
+                            "extra_instructions": "Give a compliment about her haircut.",
+                        }
+                    ]
+                }
+            },
+        )
+        cfg = load_config(path)
+        assert cfg.sky.people[0].extra_instructions == "Give a compliment about her haircut."
+
+    def test_sky_person_with_extra_instructions_list(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "sky": {
+                    "people": [
+                        {
+                            "name": "Alice",
+                            "extra_instructions": [
+                                "Give a compliment about her haircut.",
+                                "Mention renewed creative energy.",
+                            ],
+                        }
+                    ]
+                }
+            },
+        )
+        cfg = load_config(path)
+        assert cfg.sky.people[0].extra_instructions == [
+            "Give a compliment about her haircut.",
+            "Mention renewed creative energy.",
+        ]

@@ -158,6 +158,11 @@ class TestPersonOptions:
         assert person.sun_sign == ""
         assert person.moon_sign == ""
         assert person.ascendant == ""
+        assert person.extra_instructions is None
+
+    def test_extra_instructions_can_be_set(self) -> None:
+        person = PersonOptions(name="Alice", extra_instructions="Compliment haircut")
+        assert person.extra_instructions == "Compliment haircut"
 
 
 class TestMadFanOrderOptions:

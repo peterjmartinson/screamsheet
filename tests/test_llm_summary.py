@@ -180,6 +180,43 @@ class TestBuildLLMPrompt:
         assert "DO NOT start with \"Another night...\"" in prompt
         assert any(angle in prompt for angle in NBA_RANT_ANGLES)
 
+    def test_file_prompt_mixin_appends_extra_instructions_string(self):
+        from screamsheet.llm.summarizers import HoroscopeSummarizer
+        gen = HoroscopeSummarizer(gemini_api_key=None, grok_api_key=None)
+        data = {
+            "name": "Jane",
+            "birth_date": "1985-04-12",
+            "birth_time": "14:30",
+            "birth_location": "Philly",
+            "date": "May 16, 2026",
+            "location": "Bryn Mawr, PA",
+            "subject_natal": "Sun in Aries",
+            "current_sky": "Moon in Taurus",
+            "extra_instructions": "Make sure to compliment her new haircut.",
+        }
+        prompt = gen._build_llm_prompt(data)
+        assert "Additional instructions:\n- Make sure to compliment her new haircut." in prompt
+
+    def test_file_prompt_mixin_appends_extra_instructions_list(self):
+        from screamsheet.llm.summarizers import HoroscopeSummarizer
+        gen = HoroscopeSummarizer(gemini_api_key=None, grok_api_key=None)
+        data = {
+            "name": "Jane",
+            "birth_date": "1985-04-12",
+            "birth_time": "14:30",
+            "birth_location": "Philly",
+            "date": "May 16, 2026",
+            "location": "Bryn Mawr, PA",
+            "subject_natal": "Sun in Aries",
+            "current_sky": "Moon in Taurus",
+            "extra_instructions": [
+                "Make sure to compliment her new haircut.",
+                "Mention that Venus favors fresh starts.",
+            ],
+        }
+        prompt = gen._build_llm_prompt(data)
+        assert "Additional instructions:\n- Make sure to compliment her new haircut.\n- Mention that Venus favors fresh starts." in prompt
+
 
 # ---------------------------------------------------------------------------
 # LLMConfig

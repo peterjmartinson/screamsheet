@@ -34,6 +34,16 @@ DAY_TO_STRATEGY_MAP = {
     6: NFLDayStrategy.GAMEDAY_CARD,            # Sunday
 }
 
+DAY_SUBTITLE_MAP = {
+    NFLDayStrategy.RECAP: "Sunday Game Recaps",
+    NFLDayStrategy.STANDINGS_AND_INJURIES: "Monday Night Football Recap & Injury Report",
+    NFLDayStrategy.FILM_ROOM: "Midweek Film Room & League Intel",
+    NFLDayStrategy.TNF_SCOUTING: "Thursday Night Football Preview & Scouting",
+    NFLDayStrategy.KEYS_TO_VICTORY: "Thursday Night Football Recap & Weekend Prep",
+    NFLDayStrategy.WEEKEND_PREP: "Weekend Matchup Preview & Roster Moves",
+    NFLDayStrategy.GAMEDAY_CARD: "Sunday Gameday Card & Inactives",
+}
+
 STRATEGY_CONFIG = {
     NFLDayStrategy.RECAP: {
         "description": "Monday recap featuring final scores, featured game summary, and drive chart.",

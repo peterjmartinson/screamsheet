@@ -158,3 +158,43 @@ def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
         sheet.generate()
         assert os.path.exists(pdf_path)
         assert os.path.getsize(pdf_path) > 0
+
+
+def test_nfl_screamsheet_non_game_day_with_news(tmp_path, mock_nfl_provider):
+    pdf_path = str(tmp_path / "nfl_wednesday_news.pdf")
+    wednesday_date = datetime(2024, 9, 11)  # Wednesday (no games played)
+    
+    mock_nfl_provider.get_all_teams_for_date.return_value = []
+    mock_nfl_provider.has_game.return_value = False
+
+    mock_news_provider = MagicMock()
+    mock_news_provider.get_articles.return_value = [
+        {
+            "slot": "Section 1",
+            "entry": {
+                "title": "Star QB returns to practice",
+                "summary": "Full practice participation on Wednesday.",
+                "link": "https://espn.com/story/1",
+                "source": "ESPN"
+            }
+        }
+    ]
+    mock_news_provider.sanitize_articles.side_effect = lambda arts: arts
+
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider), \
+         patch("screamsheet.sports.nfl.NFLNewsProvider", return_value=mock_news_provider):
+        sheet = NFLScreamsheet(
+            output_filename=pdf_path,
+            favorite_teams=[(23, "Pittsburgh Steelers")],
+            date=wednesday_date,
+        )
+        sections = sheet.build_sections()
+        # Wednesday Film Room builds Standings & Power Metrics + Practice & Roster Notes + Film Room & League Intel
+        section_titles = [s.title for s in sections]
+        assert any("Standings" in t for t in section_titles)
+        assert any("Notes" in t or "Injury" in t for t in section_titles)
+        assert any("News" in t or "Intel" in t for t in section_titles)
+
+        sheet.generate()
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0

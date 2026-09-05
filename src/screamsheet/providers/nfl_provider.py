@@ -25,41 +25,65 @@ class NFLDataProvider(DataProvider):
         self.current_season = self._get_current_season()
         self.current_week = self._get_current_week()
     
-    def get_game_scores(self, date: datetime = None) -> list:
+    def get_game_scores(self, date: datetime = None, fallback_to_week: bool = False) -> list:
         """
-        Get NFL game scores for the current (or requested) week.
-        
-        Note: NFL games are organized by week, not by specific date.
-        The date parameter is used to determine the season/week.
+        Get NFL game scores for a specific date (or current/weekly slate).
         
         Args:
-            date: The date (used to determine week)
+            date: The date to fetch scores for (queries ESPN by date YYYYMMDD).
+            fallback_to_week: If True and date has no games, falls back to weekly slate.
             
         Returns:
             List of game score dictionaries
         """
+        from .parsers.nfl_parsers import extract_scoreboard
+        if date:
+            date_str = date.strftime("%Y%m%d")
+            url = f"{self.base_url}/scoreboard?dates={date_str}"
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                data = response.json()
+                games = extract_scoreboard(data)
+                if games:
+                    return games
+                elif not fallback_to_week:
+                    return []
+            except requests.exceptions.RequestException as e:
+                print(f"Error fetching game scores for date {date_str}: {e}")
+                if not fallback_to_week:
+                    return []
+
+        # Fallback to weekly scores if no date specified or if fallback_to_week is True
         week_info = self._get_current_week(date) if date else self.current_week
+        season_year = self._get_current_season(date) if date else self.current_season
         if week_info is None:
             return []
         
         return self._get_weekly_scores(
-            self.current_season,
+            season_year,
             week_info,
             previous_week=False
         )
 
     
-    def get_standings(self) -> pd.DataFrame:
+    def get_standings(self, date: Optional[datetime] = None) -> pd.DataFrame:
         """
-        Get current NFL league standings.
+        Get current NFL league standings for the active season type (preseason, regular season, postseason).
         
         Returns:
             DataFrame with standings data
         """
-        season = self.current_season
+        season = self._get_current_season(date) if date else self.current_season
+        week_info = self._get_current_week(date) if date else self.current_week
+        season_type = week_info.get("SeasonValue", 2) if week_info else 2
+        # Default to regular season (2) if not specified or 0
+        if not season_type:
+            season_type = 2
+
         base_standings_url = (
             f"https://sports.core.api.espn.com/v2/sports/football/"
-            f"leagues/nfl/seasons/{season}/types/2/groups/"
+            f"leagues/nfl/seasons/{season}/types/{season_type}/groups/"
         )
         conferences = {7: "NFC", 8: "AFC"}
         all_standings = []
@@ -76,7 +100,7 @@ class NFLDataProvider(DataProvider):
                 response.raise_for_status()
                 data = response.json()
             except requests.exceptions.RequestException as e:
-                print(f"Error fetching standings for {conference_name}: {e}")
+                print(f"Error fetching standings for {conference_name} (type {season_type}): {e}")
                 continue
             
             for team_entry in data.get("standings", []):
@@ -113,8 +137,49 @@ class NFLDataProvider(DataProvider):
         
         standings = pd.DataFrame(all_standings)
 
-        # Offseason fallback: if the computed season has no standings yet (e.g. right after
-        # the Super Bowl), retry with the previous season's final standings.
+        # Offseason/preseason fallback: if the computed season type has no standings yet,
+        # retry regular season (types/2) or previous season's final standings.
+        if standings.empty and season_type != 2:
+            print(f"NFL standings: no data for season type {season_type}, retrying regular season (type 2)...")
+            base_standings_url = (
+                f"https://sports.core.api.espn.com/v2/sports/football/"
+                f"leagues/nfl/seasons/{season}/types/2/groups/"
+            )
+            for group_id, conference_name in conferences.items():
+                url = f"{base_standings_url}{group_id}/standings/0"
+                try:
+                    response = requests.get(url)
+                    response.raise_for_status()
+                    data = response.json()
+                except requests.exceptions.RequestException as e:
+                    print(f"Error fetching standings for {conference_name} (type 2): {e}")
+                    continue
+
+                for team_entry in data.get("standings", []):
+                    team_ref = team_entry.get("team", {}).get("$ref", "")
+                    match = id_pattern.search(team_ref)
+                    if not match:
+                        continue
+                    team_id = int(match.group(1))
+                    team_name = team_name_lookup.get(team_id, f"Team {team_id}")
+                    records = team_entry.get("records", [])
+                    if not records:
+                        continue
+                    overall_record = records[0]
+                    stats = overall_record.get("stats", [])
+                    stat_dict = {stat["name"]: stat["value"] for stat in stats}
+                    all_standings.append({
+                        "conference": conference_name,
+                        "team": team_name,
+                        "wins": stat_dict.get("wins", 0),
+                        "losses": stat_dict.get("losses", 0),
+                        "ties": stat_dict.get("ties", 0),
+                        "winPercent": stat_dict.get("winPercent", 0.0),
+                        "pointDifferential": stat_dict.get("pointDifferential", 0),
+                        "divisionWinPercent": stat_dict.get("divisionWinPercent", 0.0),
+                    })
+            standings = pd.DataFrame(all_standings)
+
         if standings.empty:
             prev_season = season - 1
             print(f"NFL standings: no data for season {season}, retrying season {prev_season}...")
@@ -191,19 +256,19 @@ class NFLDataProvider(DataProvider):
         
         return team_name_lookup
     
-    def _get_current_season(self) -> int:
-        """Determine the current NFL season year."""
-        now = datetime.now(timezone.utc)
-        this_year = now.year
+    def _get_current_season(self, date: Optional[datetime] = None) -> int:
+        """Determine the NFL season year for a given date (or now)."""
+        dt = date if date is not None else datetime.now(timezone.utc)
+        this_year = dt.year
         prev_year = this_year - 1
         
-        # During January and February, use previous year's season (includes playoffs/Super Bowl)
+        # During January and February, games belong to previous year's season (includes playoffs/Super Bowl)
         # After mid-February, switch to new season
-        if now.month == 1:
+        if dt.month == 1:
             return prev_year
-        elif now.month == 2 and now.day <= 15:
+        elif dt.month == 2 and dt.day <= 15:
             return prev_year
-        elif now.month >= 3 and now.month <= 8:
+        elif dt.month >= 3 and dt.month <= 8:
             # Offseason - use upcoming season
             return this_year
         else:
@@ -212,7 +277,7 @@ class NFLDataProvider(DataProvider):
     
     def _get_current_week(self, date: Optional[datetime] = None) -> Optional[Dict]:
         """Get information about the NFL week for a given date (or now)."""
-        season = self.current_season
+        season = self._get_current_season(date) if date else self.current_season
         url = f"{self.base_url}/scoreboard?dates={season}"
         if date:
             if date.tzinfo is None:
@@ -312,38 +377,90 @@ class NFLDataProvider(DataProvider):
         
         return games
 
-    def get_game_summary(self, team_id: int, date: Optional[datetime] = None) -> Dict[str, Any]:
+    def get_game_summary(self, team_id: int, date: Optional[datetime] = None, is_primary_favorite: bool = False, mad_fan: bool = False) -> Optional[str]:
         """
-        Get game summary and leaders for a specific team.
+        Get LLM-generated game summary for a specific team on a given date/week.
         """
+        import os
         from .parsers.nfl_parsers import extract_game_summary
+        from ..llm.summary import NFLGameSummarizer
         
         # 1. Find the game/event ID for the team in scores for that date/week
         event_id = None
-        week_info = self._get_current_week(date) if date else self.current_week
-        if week_info:
-            scores = self._get_weekly_scores(self.current_season, week_info)
-            # Find matching team in scores
-            team_lookup = self._get_team_name_lookup()
-            team_name = team_lookup.get(team_id, "")
-            for g in scores:
-                if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
-                    event_id = g.get("gameId")
-                    break
-
+        scores = self.get_game_scores(date)
+        team_lookup = self._get_team_name_lookup()
+        team_name = team_lookup.get(team_id, "")
+        for g in scores:
+            h_id = g.get("home_team_id")
+            a_id = g.get("away_team_id")
+            h_name = g.get("home_team")
+            a_name = g.get("away_team")
+            if (h_id == team_id or a_id == team_id) or (team_name and (team_name == h_name or team_name == a_name)):
+                event_id = g.get("gameId") or g.get("game_id")
+                break
         
         if not event_id:
-            return {"team_totals": {}, "scoring_drives": [], "leaders": {"passing": [], "rushing": [], "receiving": []}}
+            # Fall back to weekly scores search
+            week_info = self._get_current_week(date) if date else self.current_week
+            if week_info:
+                weekly_scores = self._get_weekly_scores(self.current_season, week_info)
+                for g in weekly_scores:
+                    if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
+                        event_id = g.get("gameId") or g.get("game_id")
+                        break
+
+        if not event_id:
+            return None
 
         url = f"{self.base_url}/summary?event={event_id}"
         try:
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            return extract_game_summary(data, favorite_team_id=team_id)
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching game summary for event {event_id}: {e}")
-            return {"team_totals": {}, "scoring_drives": [], "leaders": {"passing": [], "rushing": [], "receiving": []}}
+            extracted = extract_game_summary(data, favorite_team_id=team_id)
+
+            # Format extracted data for NFLGameSummarizer
+            away_team = extracted.get("away_team", "")
+            home_team = extracted.get("home_team", "")
+            away_score = extracted.get("away_score", 0)
+            home_score = extracted.get("home_score", 0)
+
+            drives_list = extracted.get("scoring_drives", [])
+            drives_formatted = "\n".join(
+                [f"- Q{d.get('quarter', '')} ({d.get('clock', '')}): {d.get('team', '')} - {d.get('description', '')}" for d in drives_list]
+            ) if drives_list else "None recorded."
+
+            totals_lines = []
+            for tm, stats in extracted.get("team_totals", {}).items():
+                totals_lines.append(
+                    f"{tm}: Total Yards {stats.get('total_yards', '')}, Pass {stats.get('passing_yards', '')}, Rush {stats.get('rushing_yards', '')}, Turnovers {stats.get('turnovers', '')}"
+                )
+            totals_formatted = "\n".join(totals_lines) if totals_lines else "None recorded."
+
+            leaders_lines = []
+            for cat in ["passing", "rushing", "receiving"]:
+                for l in extracted.get("leaders", {}).get(cat, []):
+                    leaders_lines.append(f"{cat.capitalize()}: {l.get('name', '')} ({l.get('team', '')}) - {l.get('display_stat', '')}")
+            top_performers_formatted = "\n".join(leaders_lines) if leaders_lines else "None recorded."
+
+            llm_payload = {
+                "away_team": away_team,
+                "away_score": away_score,
+                "home_team": home_team,
+                "home_score": home_score,
+                "scoring_drives": drives_formatted,
+                "team_totals": totals_formatted,
+                "top_performers": top_performers_formatted,
+            }
+
+            summarizer = NFLGameSummarizer(
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                grok_api_key=os.getenv("GROK_API_KEY"),
+            )
+            return summarizer.generate_summary(llm_choice="gemini", data=llm_payload)
+        except Exception as e:
+            print(f"Error generating NFL game summary for event {event_id}: {e}")
+            return None
 
     def get_injuries(self, team_id: int) -> list:
         """
@@ -361,27 +478,37 @@ class NFLDataProvider(DataProvider):
             return []
 
     def has_game(self, team_id: int, date: Optional[datetime] = None) -> bool:
-        """Check if team played in the current week."""
+        """Check if team played on the date (or in the current week)."""
         team_lookup = self._get_team_name_lookup()
         team_name = team_lookup.get(team_id, "")
         scores = self.get_game_scores(date)
         for g in scores:
-            if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
+            h_id = g.get("home_team_id")
+            a_id = g.get("away_team_id")
+            h_name = g.get("home_team")
+            a_name = g.get("away_team")
+            if (h_id == team_id or a_id == team_id) or (team_name and (team_name == h_name or team_name == a_name)):
                 return True
         return False
 
     def get_all_teams_for_date(self, date: Optional[datetime] = None) -> List[tuple]:
-        """Get all teams that played games for the date/week."""
+        """Get all teams that played completed games for the date/week."""
         scores = self.get_game_scores(date)
         team_lookup = self._get_team_name_lookup()
         # reverse map
         name_to_id = {v: k for k, v in team_lookup.items()}
         teams = []
         for g in scores:
+            h_id = g.get("home_team_id")
+            a_id = g.get("away_team_id")
             h_name = g.get("home_team")
             a_name = g.get("away_team")
-            if h_name:
+            if h_id and h_name:
+                teams.append((h_id, h_name))
+            elif h_name:
                 teams.append((name_to_id.get(h_name, 0), h_name))
-            if a_name:
+            if a_id and a_name:
+                teams.append((a_id, a_name))
+            elif a_name:
                 teams.append((name_to_id.get(a_name, 0), a_name))
         return list(set(teams))

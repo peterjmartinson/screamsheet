@@ -85,6 +85,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
     mlb_teams = [(t.id, t.name) for t in cfg.mlb.favorite_teams]
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
     nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
+    nfl_teams = [(t.id, t.name) for t in cfg.nfl.favorite_teams]
     nhl_news_names = cfg.nhl.news_names
     mlb_news_names = cfg.mlb.news_names
     french_mlb_news_names = cfg.french_mlb.news_names
@@ -173,6 +174,15 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 date=game_date,
                 display_date=today,
                 mad_fan=cfg.nba.mad_fan,
+            ),
+        ),
+        (
+            "NFL  — " + (cfg.nfl.favorite_teams[0].name if cfg.nfl.favorite_teams else ""),
+            lambda: ScreamsheetFactory.create_nfl_screamsheet(
+                output_filename=f'Files/NFL_scores_{today_str}.pdf',
+                favorite_teams=nfl_teams,
+                date=game_date,
+                mad_fan=cfg.nfl.mad_fan,
             ),
         ),
         (

@@ -45,8 +45,29 @@ class BoxScoreSection(Section):
             name="SummaryText",
             parent=self.styles['Normal'],
             fontName='Helvetica',
+            fontSize=10,
+            leading=13,
+            spaceAfter=5,
+            alignment=TA_LEFT
+        )
+
+        self.summary_header_style = ParagraphStyle(
+            name="SummaryHeader",
+            parent=self.styles['Normal'],
+            fontName='Helvetica-Bold',
             fontSize=11,
-            spaceAfter=6,
+            leading=14,
+            spaceAfter=3,
+            alignment=TA_LEFT
+        )
+
+        self.summary_takeaway_style = ParagraphStyle(
+            name="SummaryTakeaway",
+            parent=self.styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9.5,
+            leading=12.5,
+            spaceAfter=3,
             alignment=TA_LEFT
         )
         
@@ -59,6 +80,64 @@ class BoxScoreSection(Section):
             alignment=TA_LEFT
         )
     
+    def _format_summary_flowables(self, text: Optional[str]) -> List[Any]:
+        """Format multi-paragraph LLM summary with clear section breaks, bolding, and no distracting bullets."""
+        import re
+
+        flowables: List[Any] = []
+        if not text or not str(text).strip():
+            flowables.append(Paragraph("[No game summary available]", self.summary_style))
+            return flowables
+
+        def _clean_markdown_text(s: str) -> str:
+            # Convert markdown **text** to ReportLab <b>text</b>
+            s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+            # Remove any stray unclosed **
+            s = s.replace("**", "")
+            return s.strip()
+
+        def _strip_bullet_prefix(s: str) -> str:
+            # Remove leading bullet symbols (-, *, •, 1., etc.)
+            return re.sub(r"^(\s*([•\-\*]|\d+[\.\)])\s*)", "", s).strip()
+
+        normalized = str(text).replace("\r\n", "\n").strip()
+        raw_blocks = [b.strip() for b in normalized.split("\n\n") if b.strip()]
+
+        # If single newlines were used instead of double newlines throughout
+        if len(raw_blocks) == 1 and "\n" in raw_blocks[0]:
+            raw_blocks = [l.strip() for l in raw_blocks[0].split("\n") if l.strip()]
+
+        for block in raw_blocks:
+            lines = [line.strip() for line in block.split("\n") if line.strip()]
+            is_takeaway_block = any(
+                l.startswith(("-", "*", "•")) or (len(l) > 2 and l[0].isdigit() and l[1:3] in (". ", ") "))
+                for l in lines
+            )
+
+            if is_takeaway_block:
+                for line in lines:
+                    if line.startswith(("###", "##")):
+                        h_text = _clean_markdown_text(line.lstrip("# "))
+                        flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+                    elif line.lower().startswith(("key takeaways", "3 key takeaways")):
+                        h_text = _clean_markdown_text(line)
+                        flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+                    else:
+                        clean_item = _strip_bullet_prefix(line)
+                        clean_item = _clean_markdown_text(clean_item)
+                        if clean_item:
+                            flowables.append(Paragraph(clean_item, self.summary_takeaway_style))
+                flowables.append(Spacer(1, 4))
+            elif len(lines) == 1 and (lines[0].startswith(("###", "##")) or lines[0].lower().startswith(("key takeaways", "3 key takeaways"))):
+                h_text = _clean_markdown_text(lines[0].lstrip("# "))
+                flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+            else:
+                p_text = " ".join(lines)
+                p_text = _clean_markdown_text(p_text)
+                flowables.append(Paragraph(p_text, self.summary_style))
+
+        return flowables
+
     def fetch_data(self):
         """Fetch box score from the provider."""
         logger.info("Fetching box score for team_id=%s date=%s", self.team_id, self.date.strftime("%Y-%m-%d"))
@@ -82,12 +161,8 @@ class BoxScoreSection(Section):
             self.team_id, self.date, is_primary_favorite=self.is_primary_favorite, mad_fan=self.mad_fan
         )
         
-        # Build left column (game summary)
-        left_column = []
-        if game_summary:
-            left_column.append(Paragraph(game_summary, self.summary_style))
-        else:
-            left_column.append(Paragraph("[No game summary available]", self.summary_style))
+        # Build left column (game summary) with clean section breaks
+        left_column = self._format_summary_flowables(game_summary)
         
         # Build right column (box score)
         right_column = []
@@ -106,6 +181,9 @@ class BoxScoreSection(Section):
             elif 'player_stats' in self.data:
                 # NBA box score
                 right_column.extend(self._render_nba_boxscore(self.data))
+            elif 'away_linescores' in self.data and 'team_stats' in self.data:
+                # NFL box score
+                right_column.extend(self._render_nfl_boxscore(self.data))
         
         # Wrap the summary in KeepInFrame so it never exceeds the page frame
         # height (708pt on 'Later' pages with letter/36pt-margin layout).
@@ -179,7 +257,33 @@ class BoxScoreSection(Section):
                 for p in self.data['skaters']:
                     lines.append(f"| {p.get('name')} | {p.get('G', 0)} | {p.get('A', 0)} | {p.get('PTS', 0)} | {p.get('+/-', 0)} | {p.get('SOG', 0)} |")
                 lines.append("")
-        
+            if 'away_linescores' in self.data and 'team_stats' in self.data:
+                lines.append("#### Linescore")
+                qlabels = self.data.get("quarter_labels", ["1", "2", "3", "4"])
+                lines.append(f"| Team | {' | '.join(qlabels)} | T |")
+                lines.append(f"| :--- | {' | '.join([':---:'] * len(qlabels))} | :---: |")
+                away_ls = [str(x) for x in self.data.get("away_linescores", [])]
+                lines.append(f"| {self.data.get('away_team')} | {' | '.join(away_ls[:len(qlabels)])} | {self.data.get('away_score')} |")
+                home_ls = [str(x) for x in self.data.get("home_linescores", [])]
+                lines.append(f"| {self.data.get('home_team')} | {' | '.join(home_ls[:len(qlabels)])} | {self.data.get('home_score')} |")
+                lines.append("")
+                if self.data.get("team_stats"):
+                    lines.append("#### Team Comparison")
+                    a_abb = self.data.get("away_abbrev", "AWAY")
+                    h_abb = self.data.get("home_abbrev", "HOME")
+                    lines.append(f"| Stat | {a_abb} | {h_abb} |")
+                    lines.append("| :--- | :---: | :---: |")
+                    for s in self.data.get("team_stats", []):
+                        lines.append(f"| {s.get('stat')} | {s.get('away')} | {s.get('home')} |")
+                    lines.append("")
+                if self.data.get("top_performers"):
+                    lines.append("#### Top Performers")
+                    lines.append("| Leader | Player | Stats |")
+                    lines.append("| :--- | :--- | :--- |")
+                    for p in self.data.get("top_performers", [])[:6]:
+                        lines.append(f"| {p.get('category')} | {p.get('player')} | {p.get('stat')} |")
+                    lines.append("")
+
         return "\n".join(lines)
     
     def _render_mlb_boxscore(self, boxscore_stats: dict) -> List[Any]:
@@ -394,3 +498,90 @@ class BoxScoreSection(Section):
             elements.append(Paragraph(item, self.legend_style))
 
         return elements
+
+    def _render_nfl_boxscore(self, boxscore_data: dict) -> List[Any]:
+        """Render NFL box score with linescore, team comparison, and top performers."""
+        elements: List[Any] = []
+
+        table_style = TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ])
+
+        # 1. Linescore Table
+        quarter_labels = boxscore_data.get("quarter_labels", ["1", "2", "3", "4"])
+        header = ["Team"] + list(quarter_labels) + ["T"]
+        num_q = len(quarter_labels)
+        num_num_cols = num_q + 1
+        num_width = 22 if num_num_cols > 5 else 25
+        team_width = 268 - (num_num_cols * num_width)
+        col_widths_linescore = [team_width] + [num_width] * num_num_cols
+
+        away_team = boxscore_data.get("away_team", "Away")
+        away_ls = [str(x) for x in boxscore_data.get("away_linescores", [])]
+        while len(away_ls) < num_q:
+            away_ls.append("0")
+        away_score = str(boxscore_data.get("away_score", "0"))
+        away_row = [away_team] + away_ls[:num_q] + [away_score]
+
+        home_team = boxscore_data.get("home_team", "Home")
+        home_ls = [str(x) for x in boxscore_data.get("home_linescores", [])]
+        while len(home_ls) < num_q:
+            home_ls.append("0")
+        home_score = str(boxscore_data.get("home_score", "0"))
+        home_row = [home_team] + home_ls[:num_q] + [home_score]
+
+        linescore_table = Table([header, away_row, home_row], colWidths=col_widths_linescore)
+        linescore_table.setStyle(table_style)
+        elements.append(linescore_table)
+        elements.append(Spacer(1, 8))
+
+        # 2. Team Comparison Table
+        team_stats = boxscore_data.get("team_stats", [])
+        if team_stats:
+            away_abbrev = boxscore_data.get("away_abbrev", "AWAY")
+            home_abbrev = boxscore_data.get("home_abbrev", "HOME")
+            stats_header = ["Team Stats", away_abbrev, home_abbrev]
+            stats_data = [stats_header]
+            for s in team_stats:
+                stats_data.append([s.get("stat", ""), str(s.get("away", "-")), str(s.get("home", "-"))])
+            stats_table = Table(stats_data, colWidths=[140, 64, 64])
+            stats_table.setStyle(table_style)
+            elements.append(stats_table)
+            elements.append(Spacer(1, 8))
+
+        # 3. Top Performers Table
+        top_performers = boxscore_data.get("top_performers", [])
+        if top_performers:
+            perf_header = ["Leader", "Player", "Stats"]
+            perf_data = [perf_header]
+            for p in top_performers[:6]:
+                perf_data.append([p.get("category", ""), p.get("player", ""), p.get("stat", "")])
+            perf_table = Table(perf_data, colWidths=[54, 104, 110])
+            perf_table.setStyle(table_style)
+            elements.append(perf_table)
+            elements.append(Spacer(1, 8))
+
+        # 4. Legend
+        legend_items = [
+            "PASS = Passing",
+            "RUSH = Rushing",
+            "REC = Receiving",
+            "YDS = Yards",
+            "TD = Touchdowns",
+            "CAR = Carries",
+            "INT = Interceptions",
+        ]
+        for item in legend_items:
+            elements.append(Paragraph(item, self.legend_style))
+
+        return elements
+

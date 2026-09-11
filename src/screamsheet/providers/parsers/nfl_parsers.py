@@ -378,3 +378,193 @@ def extract_injuries(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         })
 
     return injuries
+
+
+def extract_box_score(raw_json: Dict[str, Any], team_id: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Extract structured NFL box score data from ESPN summary API payload.
+    
+    Returns a dict with:
+        - "away_team": str
+        - "away_abbrev": str
+        - "away_score": int | str
+        - "away_linescores": List[str]
+        - "home_team": str
+        - "home_abbrev": str
+        - "home_score": int | str
+        - "home_linescores": List[str]
+        - "quarter_labels": List[str]
+        - "team_stats": List[Dict[str, str]]
+        - "top_performers": List[Dict[str, str]]
+    """
+    if not isinstance(raw_json, dict):
+        return {}
+
+    # 1. Header / competitors
+    header_comps = raw_json.get("header", {}).get("competitions", []) if isinstance(raw_json.get("header"), dict) else []
+    comp = header_comps[0] if header_comps and isinstance(header_comps, list) else {}
+    competitors = comp.get("competitors", []) if isinstance(comp, dict) else []
+
+    if not competitors:
+        events = raw_json.get("events", [])
+        if events and isinstance(events, list) and isinstance(events[0], dict):
+            comp = events[0].get("competitions", [{}])[0]
+            competitors = comp.get("competitors", [])
+
+    if not competitors or not isinstance(competitors, list):
+        return {}
+
+    home_comp = next((c for c in competitors if isinstance(c, dict) and c.get("homeAway") == "home"), competitors[0] if competitors else {})
+    away_comp = next((c for c in competitors if isinstance(c, dict) and c.get("homeAway") == "away"), competitors[1] if len(competitors) > 1 else {})
+
+    home_team = home_comp.get("team", {}).get("displayName", home_comp.get("team", {}).get("name", "Home Team"))
+    away_team = away_comp.get("team", {}).get("displayName", away_comp.get("team", {}).get("name", "Away Team"))
+    home_abbrev = home_comp.get("team", {}).get("abbreviation", home_team[:3].upper())
+    away_abbrev = away_comp.get("team", {}).get("abbreviation", away_team[:3].upper())
+
+    home_score = home_comp.get("score", 0)
+    away_score = away_comp.get("score", 0)
+
+    def parse_ls(c: Dict[str, Any]) -> List[str]:
+        linescores = c.get("linescores", [])
+        out = []
+        if isinstance(linescores, list):
+            for ls in linescores:
+                if isinstance(ls, dict):
+                    val = ls.get("displayValue", ls.get("value", "0"))
+                    out.append(str(val))
+                elif isinstance(ls, (int, str)):
+                    out.append(str(ls))
+        return out
+
+    home_ls = parse_ls(home_comp)
+    away_ls = parse_ls(away_comp)
+
+    max_quarters = max(len(home_ls), len(away_ls), 4)
+    if max_quarters == 4:
+        quarter_labels = ["1", "2", "3", "4"]
+    elif max_quarters == 5:
+        quarter_labels = ["1", "2", "3", "4", "OT"]
+    else:
+        quarter_labels = ["1", "2", "3", "4"] + [f"{i-3}OT" for i in range(5, max_quarters + 1)]
+
+    while len(home_ls) < max_quarters:
+        home_ls.append("0")
+    while len(away_ls) < max_quarters:
+        away_ls.append("0")
+
+    # 2. Team statistics
+    stat_maps = {}
+    boxscore = raw_json.get("boxscore", {})
+    if isinstance(boxscore, dict):
+        for t in boxscore.get("teams", []):
+            if not isinstance(t, dict):
+                continue
+            tm_name = t.get("team", {}).get("displayName", "")
+            tm_abbrev = t.get("team", {}).get("abbreviation", "")
+            s_map = {}
+            for s in t.get("statistics", []):
+                if isinstance(s, dict) and "name" in s and "displayValue" in s:
+                    s_map[s["name"]] = s["displayValue"]
+            if tm_name:
+                stat_maps[tm_name.lower()] = s_map
+            if tm_abbrev:
+                stat_maps[tm_abbrev.lower()] = s_map
+
+    home_stats = stat_maps.get(home_team.lower(), stat_maps.get(home_abbrev.lower(), {}))
+    away_stats = stat_maps.get(away_team.lower(), stat_maps.get(away_abbrev.lower(), {}))
+
+    display_stats = [
+        ("Total Yards", ("totalYards",)),
+        ("Net Passing Yards", ("netPassingYards", "passingYards")),
+        ("Rushing Yards", ("rushingYards",)),
+        ("Turnovers", ("turnovers",)),
+        ("Third Down Efficiency", ("thirdDownEff",)),
+        ("Time Of Possession", ("possessionTime",)),
+    ]
+
+    team_stats = []
+    for label, keys in display_stats:
+        a_val = next((away_stats.get(k) for k in keys if away_stats.get(k) is not None), "-")
+        h_val = next((home_stats.get(k) for k in keys if home_stats.get(k) is not None), "-")
+        team_stats.append({
+            "stat": label,
+            "away": str(a_val),
+            "home": str(h_val),
+        })
+
+    # 3. Top performers (leaders)
+    top_performers = []
+    leaders_data = raw_json.get("leaders", [])
+    if isinstance(leaders_data, list):
+        for entry in leaders_data:
+            if not isinstance(entry, dict):
+                continue
+            team_info = entry.get("team", {})
+            t_abbrev = team_info.get("abbreviation", team_info.get("displayName", ""))
+            
+            # Case A: team-level groupings
+            if "leaders" in entry and isinstance(entry["leaders"], list):
+                for cat in entry["leaders"]:
+                    if not isinstance(cat, dict):
+                        continue
+                    cat_name = cat.get("name", "").lower()
+                    cat_code = None
+                    if "pass" in cat_name:
+                        cat_code = "PASS"
+                    elif "rush" in cat_name:
+                        cat_code = "RUSH"
+                    elif "receiv" in cat_name:
+                        cat_code = "REC"
+                    
+                    if cat_code:
+                        for l in cat.get("leaders", []):
+                            if not isinstance(l, dict):
+                                continue
+                            ath = l.get("athlete", {}).get("displayName", l.get("athlete", {}).get("name", "Unknown"))
+                            stat_val = l.get("displayValue", "")
+                            label = f"{cat_code} ({t_abbrev})" if t_abbrev else cat_code
+                            top_performers.append({
+                                "category": label,
+                                "player": ath,
+                                "stat": stat_val,
+                            })
+            else:
+                # Case B: top-level category entries
+                cat_name = entry.get("name", "").lower()
+                cat_code = None
+                if "pass" in cat_name:
+                    cat_code = "PASS"
+                elif "rush" in cat_name:
+                    cat_code = "RUSH"
+                elif "receiv" in cat_name:
+                    cat_code = "REC"
+                
+                if cat_code:
+                    for l in entry.get("leaders", []):
+                        if not isinstance(l, dict):
+                            continue
+                        ath = l.get("athlete", {}).get("displayName", l.get("athlete", {}).get("name", "Unknown"))
+                        stat_val = l.get("displayValue", "")
+                        entry_team = l.get("team", {}).get("abbreviation", l.get("team", {}).get("displayName", t_abbrev))
+                        label = f"{cat_code} ({entry_team})" if entry_team else cat_code
+                        top_performers.append({
+                            "category": label,
+                            "player": ath,
+                            "stat": stat_val,
+                        })
+
+    return {
+        "away_team": away_team,
+        "away_abbrev": away_abbrev,
+        "away_score": away_score,
+        "away_linescores": away_ls,
+        "home_team": home_team,
+        "home_abbrev": home_abbrev,
+        "home_score": home_score,
+        "home_linescores": home_ls,
+        "quarter_labels": quarter_labels,
+        "team_stats": team_stats,
+        "top_performers": top_performers,
+    }
+

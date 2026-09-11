@@ -5,6 +5,7 @@ from screamsheet.providers.parsers.nfl_parsers import (
     extract_game_summary,
     extract_standings,
     extract_injuries,
+    extract_box_score,
 )
 
 
@@ -189,3 +190,130 @@ def test_extract_injuries():
     assert injuries[0]["position"] == "QB"
     assert injuries[0]["status"] == "Questionable"
     assert injuries[0]["description"] == "Calf tightness"
+
+
+def test_extract_box_score_valid():
+    raw_payload = {
+        "header": {
+            "competitions": [
+                {
+                    "competitors": [
+                        {
+                            "homeAway": "away",
+                            "team": {"displayName": "Pittsburgh Steelers", "abbreviation": "PIT"},
+                            "score": 18,
+                            "linescores": [{"value": 6}, {"value": 3}, {"value": 3}, {"value": 6}]
+                        },
+                        {
+                            "homeAway": "home",
+                            "team": {"displayName": "Atlanta Falcons", "abbreviation": "ATL"},
+                            "score": 10,
+                            "linescores": [{"value": 0}, {"value": 10}, {"value": 0}, {"value": 0}]
+                        }
+                    ]
+                }
+            ]
+        },
+        "boxscore": {
+            "teams": [
+                {
+                    "team": {"displayName": "Pittsburgh Steelers", "abbreviation": "PIT"},
+                    "statistics": [
+                        {"name": "totalYards", "displayValue": "270"},
+                        {"name": "netPassingYards", "displayValue": "133"},
+                        {"name": "rushingYards", "displayValue": "137"},
+                        {"name": "turnovers", "displayValue": "0"},
+                        {"name": "thirdDownEff", "displayValue": "8-17"},
+                        {"name": "possessionTime", "displayValue": "35:36"}
+                    ]
+                },
+                {
+                    "team": {"displayName": "Atlanta Falcons", "abbreviation": "ATL"},
+                    "statistics": [
+                        {"name": "totalYards", "displayValue": "226"},
+                        {"name": "netPassingYards", "displayValue": "137"},
+                        {"name": "rushingYards", "displayValue": "89"},
+                        {"name": "turnovers", "displayValue": "3"},
+                        {"name": "thirdDownEff", "displayValue": "2-9"},
+                        {"name": "possessionTime", "displayValue": "24:24"}
+                    ]
+                }
+            ]
+        },
+        "leaders": [
+            {
+                "team": {"abbreviation": "PIT"},
+                "leaders": [
+                    {
+                        "name": "passingYards",
+                        "leaders": [
+                            {
+                                "athlete": {"displayName": "Justin Fields"},
+                                "displayValue": "17/23, 156 YDS"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "rushingYards",
+                        "leaders": [
+                            {
+                                "athlete": {"displayName": "Najee Harris"},
+                                "displayValue": "20 CAR, 70 YDS"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "team": {"abbreviation": "ATL"},
+                "leaders": [
+                    {
+                        "name": "passingYards",
+                        "leaders": [
+                            {
+                                "athlete": {"displayName": "Kirk Cousins"},
+                                "displayValue": "16/26, 155 YDS, 1 TD, 2 INT"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    box = extract_box_score(raw_payload)
+    assert box["away_team"] == "Pittsburgh Steelers"
+    assert box["away_abbrev"] == "PIT"
+    assert box["away_score"] == 18
+    assert box["away_linescores"] == ["6", "3", "3", "6"]
+    assert box["home_team"] == "Atlanta Falcons"
+    assert box["home_abbrev"] == "ATL"
+    assert box["home_score"] == 10
+    assert box["home_linescores"] == ["0", "10", "0", "0"]
+    assert box["quarter_labels"] == ["1", "2", "3", "4"]
+
+    # Team stats
+    assert len(box["team_stats"]) == 6
+    stat_names = [s["stat"] for s in box["team_stats"]]
+    assert "Total Yards" in stat_names
+    assert "Net Passing Yards" in stat_names
+    assert "Rushing Yards" in stat_names
+    assert "Turnovers" in stat_names
+    assert "Third Down Efficiency" in stat_names
+    assert "Time Of Possession" in stat_names
+    tot_yards = next(s for s in box["team_stats"] if s["stat"] == "Total Yards")
+    assert tot_yards["away"] == "270"
+    assert tot_yards["home"] == "226"
+
+    # Top performers
+    assert len(box["top_performers"]) == 3
+    passer = box["top_performers"][0]
+    assert "PASS (PIT)" in passer["category"]
+    assert passer["player"] == "Justin Fields"
+    assert passer["stat"] == "17/23, 156 YDS"
+
+
+def test_extract_box_score_empty():
+    assert extract_box_score({}) == {}
+    assert extract_box_score(None) == {}
+    assert extract_box_score({"header": {}}) == {}
+

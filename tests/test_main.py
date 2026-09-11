@@ -116,6 +116,21 @@ class TestBuildOrderFromConfig:
         assert isinstance(order.french_mlb_news.news_names, list)
 
 
+class TestBuildSheets:
+    @pytest.fixture(autouse=True)
+    def mock_config(self, monkeypatch):
+        from screamsheet.config import load_config
+        example_path = Path(__file__).parents[1] / "config.yaml.example"
+        monkeypatch.setattr("screamsheet.__main__.load_config", lambda: load_config(example_path))
+
+    def test_nfl_in_build_sheets(self):
+        from screamsheet.__main__ import _build_sheets
+
+        sheets, _ = _build_sheets("20260909")
+        labels = [label for label, _ in sheets]
+        assert any("NFL" in label for label in labels)
+
+
 class TestMainMissingConfig:
     def test_main_exits_gracefully_when_config_missing(self, monkeypatch, capsys):
         from screamsheet.__main__ import main

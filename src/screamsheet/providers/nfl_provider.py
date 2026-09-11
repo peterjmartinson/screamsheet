@@ -377,16 +377,8 @@ class NFLDataProvider(DataProvider):
         
         return games
 
-    def get_game_summary(self, team_id: int, date: Optional[datetime] = None, is_primary_favorite: bool = False, mad_fan: bool = False) -> Optional[str]:
-        """
-        Get LLM-generated game summary for a specific team on a given date/week.
-        """
-        import os
-        from .parsers.nfl_parsers import extract_game_summary
-        from ..llm.summary import NFLGameSummarizer
-        
-        # 1. Find the game/event ID for the team in scores for that date/week
-        event_id = None
+    def _find_event_id(self, team_id: int, date: Optional[datetime] = None) -> Optional[str]:
+        """Find the ESPN game/event ID for a given team on a date or week."""
         scores = self.get_game_scores(date)
         team_lookup = self._get_team_name_lookup()
         team_name = team_lookup.get(team_id, "")
@@ -396,19 +388,46 @@ class NFLDataProvider(DataProvider):
             h_name = g.get("home_team")
             a_name = g.get("away_team")
             if (h_id == team_id or a_id == team_id) or (team_name and (team_name == h_name or team_name == a_name)):
-                event_id = g.get("gameId") or g.get("game_id")
-                break
-        
-        if not event_id:
-            # Fall back to weekly scores search
-            week_info = self._get_current_week(date) if date else self.current_week
-            if week_info:
-                weekly_scores = self._get_weekly_scores(self.current_season, week_info)
-                for g in weekly_scores:
-                    if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
-                        event_id = g.get("gameId") or g.get("game_id")
-                        break
+                return g.get("gameId") or g.get("game_id")
 
+        # Fall back to weekly scores search
+        week_info = self._get_current_week(date) if date else self.current_week
+        if week_info:
+            weekly_scores = self._get_weekly_scores(self.current_season, week_info)
+            for g in weekly_scores:
+                if team_name and (team_name == g.get("home_team") or team_name == g.get("away_team")):
+                    return g.get("gameId") or g.get("game_id")
+
+        return None
+
+    def get_box_score(self, team_id: int, date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
+        """
+        Get structured box score for an NFL game involving team_id on date.
+        """
+        from .parsers.nfl_parsers import extract_box_score
+        event_id = self._find_event_id(team_id, date)
+        if not event_id:
+            return None
+
+        url = f"{self.base_url}/summary?event={event_id}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return extract_box_score(data, team_id=team_id)
+        except Exception as e:
+            print(f"Error fetching NFL box score for event {event_id}: {e}")
+            return None
+
+    def get_game_summary(self, team_id: int, date: Optional[datetime] = None, is_primary_favorite: bool = False, mad_fan: bool = False) -> Optional[str]:
+        """
+        Get LLM-generated game summary for a specific team on a given date/week.
+        """
+        import os
+        from .parsers.nfl_parsers import extract_game_summary
+        from ..llm.summary import NFLGameSummarizer
+        
+        event_id = self._find_event_id(team_id, date)
         if not event_id:
             return None
 

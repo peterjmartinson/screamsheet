@@ -10,7 +10,7 @@ from ..base import Section
 from ..renderers import (
     GameScoresSection,
     StandingsSection,
-    GameSummarySection,
+    BoxScoreSection,
     NFLInjuriesSection,
     NewsArticlesSection,
 )
@@ -90,14 +90,17 @@ class NFLScreamsheet(SportsScreamsheet):
             sections.append(GameScoresSection(title="NFL Game Scores", provider=self.provider, date=self.date))
             sections.append(StandingsSection(title="NFL Standings", provider=self.provider, date=self.date))
             if featured and featured_id:
-                summary_section = GameSummarySection(
-                    title=f"{featured_name} Game Summary",
+                is_primary = bool(self.favorite_teams) and featured == self.favorite_teams[0]
+                box_section = BoxScoreSection(
+                    title=f"{featured_name} Box Score",
                     provider=self.provider,
                     team_id=featured_id,
                     date=self.date,
+                    is_primary_favorite=is_primary,
+                    mad_fan=self.mad_fan,
                 )
-                summary_section.page_slot = "back"
-                sections.append(summary_section)
+                box_section.page_slot = "back"
+                sections.append(box_section)
             else:
                 back_news = NewsArticlesSection(title="NFL Headlines & Recap", provider=self.news_provider, max_articles=4)
                 back_news.page_slot = "back"

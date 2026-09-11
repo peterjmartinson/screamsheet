@@ -101,40 +101,97 @@ class BoxScoreSection(Section):
             return re.sub(r"^(\s*([•\-\*]|\d+[\.\)])\s*)", "", s).strip()
 
         normalized = str(text).replace("\r\n", "\n").strip()
-        raw_blocks = [b.strip() for b in normalized.split("\n\n") if b.strip()]
 
-        # If single newlines were used instead of double newlines throughout
-        if len(raw_blocks) == 1 and "\n" in raw_blocks[0]:
-            raw_blocks = [l.strip() for l in raw_blocks[0].split("\n") if l.strip()]
+        # Check for Key Takeaways section
+        takeaway_match = re.search(
+            r"(?:\n|^|(?<=[.!?])\s+)(?:#{1,4}\s*)?(\*{0,2}(?:3\s+)?Key\s+Takeaways:?\*{0,2})\s*:?\s*",
+            normalized,
+            re.IGNORECASE,
+        )
 
-        for block in raw_blocks:
-            lines = [line.strip() for line in block.split("\n") if line.strip()]
-            is_takeaway_block = any(
-                l.startswith(("-", "*", "•")) or (len(l) > 2 and l[0].isdigit() and l[1:3] in (". ", ") "))
-                for l in lines
-            )
+        if takeaway_match:
+            recap_part = normalized[:takeaway_match.start()].strip()
+            takeaways_part = normalized[takeaway_match.end():].strip()
 
-            if is_takeaway_block:
-                for line in lines:
-                    if line.startswith(("###", "##")):
-                        h_text = _clean_markdown_text(line.lstrip("# "))
-                        flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
-                    elif line.lower().startswith(("key takeaways", "3 key takeaways")):
-                        h_text = _clean_markdown_text(line)
-                        flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
-                    else:
-                        clean_item = _strip_bullet_prefix(line)
-                        clean_item = _clean_markdown_text(clean_item)
-                        if clean_item:
-                            flowables.append(Paragraph(clean_item, self.summary_takeaway_style))
-                flowables.append(Spacer(1, 4))
-            elif len(lines) == 1 and (lines[0].startswith(("###", "##")) or lines[0].lower().startswith(("key takeaways", "3 key takeaways"))):
-                h_text = _clean_markdown_text(lines[0].lstrip("# "))
-                flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
-            else:
-                p_text = " ".join(lines)
-                p_text = _clean_markdown_text(p_text)
-                flowables.append(Paragraph(p_text, self.summary_style))
+            if recap_part:
+                recap_blocks = [b.strip() for b in recap_part.split("\n\n") if b.strip()]
+                if len(recap_blocks) == 1 and "\n" in recap_blocks[0]:
+                    recap_blocks = [l.strip() for l in recap_blocks[0].split("\n") if l.strip()]
+                for block in recap_blocks:
+                    p_text = " ".join(block.split())
+                    p_text = _clean_markdown_text(p_text)
+                    if p_text:
+                        flowables.append(Paragraph(p_text, self.summary_style))
+                        flowables.append(Spacer(1, 3))
+
+            raw_header = takeaway_match.group(1).strip("*# ")
+            header_title = raw_header if raw_header.endswith(":") else f"{raw_header}:"
+            flowables.append(Paragraph(f"<b>{header_title}</b>", self.summary_header_style))
+            flowables.append(Spacer(1, 2))
+
+            pattern = r'(?:^|\n|(?<=[.!?])\s+)(?:[•\-\*]|\d+[\.\)])?\s*(<b>[^<]+:?</b>:?|\*\*[^*]+:?\*\*:?|[A-Z][A-Za-z0-9\s\'\-]{1,35}:)'
+            splits = re.split(pattern, takeaways_part)
+            takeaway_items = []
+            i = 1 if len(splits) > 1 and not splits[0].strip() else 0
+            while i < len(splits):
+                tok = splits[i].strip()
+                if i + 1 < len(splits) and re.match(r'^(?:<b>|\*\*|[A-Z])', tok) and tok.endswith((':', '</b>', '</b>:', '**', '**:')):
+                    content = splits[i+1].strip()
+                    takeaway_items.append(f"{tok} {content}")
+                    i += 2
+                else:
+                    if tok:
+                        takeaway_items.append(tok)
+                    i += 1
+
+            if not takeaway_items:
+                takeaway_items = [l.strip() for l in takeaways_part.split("\n") if l.strip()]
+
+            for item in takeaway_items:
+                item = _clean_markdown_text(item)
+                item = _strip_bullet_prefix(item)
+                item = " ".join(item.split())
+                item = re.sub(r"^<b>([^<:]+)</b>:\s*", r"<b>\1:</b> ", item)
+                item = re.sub(r"^\[([^\]:]+)\]:?\s*", r"<b>\1:</b> ", item)
+                m = re.match(r"^([A-Za-z0-9\s\'\-]+:)\s*(.*)", item)
+                if m and not item.startswith("<b>"):
+                    item = f"<b>{m.group(1)}</b> {m.group(2)}"
+                if item:
+                    flowables.append(Paragraph(item, self.summary_takeaway_style))
+                    flowables.append(Spacer(1, 2))
+        else:
+            raw_blocks = [b.strip() for b in normalized.split("\n\n") if b.strip()]
+            if len(raw_blocks) == 1 and "\n" in raw_blocks[0]:
+                raw_blocks = [l.strip() for l in raw_blocks[0].split("\n") if l.strip()]
+
+            for block in raw_blocks:
+                lines = [line.strip() for line in block.split("\n") if line.strip()]
+                is_takeaway_block = any(
+                    l.startswith(("-", "*", "•")) or (len(l) > 2 and l[0].isdigit() and l[1:3] in (". ", ") "))
+                    for l in lines
+                )
+
+                if is_takeaway_block:
+                    for line in lines:
+                        if line.startswith(("###", "##")):
+                            h_text = _clean_markdown_text(line.lstrip("# "))
+                            flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+                        elif line.lower().startswith(("key takeaways", "3 key takeaways")):
+                            h_text = _clean_markdown_text(line)
+                            flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+                        else:
+                            clean_item = _clean_markdown_text(line)
+                            clean_item = _strip_bullet_prefix(clean_item)
+                            if clean_item:
+                                flowables.append(Paragraph(clean_item, self.summary_takeaway_style))
+                    flowables.append(Spacer(1, 4))
+                elif len(lines) == 1 and (lines[0].startswith(("###", "##")) or lines[0].lower().startswith(("key takeaways", "3 key takeaways"))):
+                    h_text = _clean_markdown_text(lines[0].lstrip("# "))
+                    flowables.append(Paragraph(f"<b>{h_text}</b>", self.summary_header_style))
+                else:
+                    p_text = " ".join(lines)
+                    p_text = _clean_markdown_text(p_text)
+                    flowables.append(Paragraph(p_text, self.summary_style))
 
         return flowables
 

@@ -280,6 +280,42 @@ def test_box_score_section_renders_nfl(mock_nfl_provider):
     assert "Time Of Possession" in md
 
 
+def test_box_score_section_renders_run_on_takeaways(mock_nfl_provider):
+    from screamsheet.renderers import BoxScoreSection
+    run_on_text = (
+        "San Francisco commanded the line of scrimmage throughout Sunday's matchup.\n\n"
+        "3 Key Takeaways: Purdy's Efficiency: Brock Purdy delivered an effective performance, "
+        "completing 25 of 34 passes for 205 yards and three touchdowns, offsetting his lone interception. "
+        "His deep strike in the second quarter shifted momentum. Turnover Battle: The 49ers won "
+        "the turnover differential 2-1, with Matthew Stafford's interception proving costly for "
+        "the Rams' anemic offense. Balanced Attack: San Francisco showcased a well-rounded offensive "
+        "effort, accumulating 174 rushing yards and 205 passing yards, demonstrating control."
+    )
+    mock_nfl_provider.get_game_summary.return_value = run_on_text
+    section = BoxScoreSection(
+        title="San Francisco 49ers Box Score",
+        provider=mock_nfl_provider,
+        team_id=25,
+        date=datetime(2024, 9, 8),
+    )
+    elements = section.render()
+    assert len(elements) == 1
+    two_col_table = elements[0]
+    summary_frame = two_col_table._cellvalues[0][0]
+    summary_texts = [f.text for f in summary_frame._content if hasattr(f, "text")]
+    
+    # Verify header is present
+    assert any("<b>3 Key Takeaways:</b>" in t for t in summary_texts)
+    # Verify each takeaway is an individual flowable with bold lead-in
+    assert any("<b>Purdy's Efficiency:</b>" in t for t in summary_texts)
+    assert any("<b>Turnover Battle:</b>" in t for t in summary_texts)
+    assert any("<b>Balanced Attack:</b>" in t for t in summary_texts)
+    # Ensure no raw markdown or bullets leaked
+    for st in summary_texts:
+        assert "**" not in st
+        assert "•" not in st
+
+
 def test_nfl_data_provider_get_box_score():
     from screamsheet.providers.nfl_provider import NFLDataProvider
     provider = NFLDataProvider()

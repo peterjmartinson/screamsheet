@@ -16,5 +16,5 @@ Top Performers:
 
 Instructions:
 1. Provide a sharp 2-paragraph recap of the matchup. Highlight turning points and defensive stands.
-2. List "3 Key Takeaways" from the game using crisp bullet points.
-3. Keep the output punchy, under 300 words total so it fits nicely on a printed morning sheet.
+2. List "3 Key Takeaways" from the game as separate, clear items without bullet symbols.
+3. Keep the output punchy, under 300 words total so it fits nicely on a printed morning sheet. Do not output markdown asterisks (**) or bullet dots.

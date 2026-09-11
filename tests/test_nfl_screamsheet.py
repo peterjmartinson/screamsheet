@@ -52,7 +52,38 @@ def mock_nfl_provider():
             "divisionWinPercent": 0.0
         }
     ])
-    provider.get_game_summary.return_value = "The Steelers defeated the Falcons 18-10 in a defensive showdown."
+    provider.get_game_summary.return_value = (
+        "The Steelers defeated the Falcons 18-10 in a defensive showdown with **Chris Boswell** kicking six field goals.\n\n"
+        "Atlanta struggled to find offensive rhythm against a fierce defense.\n\n"
+        "3 Key Takeaways:\n"
+        "• **Chris Boswell:** Kicks six field goals.\n"
+        "• **Turnovers:** Defense forces three turnovers.\n"
+        "• **Road Victory:** Pittsburgh secures season-opening victory."
+    )
+    provider.get_box_score.return_value = {
+        "away_team": "Pittsburgh Steelers",
+        "away_abbrev": "PIT",
+        "away_score": 18,
+        "away_linescores": ["6", "3", "3", "6"],
+        "home_team": "Atlanta Falcons",
+        "home_abbrev": "ATL",
+        "home_score": 10,
+        "home_linescores": ["0", "10", "0", "0"],
+        "quarter_labels": ["1", "2", "3", "4"],
+        "team_stats": [
+            {"stat": "Total Yards", "away": "270", "home": "226"},
+            {"stat": "Net Passing Yards", "away": "133", "home": "137"},
+            {"stat": "Rushing Yards", "away": "137", "home": "89"},
+            {"stat": "Turnovers", "away": "0", "home": "3"},
+            {"stat": "Third Down Efficiency", "away": "8-17", "home": "2-9"},
+            {"stat": "Time Of Possession", "away": "35:36", "home": "24:24"},
+        ],
+        "top_performers": [
+            {"category": "PASS (PIT)", "player": "Justin Fields", "stat": "17/23, 156 YDS"},
+            {"category": "RUSH (PIT)", "player": "Najee Harris", "stat": "20 CAR, 70 YDS"},
+            {"category": "PASS (ATL)", "player": "Kirk Cousins", "stat": "16/26, 155 YDS, 1 TD, 2 INT"},
+        ]
+    }
     provider.get_injuries.return_value = [
         {
             "athlete": "Russell Wilson",
@@ -68,6 +99,7 @@ def mock_nfl_provider():
 
 
 def test_nfl_screamsheet_monday_recap(tmp_path, mock_nfl_provider):
+    from screamsheet.renderers import BoxScoreSection
     pdf_path = str(tmp_path / "nfl_recap.pdf")
     monday_date = datetime(2024, 9, 9)  # Monday
     
@@ -79,7 +111,8 @@ def test_nfl_screamsheet_monday_recap(tmp_path, mock_nfl_provider):
         )
         assert sheet.strategy == NFLDayStrategy.RECAP
         sections = sheet.build_sections()
-        assert len(sections) >= 2
+        assert len(sections) >= 3
+        assert any(isinstance(s, BoxScoreSection) for s in sections)
         
         sheet.generate()
         assert os.path.exists(pdf_path)
@@ -198,3 +231,102 @@ def test_nfl_screamsheet_non_game_day_with_news(tmp_path, mock_nfl_provider):
         sheet.generate()
         assert os.path.exists(pdf_path)
         assert os.path.getsize(pdf_path) > 0
+
+
+def test_box_score_section_renders_nfl(mock_nfl_provider):
+    from screamsheet.renderers import BoxScoreSection
+    section = BoxScoreSection(
+        title="Pittsburgh Steelers Box Score",
+        provider=mock_nfl_provider,
+        team_id=23,
+        date=datetime(2024, 9, 8),
+    )
+    elements = section.render()
+    assert len(elements) == 1
+    # Check that summary flowables inside two-column layout have multiple paragraphs/bullets
+    two_col_table = elements[0]
+    summary_frame = two_col_table._cellvalues[0][0]
+    # Summary frame content should have distinct paragraphs and bullet items
+    assert len(summary_frame._content) >= 3
+    summary_texts = [f.text for f in summary_frame._content if hasattr(f, "text")]
+    for st in summary_texts:
+        assert "**" not in st
+        assert "•" not in st
+        assert "&bull;" not in st
+    assert any("<b>Chris Boswell:</b>" in st for st in summary_texts)
+
+    # Check right column elements (tables and legend)
+    right_col = two_col_table._cellvalues[0][1]
+    legend_texts = [p.text for p in right_col if hasattr(p, "text")]
+    assert any("PASS = Passing" in t for t in legend_texts)
+    assert any("RUSH = Rushing" in t for t in legend_texts)
+    assert any("REC = Receiving" in t for t in legend_texts)
+    assert any("YDS = Yards" in t for t in legend_texts)
+    assert any("TD = Touchdowns" in t for t in legend_texts)
+    assert any("CAR = Carries" in t for t in legend_texts)
+    assert any("INT = Interceptions" in t for t in legend_texts)
+    # Ensure TOT, TO, TOP are not in the legend
+    assert not any("TOT =" in t for t in legend_texts)
+    assert not any("TO =" in t for t in legend_texts)
+    assert not any("TOP =" in t for t in legend_texts)
+
+    md = section.render_markdown()
+    assert "Linescore" in md
+    assert "Team Comparison" in md
+    assert "Top Performers" in md
+    assert "Pittsburgh Steelers" in md
+    assert "Justin Fields" in md
+    assert "Third Down Efficiency" in md
+    assert "Time Of Possession" in md
+
+
+def test_nfl_data_provider_get_box_score():
+    from screamsheet.providers.nfl_provider import NFLDataProvider
+    provider = NFLDataProvider()
+
+    mock_summary_payload = {
+        "header": {
+            "competitions": [
+                {
+                    "competitors": [
+                        {
+                            "homeAway": "away",
+                            "team": {"displayName": "Pittsburgh Steelers", "abbreviation": "PIT"},
+                            "score": 18,
+                            "linescores": [{"value": 6}, {"value": 3}, {"value": 3}, {"value": 6}]
+                        },
+                        {
+                            "homeAway": "home",
+                            "team": {"displayName": "Atlanta Falcons", "abbreviation": "ATL"},
+                            "score": 10,
+                            "linescores": [{"value": 0}, {"value": 10}, {"value": 0}, {"value": 0}]
+                        }
+                    ]
+                }
+            ]
+        },
+        "boxscore": {
+            "teams": [
+                {
+                    "team": {"displayName": "Pittsburgh Steelers"},
+                    "statistics": [
+                        {"name": "totalYards", "displayValue": "270"}
+                    ]
+                }
+            ]
+        },
+        "leaders": []
+    }
+
+    with patch.object(provider, "_find_event_id", return_value="401547412"), \
+         patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_summary_payload
+        mock_resp.raise_for_status.return_value = None
+        mock_get.return_value = mock_resp
+
+        box = provider.get_box_score(team_id=23, date=datetime(2024, 9, 8))
+        assert box is not None
+        assert box["away_team"] == "Pittsburgh Steelers"
+        assert box["away_score"] == 18
+

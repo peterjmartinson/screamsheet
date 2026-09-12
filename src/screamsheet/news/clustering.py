@@ -254,9 +254,19 @@ class TopicClusterer:
 
             # Find all matching articles exceeding the similarity threshold
             for other_idx in list(unassigned):
+                other_entry = scored_entries[other_idx]
+                src_a = (anchor_entry.get("source") or "").lower()
+                src_b = (other_entry.get("source") or "").lower()
+                general_sources = {"mlb.com", "nhl.com", "reuters", "ap", "google news", "bbc", "politico", "nyt", "npr", "washington post", "white house", ""}
+                if src_a and src_b and src_a != src_b and src_a not in general_sources and src_b not in general_sources:
+                    text_a = f"{anchor_entry.get('title', '')} {anchor_entry.get('summary', '')}".lower()
+                    text_b = f"{other_entry.get('title', '')} {other_entry.get('summary', '')}".lower()
+                    if src_b not in text_a and src_a not in text_b:
+                        continue
+
                 similarity = float(sim_matrix[anchor_idx, other_idx])
                 if similarity >= self.similarity_threshold:
-                    cluster_members.append(scored_entries[other_idx])
+                    cluster_members.append(other_entry)
                     unassigned.remove(other_idx)
 
             # Score the cluster

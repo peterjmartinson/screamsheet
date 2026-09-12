@@ -9,7 +9,7 @@
 # NFL team IDs: confirm via your NFL data provider
 
 # Branding footer — printed at the bottom of every screamsheet page.
-branding: "DISTRACTEDFORTUNE.COM"
+branding: "DISTRACTEDFORTUNE.COM/SCREAMSHEET"
 nhl:
   mad_fan: false  # set to true for enraged hometown-fan recap on primary favorite team loss
   favorite_teams:
@@ -83,6 +83,13 @@ briefing:
   api_url: "https://random-task-rouge.vercel.app/api/agenda"
   # payload contains the JSON body required by random-task (calendars, trello tokens, etc.)
   payload: {}
+  # Email news digest on page 2: summarizes emails received in the past 24 hours under this Gmail label
+  include_email_news: true
+  gmail_label: "Morning Briefing"
+  # Important senders on page 2: summarizes emails received in the past 24 hours matching domains or addresses
+  important_senders:
+    - "annashavin@gmail.com"
+    - "mainlineclassical.org"
 
 # French MLB News screamsheet.
 # Scrapes RDS.ca and TVA Sports; rewrites articles via Grok at two CEFR levels.

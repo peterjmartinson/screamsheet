@@ -5,8 +5,12 @@ from typing import Any, Dict, List, Optional
 
 from ..base import BaseScreamsheet, Section
 from ..providers.agenda_provider import AgendaProvider
+from ..providers.gmail_provider import GmailNewsProvider
 from ..providers.xkcd_provider import XKCDProvider
 from ..renderers.agenda import TwoColumnAgendaSection
+from ..renderers.briefing_back import TwoColumnBriefingBackSection
+from ..renderers.email_news import EmailNewsSection
+from ..renderers.important_emails import ImportantEmailsSection
 from ..renderers.weather import WeatherSection
 from ..renderers.xkcd import XKCDSection
 from .constants import DEFAULT_AGENDA_ENDPOINT
@@ -22,6 +26,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
     - Top: 5-Day Weather Forecast
     - Body (2 columns): Left Column (Today's Agenda & Tasks) | Right Column (Next 5 Days)
     - Bottom: Daily XKCD Comic Strip
+    - Back page (Page 2, 2 columns): Left: News Summaries | Right: Important Personal/School Notices
     """
 
     def __init__(
@@ -37,6 +42,12 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         upcoming_days: int = 1,
         include_xkcd: bool = True,
         date: Optional[datetime] = None,
+        include_email_news: bool = True,
+        gmail_label: str = "Morning Briefing",
+        gmail_username: Optional[str] = None,
+        gmail_app_password: Optional[str] = None,
+        important_senders: Optional[List[str]] = None,
+        email_provider: Optional[GmailNewsProvider] = None,
     ):
         target_date = date if date is not None else datetime.now()
         super().__init__(output_filename, date=target_date, display_date=target_date)
@@ -50,6 +61,12 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.weather_location_name = weather_location_name
         self.upcoming_days = upcoming_days
         self.include_xkcd = include_xkcd
+        self.include_email_news = include_email_news
+        self.gmail_label = gmail_label
+        self.gmail_username = gmail_username
+        self.gmail_app_password = gmail_app_password
+        self.important_senders = important_senders or []
+        self.email_provider = email_provider
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
         self.xkcd_provider = XKCDProvider() if self.include_xkcd else None
 
@@ -92,6 +109,42 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                 XKCDSection(
                     provider=self.xkcd_provider,
                     title="XKCD",
+                )
+            )
+
+        # 4. Back page (2 columns): News Summaries (left) & Important Emails (right)
+        news_sec = None
+        if self.include_email_news:
+            ep = self.email_provider or GmailNewsProvider(
+                username=self.gmail_username,
+                app_password=self.gmail_app_password,
+                label=self.gmail_label,
+            )
+            news_sec = EmailNewsSection(
+                provider=ep,
+                date=self.date,
+                title="Morning News Briefing",
+            )
+
+        important_sec = None
+        if self.important_senders:
+            ep = self.email_provider or GmailNewsProvider(
+                username=self.gmail_username,
+                app_password=self.gmail_app_password,
+                label=self.gmail_label,
+            )
+            important_sec = ImportantEmailsSection(
+                important_senders=self.important_senders,
+                provider=ep,
+                date=self.date,
+                title="Important Notices & Updates",
+            )
+
+        if news_sec or important_sec:
+            sections.append(
+                TwoColumnBriefingBackSection(
+                    news_section=news_sec,
+                    important_section=important_sec,
                 )
             )
 

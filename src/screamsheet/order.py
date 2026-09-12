@@ -165,6 +165,9 @@ class BriefingOrderOptions:
     weather: WeatherLocationOptions | None = None
     upcoming_days: int = 1
     include_xkcd: bool = True
+    include_email_news: bool = True
+    gmail_label: str = "Morning Briefing"
+    important_senders: list[str] = field(default_factory=list)
 
 
 @dataclass

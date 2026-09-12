@@ -136,6 +136,23 @@ def convert_time_to_eastern_and_duration(
     return f"{start_fmt}{dur_str}"
 
 
+def format_due_date(due: Any) -> str:
+    """
+    Format a due date string or datetime into YYYY-MM-DD.
+    Extracts the YYYY-MM-DD date part from ISO datetime strings
+    (e.g., '2026-09-15T16:00:00.000Z' -> '2026-09-15').
+    """
+    if not due:
+        return ""
+    if isinstance(due, (datetime, dt_date)):
+        return due.strftime("%Y-%m-%d")
+    due_str = str(due).strip()
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})", due_str)
+    if m:
+        return m.group(1)
+    return due_str
+
+
 class TwoColumnAgendaSection(Section):
     """
     Renders a two-column briefing section:
@@ -278,14 +295,14 @@ class TwoColumnAgendaSection(Section):
 
                 for task in t_list:
                     t_title = task.get("title", "")
-                    due = task.get("due", "")
+                    due = format_due_date(task.get("due", ""))
                     accessory = task.get("accessory", "")
 
                     task_line = t_title
                     if due:
                         task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
                     if accessory:
-                        task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
+                        task_line += f" <b>({accessory})</b>"
 
                     flowables.append(Paragraph(task_line, self._item_style))
                     flowables.append(Spacer(1, 1))
@@ -477,7 +494,14 @@ class TwoColumnAgendaSection(Section):
                     lines.append(f"### {sub_title}\n")
                     for task in t_list:
                         t_title = task.get("title", "")
-                        lines.append(f"{t_title}")
+                        due = format_due_date(task.get("due", ""))
+                        accessory = task.get("accessory", "")
+                        task_line = t_title
+                        if due:
+                            task_line += f" _(Due: {due})_"
+                        if accessory:
+                            task_line += f" **({accessory})**"
+                        lines.append(task_line)
                     lines.append("")
         else:
             for sec in today_data.get("sections", []):
@@ -494,7 +518,14 @@ class TwoColumnAgendaSection(Section):
                     lines.append(f"### {sub_title}\n")
                     for task in t_list:
                         t_title = task.get("title", "")
-                        lines.append(f"{t_title}")
+                        due = format_due_date(task.get("due", ""))
+                        accessory = task.get("accessory", "")
+                        task_line = t_title
+                        if due:
+                            task_line += f" _(Due: {due})_"
+                        if accessory:
+                            task_line += f" **({accessory})**"
+                        lines.append(task_line)
                     lines.append("")
 
             lines.append("---\n")

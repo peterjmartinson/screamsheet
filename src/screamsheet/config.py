@@ -87,6 +87,9 @@ class BriefingConfig:
     payload: dict = field(default_factory=dict)
     upcoming_days: int = 1
     include_xkcd: bool = True
+    include_email_news: bool = True
+    gmail_label: str = "Morning Briefing"
+    important_senders: List[str] = field(default_factory=list)
     weather: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
@@ -267,6 +270,10 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     payload = raw.get("payload", {})
     upcoming_days = int(raw.get("upcoming_days", 1))
     include_xkcd = bool(raw.get("include_xkcd", True))
+    include_email_news = bool(raw.get("include_email_news", True))
+    gmail_cfg = raw.get("gmail", {})
+    gmail_label = str(raw.get("gmail_label", gmail_cfg.get("label", "Morning Briefing")))
+    important_senders = [str(x) for x in raw.get("important_senders", [])]
     weather_raw = raw.get("weather", {})
     if weather_raw:
         weather_loc = _parse_weather_location(weather_raw, 40.02, -75.34, "Bryn Mawr, PA")
@@ -278,6 +285,9 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
         payload=payload,
         upcoming_days=upcoming_days,
         include_xkcd=include_xkcd,
+        include_email_news=include_email_news,
+        gmail_label=gmail_label,
+        important_senders=important_senders,
         weather=weather_loc,
     )
 

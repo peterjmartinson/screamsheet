@@ -97,16 +97,21 @@ class XKCDSection(Section):
 
             with PILImage.open(local_path) as pil_img:
                 orig_w, orig_h = pil_img.size
-
-            if orig_w <= 0 or orig_h <= 0:
-                return None
+                if orig_w <= 0 or orig_h <= 0:
+                    return None
+                if pil_img.mode not in ("L", "1"):
+                    bw_path = local_path.with_name(f"{local_path.stem}_bw.png")
+                    pil_img.convert("L").save(bw_path)
+                    img_file_path = bw_path
+                else:
+                    img_file_path = local_path
 
             # Calculate proportional scale to fit within max_width and max_height
             scale = min(self.max_width / orig_w, self.max_height / orig_h, 1.0)
             target_w = orig_w * scale
             target_h = orig_h * scale
 
-            rl_img = RLImage(str(local_path), width=target_w, height=target_h)
+            rl_img = RLImage(str(img_file_path), width=target_w, height=target_h)
             rl_img.hAlign = "CENTER"
             return rl_img
         except Exception as e:

@@ -226,6 +226,8 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.briefing.weather.lon,
                 weather_location_name=cfg.briefing.weather.location_name,
                 upcoming_days=cfg.briefing.upcoming_days,
+                include_email_news=cfg.briefing.include_email_news,
+                gmail_label=cfg.briefing.gmail_label,
                 date=today,
             ),
         ),

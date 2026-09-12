@@ -1,5 +1,5 @@
 """Factory for creating screamsheet instances."""
-from typing import Optional, List, Tuple
+from typing import Any, Optional, List, Tuple
 from datetime import datetime
 
 from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
@@ -459,6 +459,11 @@ class ScreamsheetFactory:
         upcoming_days: int = 1,
         include_xkcd: bool = True,
         date: Optional[datetime] = None,
+        include_email_news: bool = True,
+        gmail_label: str = "Morning Briefing",
+        gmail_username: Optional[str] = None,
+        gmail_app_password: Optional[str] = None,
+        email_provider: Optional[Any] = None,
     ) -> MorningBriefingScreamsheet:
         """
         Create a Morning Briefing screamsheet.
@@ -475,6 +480,11 @@ class ScreamsheetFactory:
             upcoming_days: Number of upcoming days to show (1 = Tomorrow mode; >1 = multi-day mode).
             include_xkcd: Whether to include the daily XKCD comic.
             date: Target date (defaults to today).
+            include_email_news: Whether to include summarized email news on the back page.
+            gmail_label: Gmail label to check for morning news emails.
+            gmail_username: Optional Gmail username override.
+            gmail_app_password: Optional Gmail app password override.
+            email_provider: Optional custom email provider.
 
         Returns:
             MorningBriefingScreamsheet instance
@@ -491,5 +501,10 @@ class ScreamsheetFactory:
             upcoming_days=upcoming_days,
             include_xkcd=include_xkcd,
             date=date,
+            include_email_news=include_email_news,
+            gmail_label=gmail_label,
+            gmail_username=gmail_username,
+            gmail_app_password=gmail_app_password,
+            email_provider=email_provider,
         )
 

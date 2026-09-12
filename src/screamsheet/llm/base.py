@@ -172,6 +172,12 @@ class BaseGameSummaryGenerator:
             prefix = f"{date_str}_" if date_str else ""
             return f"{prefix}{summarizer_name}_{title_clean}"
 
+        # Email news
+        if "subject" in data:
+            subj_clean = re.sub(r"[^\w\s-]", "", str(data["subject"]))[:40].strip().replace(" ", "_")
+            prefix = f"{date_str}_" if date_str else ""
+            return f"{prefix}{summarizer_name}_{subj_clean}"
+
         # Horoscope / sky
         if "name" in data:
             name_clean = re.sub(r"[^\w-]", "", str(data["name"])).replace(" ", "_")
@@ -296,7 +302,7 @@ class BaseGameSummaryGenerator:
 
     def generate_summary(
         self,
-        llm_choice: str = "gemini",
+        llm_choice: Union[str, ExtractedInfo] = "gemini",
         data: Union[ExtractedInfo, str] = {"data": "dummy"},
         use_cache: Optional[bool] = None,
         refresh_cache: Optional[bool] = None,
@@ -304,6 +310,10 @@ class BaseGameSummaryGenerator:
         **kwargs,
     ) -> str:
         """Public entry point: generate and return the summary string."""
+        if isinstance(llm_choice, dict):
+            data = llm_choice
+            llm_choice = kwargs.get("llm_choice_override", "gemini")
+
         return self._generate_llm_summary(
             data,
             llm_choice,

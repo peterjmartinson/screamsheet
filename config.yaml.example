@@ -83,6 +83,9 @@ briefing:
   api_url: "https://random-task-rouge.vercel.app/api/agenda"
   # payload contains the JSON body required by random-task (calendars, trello tokens, etc.)
   payload: {}
+  # Email news digest on page 2: summarizes emails received in the past 24 hours under this Gmail label
+  include_email_news: true
+  gmail_label: "Morning Briefing"
 
 # French MLB News screamsheet.
 # Scrapes RDS.ca and TVA Sports; rewrites articles via Grok at two CEFR levels.

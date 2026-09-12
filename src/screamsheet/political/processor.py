@@ -276,39 +276,99 @@ class PoliticalNewsProcessor:
     # Public API
     # ------------------------------------------------------------------
 
-    def process(self, entries: List[Dict]) -> List[Dict]:
-        """Filter, score, sort, and deduplicate *entries*.
+    def process(self, entries: List[Dict], cluster: bool = True) -> List[Dict]:
+        """Filter, score, sort, and cluster *entries*.
 
-        Steps:
-        1. Re-apply time filter (defensive; providers already filter, but
-           entries may originate from cache or other sources).
-        2. Score each entry and attach a ``score`` key.
-        3. Sort descending by score.
-        4. Deduplicate (URL exact-match, then fuzzy title).
+        When cluster=True, groups entries into semantic topic clusters and
+        returns unified candidates with member reports.
+        When cluster=False, uses legacy title deduplication.
 
         Args:
             entries: Normalized entry dicts from the fetch step.
+            cluster: If True, uses vector/topic clustering.
 
         Returns:
-            Processed list with a ``score`` key added to each entry.
+            Processed list of candidate dicts with a ``score`` key.
         """
         recent = [e for e in entries if self._within_window(e.get("published"))]
         logger.info("PoliticalNewsProcessor: %d entries after time filter", len(recent))
 
+        if cluster:
+            clusters = self.process_clusters(recent)
+            results = []
+            for c in clusters:
+                item = {
+                    "title": c.topic,
+                    "link": c.primary_link,
+                    "published": c.published,
+                    "summary": c.combined_summary,
+                    "source": ", ".join(c.sources),
+                    "sources": c.sources,
+                    "score": c.score,
+                    "reports": [
+                        {
+                            "source": a.get("source", "Unknown"),
+                            "title": a.get("title", ""),
+                            "summary": a.get("summary", ""),
+                            "link": a.get("link", ""),
+                        }
+                        for a in c.articles
+                    ],
+                    "is_cluster": True,
+                }
+                results.append(item)
+            return results
+
+        scorer = getattr(self, "_scorer", None) or NewsScorer()
+        dedup_helper = getattr(self, "_deduplicator", None) or NewsDeduplicator()
+
         scored = []
         for entry in recent:
             e = dict(entry)
-            e["score"] = self._scorer.score(e)
+            e["score"] = scorer.score(e)
             scored.append(e)
 
         scored.sort(key=lambda e: e["score"], reverse=True)
 
-        result = self._deduplicator.deduplicate(scored)
+        result = dedup_helper.deduplicate(scored)
         logger.info("PoliticalNewsProcessor: %d entries after dedup", len(result))
         return result
 
-    def save_to_json(self, entries: List[Dict], path: str) -> None:
-        """Serialize *entries* to a JSON file at *path*.
+    def process_clusters(
+        self,
+        entries: List[Dict],
+        similarity_threshold: float = 0.68,
+        top_n: Optional[int] = None,
+    ) -> list:
+        """Filter, score, and cluster *entries* into multi-source topic clusters.
+
+        Args:
+            entries: Normalized entry dicts from fetch step.
+            similarity_threshold: Cosine similarity threshold for grouping.
+            top_n: Optional maximum number of top clusters to return.
+
+        Returns:
+            List of :class:`~screamsheet.news.clustering.TopicCluster` objects.
+        """
+        from ..news.clustering import TopicClusterer
+        from ..news.scoring import PoliticalNewsScorer, ClusterScorer
+
+        recent = [e for e in entries if self._within_window(e.get("published"))]
+        logger.info("PoliticalNewsProcessor: %d entries after time filter for clustering", len(recent))
+
+        dedup_helper = getattr(self, "_deduplicator", None) or NewsDeduplicator()
+        # First pass URL deduplication to eliminate exact cross-feed duplicates
+        deduped = dedup_helper._dedup_by_url(recent)
+
+        clusterer = TopicClusterer(
+            similarity_threshold=similarity_threshold,
+            scorer=PoliticalNewsScorer(),
+            cluster_scorer=ClusterScorer(),
+        )
+        return clusterer.cluster(deduped, top_n=top_n)
+
+    def save_to_json(self, entries: list, path: str) -> None:
+        """Serialize *entries* (dicts or TopicClusters) to a JSON file at *path*.
 
         ``datetime`` objects are converted to ISO-8601 strings.  The parent
         directory is created if it does not exist.
@@ -316,12 +376,18 @@ class PoliticalNewsProcessor:
         def _serializer(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
+            if hasattr(obj, "to_prompt_data"):
+                return obj.to_prompt_data()
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
         out_path = Path(path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        serializable = [
+            e.to_prompt_data() if hasattr(e, "to_prompt_data") else e
+            for e in entries
+        ]
         with out_path.open("w", encoding="utf-8") as fh:
-            json.dump(entries, fh, default=_serializer, indent=2, ensure_ascii=False)
+            json.dump(serializable, fh, default=_serializer, indent=2, ensure_ascii=False)
         logger.info("PoliticalNewsProcessor: wrote %d entries to %s", len(entries), out_path)
 
     def save_to_sqlite(self, entries: List[Dict], path: str) -> None:
@@ -388,7 +454,8 @@ class PoliticalNewsProcessor:
             return False
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        return datetime.now(timezone.utc) - dt <= timedelta(hours=self.hours)
+        hours = getattr(self, "hours", 48)
+        return datetime.now(timezone.utc) - dt <= timedelta(hours=hours)
 
 
 # ---------------------------------------------------------------------------

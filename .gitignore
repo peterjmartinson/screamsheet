@@ -232,3 +232,6 @@ de421.bsp
 # Markdown output directory
 markdown_output/
 
+config.yaml
+__DB_PATH__
+

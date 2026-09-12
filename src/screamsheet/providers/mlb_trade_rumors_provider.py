@@ -78,63 +78,91 @@ class MLBTradeRumorsProvider(DataProvider):
         return False
 
     def get_articles(self) -> List[Dict]:
+        """Fetch, score, and cluster articles from MLB Trade Rumors.
+
+        Articles are prioritized by favorite teams and clustered into semantic
+        topics to eliminate redundancy.
         """
-        Fetch and filter articles from MLB Trade Rumors.
-        
-        Returns:
-            List of article dictionaries with 'slot' and 'entry' keys
-        """
+        from ..news.clustering import TopicClusterer
+        from ..news.scoring import SportsNewsScorer
+
         feed = feedparser.parse(self.RSS_URL)
-        
-        # Filter out garbage articles
         clean_entries = [
             entry for entry in feed.entries
             if not self._is_garbage(entry)
         ]
-        
-        # Prioritize and select articles
-        final_selection = [None] * self.max_articles
-        selected_guids = set()
-        
-        # 1. Fill team slots in priority order (0-indexed)
-        slot_index = 0
-        for team_name in self.favorite_teams:
-            if slot_index >= self.max_articles:
+        if not clean_entries:
+            return []
+
+        # 1. Fill favorite team slots in priority order
+        selected_clusters: List[Any] = []
+        seen_links: set = set()
+
+        for team in self.favorite_teams:
+            if len(selected_clusters) >= self.max_articles:
                 break
-                
-            for entry in clean_entries:
-                guid = entry.get('link', '') or entry.get('id', '')
-                if guid not in selected_guids and self._entry_matches_team(entry, team_name):
-                    final_selection[slot_index] = entry
-                    selected_guids.add(guid)
-                    slot_index += 1
-                    break
-        
+            team_entries = [
+                e for e in clean_entries
+                if (e.get('link', '') or e.get('id', '')) not in seen_links
+                and self._entry_matches_team(e, team)
+            ]
+            if team_entries:
+                scorer = SportsNewsScorer(sport="mlb", favorite_teams=[team], junk_keywords=self.EXCLUSION_KEYWORDS)
+                clusterer = TopicClusterer(similarity_threshold=0.75, scorer=scorer)
+                team_clusters = clusterer.cluster(team_entries, top_n=1)
+                if team_clusters:
+                    best = team_clusters[0]
+                    for a in best.articles:
+                        seen_links.add(a.get("link", "") or a.get("id", ""))
+                    selected_clusters.append(best)
+
         # 2. Fill remaining slots with general clean articles
-        remaining_entries = [
-            entry for entry in clean_entries
-            if (entry.get('link', '') or entry.get('id', '')) not in selected_guids
-        ]
-        
-        entry_index = 0
-        for i in range(self.max_articles):
-            if final_selection[i] is None and entry_index < len(remaining_entries):
-                entry = remaining_entries[entry_index]
-                final_selection[i] = entry
-                guid = entry.get('link', '') or entry.get('id', '')
-                selected_guids.add(guid)
-                entry_index += 1
-        
-        # Format output
-        output_list = []
-        for i, entry in enumerate(final_selection):
-            if entry is not None:
-                output_list.append({
-                    'slot': f'Section {i + 1}',
-                    'entry': entry
-                })
-        
-        return output_list
+        if len(selected_clusters) < self.max_articles:
+            remaining_entries = [
+                e for e in clean_entries
+                if (e.get('link', '') or e.get('id', '')) not in seen_links
+            ]
+            if remaining_entries:
+                needed = self.max_articles - len(selected_clusters)
+                scorer = SportsNewsScorer(sport="mlb", favorite_teams=self.favorite_teams, junk_keywords=self.EXCLUSION_KEYWORDS)
+                clusterer = TopicClusterer(similarity_threshold=0.75, scorer=scorer)
+                general_clusters = clusterer.cluster(remaining_entries, top_n=needed)
+                for gc in general_clusters:
+                    selected_clusters.append(gc)
+                    for a in gc.articles:
+                        seen_links.add(a.get("link", "") or a.get("id", ""))
+
+        output: List[Dict] = []
+        for i, cluster in enumerate(selected_clusters):
+            first_article = cluster.articles[0] if cluster.articles else {}
+            pub_parsed = (
+                first_article.get("published_parsed")
+                if hasattr(first_article, "get")
+                else getattr(first_article, "published_parsed", None)
+            )
+            slot_entry = {
+                "title": cluster.topic,
+                "summary": cluster.combined_summary,
+                "link": cluster.primary_link,
+                "id": cluster.primary_link,
+                "source": "MLB Trade Rumors",
+                "sources": ["MLB Trade Rumors"],
+                "reports": [
+                    {
+                        "source": "MLB Trade Rumors",
+                        "title": a.get("title", "") if hasattr(a, "get") else getattr(a, "title", ""),
+                        "summary": a.get("summary", "") if hasattr(a, "get") else getattr(a, "summary", ""),
+                        "link": a.get("link", "") if hasattr(a, "get") else getattr(a, "link", ""),
+                    }
+                    for a in cluster.articles
+                ],
+                "is_cluster": True,
+                "cluster_score": cluster.score,
+                "published_parsed": pub_parsed,
+            }
+            output.append({"slot": f"Section {i + 1}", "entry": slot_entry})
+
+        return output
     
     def _is_garbage(self, entry: Dict) -> bool:
         """Check if an article contains blacklisted promotional keywords."""

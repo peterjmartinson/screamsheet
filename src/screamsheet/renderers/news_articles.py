@@ -115,6 +115,7 @@ class NewsArticlesSection(Section):
                         'title': title,
                         'summary': (summary_text[:500] + '...') if summary_text else '',
                         'link': link,
+                        'source': entry.get('source'),
                         'pub_date': pub_date_str,
                     })
 
@@ -151,13 +152,18 @@ class NewsArticlesSection(Section):
                 try:
                     # Generate summary using LLM
                     # Format data as dict with title and summary (as expected by NewsSummarizer)
-                    # Keep story data minimal and tied to this article
                     story_data = {
                         'id': entry.get('id', entry.get('link', '')),
                         'title': title,
                         'summary': summary_text,
                         'link': link,
+                        'source': entry.get('source', ''),
                     }
+                    if entry.get('sources'):
+                        story_data['sources'] = entry['sources']
+                    if entry.get('reports'):
+                        story_data['reports'] = entry['reports']
+
                     _llm_choice = 'gemini' if summarizer.llm_gemini is not None else 'grok'
                     llm_summary = summarizer.generate_summary(
                         llm_choice=_llm_choice,
@@ -172,6 +178,7 @@ class NewsArticlesSection(Section):
                         'title': title,
                         'summary': llm_summary,
                         'link': link,
+                        'source': entry.get('source'),
                         'pub_date': pub_date_str,
                     })
                 except Exception as e:
@@ -184,6 +191,7 @@ class NewsArticlesSection(Section):
                         'title': title,
                         'summary': summary_text[:500] + '...',  # Truncated original
                         'link': link,
+                        'source': entry.get('source'),
                         'pub_date': pub_date_str,
                     })
             else:
@@ -195,6 +203,7 @@ class NewsArticlesSection(Section):
                     'title': title,
                     'summary': summary_text[:500] + '...',  # Truncated original
                     'link': link,
+                    'source': entry.get('source'),
                     'pub_date': pub_date_str,
                 })
         

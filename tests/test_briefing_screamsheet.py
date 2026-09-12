@@ -482,12 +482,87 @@ def test_briefing_with_important_emails_and_news(tmp_path):
     )
 
     sections = sheet.build_sections()
-    section_titles = [s.title for s in sections]
-    assert "Important Notices & Updates" in section_titles
-    assert "Morning News Briefing" in section_titles
+    from screamsheet.renderers.briefing_back import TwoColumnBriefingBackSection
+    back_sections = [s for s in sections if isinstance(s, TwoColumnBriefingBackSection)]
+    assert len(back_sections) == 1
+    back_sec = back_sections[0]
+    assert back_sec.page_slot == "back"
+    assert back_sec.news_section is not None
+    assert back_sec.important_section is not None
 
-    # Verify Important Notices comes before Morning News Briefing
-    idx_important = section_titles.index("Important Notices & Updates")
-    idx_news = section_titles.index("Morning News Briefing")
-    assert idx_important < idx_news
+
+def test_two_column_briefing_back_section_render_and_overflow():
+    from screamsheet.renderers.briefing_back import TwoColumnBriefingBackSection
+    from screamsheet.renderers.email_news import EmailNewsSection
+    from screamsheet.renderers.important_emails import ImportantEmailsSection
+
+    mock_news_provider = MagicMock()
+    # 7 news items (more than max_left_news=5)
+    mock_news_provider.fetch_emails.return_value = [
+        {
+            "id": f"news-{i}",
+            "sender": f"News Source {i}",
+            "subject": f"Headlines {i}",
+            "date": datetime(2026, 8, 28, 7, i),
+            "body": f"Details for headline {i}",
+        }
+        for i in range(1, 8)
+    ]
+
+    mock_important_provider = MagicMock()
+    mock_important_provider.fetch_important_emails.return_value = [
+        {
+            "id": "imp-1",
+            "sender": "School Office",
+            "subject": "Parent Teacher Conference",
+            "date": datetime(2026, 8, 28, 8, 0),
+            "body": "Conferences will take place on Friday.",
+        }
+    ]
+
+    mock_news_sum = MagicMock()
+    mock_news_sum.generate_summary.side_effect = lambda data=None, **kw: f"Summary of {data.get('subject') if data else 'news'}"
+    mock_imp_sum = MagicMock()
+    mock_imp_sum.generate_summary.side_effect = lambda data=None, **kw: f"Notice: {data.get('subject') if data else 'notice'}"
+
+    news_sec = EmailNewsSection(provider=mock_news_provider, date=datetime(2026, 8, 28), summarizer_class=lambda: mock_news_sum)
+    important_sec = ImportantEmailsSection(important_senders=["office@school.org"], provider=mock_important_provider, date=datetime(2026, 8, 28), summarizer_class=lambda: mock_imp_sum)
+
+    back_sec = TwoColumnBriefingBackSection(
+        news_section=news_sec,
+        important_section=important_sec,
+        max_left_news=5,
+    )
+    assert back_sec.has_content() is True
+    flowables = back_sec.render()
+    assert len(flowables) == 1
+
+    table = flowables[0]
+    # table._cellvalues is [[left_flowables, "", right_flowables]]
+    left_cells = table._cellvalues[0][0]
+    right_cells = table._cellvalues[0][2]
+
+    # Left column has first 5 news items
+    left_text = " ".join(getattr(f, "text", "") for f in left_cells)
+    assert "News Source 1" in left_text
+    assert "News Source 5" in left_text
+    assert "News Source 6" not in left_text
+
+    # Right column has overflow news items (6 and 7) continuing OVER the important email
+    right_text = " ".join(getattr(f, "text", "") for f in right_cells)
+    assert "MORNING NEWS BRIEFING (CONT.)" in right_text
+    assert "News Source 6" in right_text
+    assert "News Source 7" in right_text
+    assert "School Office" in right_text
+    assert "Parent Teacher Conference" in right_text
+
+    # Verify order in right column: overflow news comes BEFORE important emails
+    idx_overflow = right_text.index("News Source 6")
+    idx_important = right_text.index("School Office")
+    assert idx_overflow < idx_important
+
+    # Verify markdown output contains both sections
+    md = back_sec.render_markdown()
+    assert "News Source 1" in md
+    assert "School Office" in md
 

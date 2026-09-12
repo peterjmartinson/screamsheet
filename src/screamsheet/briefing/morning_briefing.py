@@ -8,6 +8,7 @@ from ..providers.agenda_provider import AgendaProvider
 from ..providers.gmail_provider import GmailNewsProvider
 from ..providers.xkcd_provider import XKCDProvider
 from ..renderers.agenda import TwoColumnAgendaSection
+from ..renderers.briefing_back import TwoColumnBriefingBackSection
 from ..renderers.email_news import EmailNewsSection
 from ..renderers.important_emails import ImportantEmailsSection
 from ..renderers.weather import WeatherSection
@@ -25,7 +26,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
     - Top: 5-Day Weather Forecast
     - Body (2 columns): Left Column (Today's Agenda & Tasks) | Right Column (Next 5 Days)
     - Bottom: Daily XKCD Comic Strip
-    - Back page (Page 2): Important Personal/School Notices + Summarized News Digest
+    - Back page (Page 2, 2 columns): Left: News Summaries | Right: Important Personal/School Notices
     """
 
     def __init__(
@@ -111,34 +112,39 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                 )
             )
 
-        # 4. Important Personal & School Notices on the back page
-        if self.important_senders:
-            ep = self.email_provider or GmailNewsProvider(
-                username=self.gmail_username,
-                app_password=self.gmail_app_password,
-                label=self.gmail_label,
-            )
-            sections.append(
-                ImportantEmailsSection(
-                    important_senders=self.important_senders,
-                    provider=ep,
-                    date=self.date,
-                    title="Important Notices & Updates",
-                )
-            )
-
-        # 5. Email News Digest on the back page
+        # 4. Back page (2 columns): News Summaries (left) & Important Emails (right)
+        news_sec = None
         if self.include_email_news:
             ep = self.email_provider or GmailNewsProvider(
                 username=self.gmail_username,
                 app_password=self.gmail_app_password,
                 label=self.gmail_label,
             )
+            news_sec = EmailNewsSection(
+                provider=ep,
+                date=self.date,
+                title="Morning News Briefing",
+            )
+
+        important_sec = None
+        if self.important_senders:
+            ep = self.email_provider or GmailNewsProvider(
+                username=self.gmail_username,
+                app_password=self.gmail_app_password,
+                label=self.gmail_label,
+            )
+            important_sec = ImportantEmailsSection(
+                important_senders=self.important_senders,
+                provider=ep,
+                date=self.date,
+                title="Important Notices & Updates",
+            )
+
+        if news_sec or important_sec:
             sections.append(
-                EmailNewsSection(
-                    provider=ep,
-                    date=self.date,
-                    title="Morning News Briefing",
+                TwoColumnBriefingBackSection(
+                    news_section=news_sec,
+                    important_section=important_sec,
                 )
             )
 

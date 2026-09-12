@@ -19,6 +19,9 @@ from .derby_markdown import format_derby_markdown
 from .derby_section import HomeRunDerbySection
 from .nfl_injuries import NFLInjuriesSection
 from .xkcd import XKCDSection
+from .email_news import EmailNewsSection
+from .important_emails import ImportantEmailsSection
+from .briefing_back import TwoColumnBriefingBackSection
 
 __all__ = [
     'GameScoresSection',
@@ -39,5 +42,8 @@ __all__ = [
     'HomeRunDerbySection',
     'NFLInjuriesSection',
     'XKCDSection',
+    'EmailNewsSection',
+    'ImportantEmailsSection',
+    'TwoColumnBriefingBackSection',
 ]
 

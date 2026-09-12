@@ -55,7 +55,7 @@ class ImportantEmailsSection(Section):
             leading=17,
             spaceBefore=0,
             spaceAfter=3,
-            textColor=colors.HexColor("#8b0000"),  # subtle deep red to stand out as priority
+            textColor=colors.HexColor("#111111"),
         )
         self._subtitle_style = ParagraphStyle(
             "ImportantSubtitle",
@@ -163,6 +163,61 @@ class ImportantEmailsSection(Section):
             self.fetch_data()
         return len(self.items) > 0
 
+    def build_banner_flowables(
+        self,
+        title_override: Optional[str] = None,
+        subtitle_override: Optional[str] = None,
+    ) -> List[Any]:
+        t_text = title_override or self.title.upper()
+        flowables: List[Any] = [Paragraph(f"<b>{html.escape(t_text)}</b>", self._title_style)]
+        if subtitle_override is not None:
+            sub = subtitle_override
+        else:
+            sub = f"Priority updates received in past 24 hours &bull; {len(self.items)} notice{'s' if len(self.items) != 1 else ''}"
+        if sub:
+            flowables.append(Paragraph(sub, self._subtitle_style))
+        flowables.append(
+            HRFlowable(
+                width="100%",
+                thickness=1.0,
+                color=colors.HexColor("#222222"),
+                spaceAfter=5,
+            )
+        )
+        return flowables
+
+    def build_item_flowables(self, item: Dict[str, Any], is_last: bool = False) -> List[Any]:
+        flowables: List[Any] = []
+        sender_safe = html.escape(item.get("sender", "Contact"))
+        subj_safe = html.escape(item.get("subject", ""))
+        summary_safe = html.escape(item.get("summary", ""))
+
+        dt = item.get("date")
+        if isinstance(dt, datetime):
+            meta_line = f"Received {dt.strftime('%b %d, %Y at %I:%M %p').replace(' 0', ' ')}"
+        else:
+            meta_line = ""
+
+        header_text = f"<b>{sender_safe}</b> &mdash; {subj_safe}"
+        flowables.append(Paragraph(header_text, self._item_header_style))
+
+        if meta_line:
+            flowables.append(Paragraph(meta_line, self._item_meta_style))
+
+        flowables.append(Paragraph(summary_safe, self._item_body_style))
+
+        if not is_last:
+            flowables.append(
+                HRFlowable(
+                    width="100%",
+                    thickness=0.4,
+                    color=colors.HexColor("#e0e0e0"),
+                    spaceBefore=2.5,
+                    spaceAfter=3.5,
+                )
+            )
+        return flowables
+
     def render(self) -> List[Any]:
         if not self.items:
             self.fetch_data()
@@ -171,53 +226,9 @@ class ImportantEmailsSection(Section):
             return []
 
         flowables: List[Any] = []
-
-        flowables.append(Paragraph(f"<b>{html.escape(self.title.upper())}</b>", self._title_style))
-        flowables.append(
-            Paragraph(
-                f"Priority updates received in past 24 hours &bull; {len(self.items)} notice{'s' if len(self.items) != 1 else ''}",
-                self._subtitle_style,
-            )
-        )
-        flowables.append(
-            HRFlowable(
-                width="100%",
-                thickness=1.0,
-                color=colors.HexColor("#8b0000"),
-                spaceAfter=5,
-            )
-        )
-
+        flowables.extend(self.build_banner_flowables())
         for i, item in enumerate(self.items):
-            sender_safe = html.escape(item.get("sender", "Contact"))
-            subj_safe = html.escape(item.get("subject", ""))
-            summary_safe = html.escape(item.get("summary", ""))
-
-            dt = item.get("date")
-            if isinstance(dt, datetime):
-                meta_line = f"Received {dt.strftime('%b %d, %Y at %I:%M %p').replace(' 0', ' ')}"
-            else:
-                meta_line = ""
-
-            header_text = f"<b>{sender_safe}</b> &mdash; {subj_safe}"
-            flowables.append(Paragraph(header_text, self._item_header_style))
-
-            if meta_line:
-                flowables.append(Paragraph(meta_line, self._item_meta_style))
-
-            flowables.append(Paragraph(summary_safe, self._item_body_style))
-
-            if i < len(self.items) - 1:
-                flowables.append(
-                    HRFlowable(
-                        width="100%",
-                        thickness=0.4,
-                        color=colors.HexColor("#e0e0e0"),
-                        spaceBefore=2.5,
-                        spaceAfter=3.5,
-                    )
-                )
-
+            flowables.extend(self.build_item_flowables(item, is_last=(i == len(self.items) - 1)))
         return flowables
 
     def render_markdown(self) -> str:

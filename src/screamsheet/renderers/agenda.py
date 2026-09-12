@@ -302,7 +302,7 @@ class TwoColumnAgendaSection(Section):
                     if due:
                         task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
                     if accessory:
-                        task_line += f" <font color='#8b0000'><b>({accessory})</b></font>"
+                        task_line += f" <b>({accessory})</b>"
 
                     flowables.append(Paragraph(task_line, self._item_style))
                     flowables.append(Spacer(1, 1))

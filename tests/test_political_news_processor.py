@@ -232,7 +232,7 @@ class TestPoliticalNewsProcessor:
 
     def test_naive_datetime_treated_as_utc(self):
         processor = PoliticalNewsProcessor()
-        naive_recent = datetime.utcnow() - timedelta(hours=1)
+        naive_recent = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
         entry = _entry(published=naive_recent)
         result = processor.process([entry])
         assert len(result) == 1
@@ -299,3 +299,35 @@ class TestPoliticalNewsProcessor:
         with caplog.at_level(logging.WARNING):
             processor.save_to_sqlite([entry], str(db))
         assert any("without link" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# process_clusters
+# ---------------------------------------------------------------------------
+
+class TestPoliticalNewsProcessorClusters:
+    def test_process_clusters_returns_topic_clusters(self):
+        processor = PoliticalNewsProcessor()
+        entries = [
+            _entry(title="Trump signs executive order on tariffs", summary="Tariffs on Canadian goods.", source="Politico"),
+            _entry(title="Canada prepares retaliatory tariffs against Trump duties", summary="Ottawa responds to tariffs.", source="BBC"),
+            _entry(title="Federal Reserve announces rate decision", summary="Interest rates hold steady.", source="NYT"),
+        ]
+        clusters = processor.process_clusters(entries)
+        assert len(clusters) >= 1
+        assert hasattr(clusters[0], "topic")
+        assert hasattr(clusters[0], "articles")
+        assert hasattr(clusters[0], "score")
+
+    def test_process_with_cluster_true_returns_cluster_metadata(self):
+        processor = PoliticalNewsProcessor()
+        entries = [
+            _entry(title="Trump signs executive order on tariffs", summary="Tariffs on Canadian goods.", source="Politico"),
+            _entry(title="Canada prepares retaliatory tariffs against Trump duties", summary="Ottawa responds to tariffs.", source="BBC"),
+        ]
+        result = processor.process(entries, cluster=True)
+        assert len(result) >= 1
+        assert "is_cluster" in result[0]
+        assert result[0]["is_cluster"] is True
+        assert "reports" in result[0]
+        assert "sources" in result[0]

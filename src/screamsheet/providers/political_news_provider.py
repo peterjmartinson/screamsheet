@@ -194,8 +194,25 @@ class WhiteHouseProvider(DataProvider):
 
     SOURCE_NAME = "White House"
 
-    def __init__(self, **config):
+    _ARTICLE_SELECTORS: List[str] = [
+        "div.entry-content",
+        "div.wp-block-post-content",
+        "section.entry-content",
+        "article",
+        "main",
+    ]
+    _SCRAPE_TIMEOUT: int = 5
+    _SCRAPE_HEADERS: Dict[str, str] = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
+
+    def __init__(self, scrape_body: bool = True, **config):
         super().__init__(**config)
+        self.scrape_body = scrape_body
 
     # ------------------------------------------------------------------
     # DataProvider stubs
@@ -287,13 +304,16 @@ class WhiteHouseProvider(DataProvider):
         if published is None:
             return None
 
-        # Summary (optional)
+        # Summary (optional, enriched from article page if empty)
         summary = ""
         summary_sel = selectors.get("summary") or ""
         if summary_sel:
             summary_tag = container.select_one(summary_sel)
             if summary_tag:
                 summary = summary_tag.get_text(strip=True)
+
+        if not summary and link and self.scrape_body:
+            summary = self._scrape_article_text(link)
 
         return {
             "title":     title,
@@ -302,6 +322,28 @@ class WhiteHouseProvider(DataProvider):
             "summary":   summary,
             "source":    self.SOURCE_NAME,
         }
+
+    def _scrape_article_text(self, url: str) -> str:
+        """Fetch url and extract briefing/statement text paragraphs."""
+        if not url:
+            return ""
+        try:
+            resp = requests.get(url, timeout=self._SCRAPE_TIMEOUT, headers=self._SCRAPE_HEADERS)
+            if resp.status_code != 200:
+                return ""
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for selector in self._ARTICLE_SELECTORS:
+                container = soup.select_one(selector)
+                if container:
+                    paragraphs = container.find_all("p")
+                    if paragraphs:
+                        text = " ".join(p.get_text(" ", strip=True) for p in paragraphs)
+                        if text.strip():
+                            return text.strip()
+            return ""
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("WhiteHouseProvider: failed to scrape %s: %s", url, exc)
+            return ""
 
     def _parse_date(self, time_tag) -> Optional[datetime]:
         """
@@ -400,7 +442,9 @@ class PoliticalNewsProvider(DataProvider):
         # (processor.py has no top-level imports from providers/)
         from ..political.processor import PoliticalNewsProcessor  # noqa: PLC0415
 
-        entries = PoliticalNewsProcessor().process(rss + wh)
+        all_entries = rss + wh
+        processor = PoliticalNewsProcessor()
+        entries = processor.process(all_entries)
         top = entries[: self.max_articles]
 
         result = []
@@ -420,6 +464,13 @@ class PoliticalNewsProvider(DataProvider):
                 "source":           entry.get("source", ""),
                 "published_parsed": published_parsed,
             }
+            if entry.get("sources"):
+                slot_entry["sources"] = entry["sources"]
+            if entry.get("reports"):
+                slot_entry["reports"] = entry["reports"]
+            if entry.get("is_cluster"):
+                slot_entry["is_cluster"] = entry["is_cluster"]
+
             result.append({"slot": f"Section {i + 1}", "entry": slot_entry})
 
         self._cache = result

@@ -342,3 +342,34 @@ class TestWhiteHouseGetArticles:
             result = provider.get_articles()
         assert isinstance(result, list)
         assert len(result) == 1
+
+
+# ---------------------------------------------------------------------------
+# WhiteHouseProvider — _scrape_article_text
+# ---------------------------------------------------------------------------
+
+class TestWhiteHouseScrapeArticleText:
+    def test_scrape_article_text_success(self):
+        provider = WhiteHouseProvider()
+        fake_html = """
+        <html><body>
+            <div class="entry-content">
+                <p>Paragraph one regarding official policy.</p>
+                <p>Paragraph two with detailed statements from the President.</p>
+            </div>
+        </body></html>
+        """
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = fake_html
+
+        with patch("requests.get", return_value=mock_resp):
+            text = provider._scrape_article_text("https://www.whitehouse.gov/briefing/test")
+            assert "Paragraph one regarding official policy." in text
+            assert "Paragraph two with detailed statements" in text
+
+    def test_scrape_article_text_failure_returns_empty_string(self):
+        provider = WhiteHouseProvider()
+        with patch("requests.get", side_effect=Exception("Network error")):
+            text = provider._scrape_article_text("https://www.whitehouse.gov/briefing/test")
+            assert text == ""

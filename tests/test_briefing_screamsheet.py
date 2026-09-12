@@ -383,3 +383,111 @@ def test_briefing_two_page_with_email_news(tmp_path):
         num_pages = len(re.findall(rb"/Type\s*/Page[^s]", pdf_bytes))
         assert num_pages == 2
 
+
+def test_matches_important_sender():
+    from screamsheet.providers.gmail_provider import _matches_important_sender
+
+    targets = ["annashavin@gmail.com", "mainlineclassical.org"]
+
+    # Exact email match in header
+    assert _matches_important_sender("Anna <annashavin@gmail.com>", targets) is True
+    assert _matches_important_sender("ANNASHAVIN@GMAIL.COM", targets) is True
+    assert _matches_important_sender("annashavin@gmail.com", targets) is True
+
+    # Domain match
+    assert _matches_important_sender("Principal <admin@mainlineclassical.org>", targets) is True
+    assert _matches_important_sender("<teacher@sub.mainlineclassical.org>", targets) is True
+
+    # Non-match
+    assert _matches_important_sender("Stranger <stranger@example.com>", targets) is False
+    assert _matches_important_sender("evil@notmainlineclassical.org", targets) is False
+    assert _matches_important_sender("someone@gmail.com", targets) is False
+
+
+def test_important_emails_section_render():
+    from screamsheet.renderers.important_emails import ImportantEmailsSection
+
+    mock_provider = MagicMock()
+    mock_provider.fetch_important_emails.return_value = [
+        {
+            "id": "1",
+            "sender": "Headmaster <office@mainlineclassical.org>",
+            "subject": "School Closure Tomorrow",
+            "date": datetime(2026, 8, 28, 8, 0),
+            "body": "School will be closed tomorrow due to weather.",
+        }
+    ]
+
+    mock_summarizer_cls = MagicMock()
+    mock_summarizer_inst = MagicMock()
+    mock_summarizer_inst.generate_summary.return_value = (
+        "School is closed tomorrow due to weather. Check portal for assignments."
+    )
+    mock_summarizer_cls.return_value = mock_summarizer_inst
+
+    sec = ImportantEmailsSection(
+        provider=mock_provider,
+        date=datetime(2026, 8, 28),
+        senders=["mainlineclassical.org"],
+        summarizer_class=mock_summarizer_cls,
+    )
+    assert sec.page_slot == "back"
+    assert sec.has_content() is True
+
+    flowables = sec.render()
+    assert len(flowables) > 0
+    rendered_text = " ".join(getattr(f, "text", "") for f in flowables)
+    assert "Headmaster" in rendered_text
+    assert "School Closure Tomorrow" in rendered_text
+    assert "School is closed tomorrow" in rendered_text
+
+    md = sec.render_markdown()
+    assert "Headmaster" in md
+    assert "School Closure Tomorrow" in md
+    assert "School is closed tomorrow" in md
+
+
+def test_briefing_with_important_emails_and_news(tmp_path):
+    out_pdf = str(tmp_path / "briefing_important.pdf")
+
+    mock_email_provider = MagicMock()
+    mock_email_provider.fetch_important_emails.return_value = [
+        {
+            "id": "1",
+            "sender": "Anna <annashavin@gmail.com>",
+            "subject": "Pickup schedule",
+            "date": datetime(2026, 8, 28, 8, 0),
+            "body": "Please pick up the kids at 3pm.",
+        }
+    ]
+    mock_email_provider.fetch_emails.return_value = [
+        {
+            "id": "2",
+            "sender": "Punchbowl News",
+            "subject": "Punchbowl AM",
+            "date": datetime(2026, 8, 28, 7, 0),
+            "body": "Congress returns today.",
+        }
+    ]
+
+    sheet = ScreamsheetFactory.create_briefing_screamsheet(
+        output_filename=out_pdf,
+        subscriber_name="Peter",
+        payload={},
+        include_weather=False,
+        include_email_news=True,
+        important_senders=["annashavin@gmail.com"],
+        email_provider=mock_email_provider,
+        date=datetime(2026, 8, 28),
+    )
+
+    sections = sheet.build_sections()
+    section_titles = [s.title for s in sections]
+    assert "Important Notices & Updates" in section_titles
+    assert "Morning News Briefing" in section_titles
+
+    # Verify Important Notices comes before Morning News Briefing
+    idx_important = section_titles.index("Important Notices & Updates")
+    idx_news = section_titles.index("Morning News Briefing")
+    assert idx_important < idx_news
+

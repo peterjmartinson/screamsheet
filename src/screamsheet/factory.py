@@ -463,6 +463,7 @@ class ScreamsheetFactory:
         gmail_label: str = "Morning Briefing",
         gmail_username: Optional[str] = None,
         gmail_app_password: Optional[str] = None,
+        important_senders: Optional[List[str]] = None,
         email_provider: Optional[Any] = None,
     ) -> MorningBriefingScreamsheet:
         """
@@ -484,6 +485,7 @@ class ScreamsheetFactory:
             gmail_label: Gmail label to check for morning news emails.
             gmail_username: Optional Gmail username override.
             gmail_app_password: Optional Gmail app password override.
+            important_senders: Optional list of priority senders (addresses or domains) to scan from INBOX.
             email_provider: Optional custom email provider.
 
         Returns:
@@ -505,6 +507,7 @@ class ScreamsheetFactory:
             gmail_label=gmail_label,
             gmail_username=gmail_username,
             gmail_app_password=gmail_app_password,
+            important_senders=important_senders,
             email_provider=email_provider,
         )
 

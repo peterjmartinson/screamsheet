@@ -18,6 +18,7 @@ from .summarizers import (
     FrenchMLBB2C1Summarizer,
     FrenchMLBLexiconSummarizer,
     EmailNewsSummarizer,
+    EmailImportantSummarizer,
 )
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "FrenchMLBB2C1Summarizer",
     "FrenchMLBLexiconSummarizer",
     "EmailNewsSummarizer",
+    "EmailImportantSummarizer",
 ]

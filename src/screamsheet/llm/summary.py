@@ -25,6 +25,7 @@ from .summarizers import (  # noqa: F401
     SkyNightSummarizer,
     NFLGameSummarizer,
     EmailNewsSummarizer,
+    EmailImportantSummarizer,
 )
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "NewsSummarizer",
     "NFLGameSummarizer",
     "EmailNewsSummarizer",
+    "EmailImportantSummarizer",
 ]

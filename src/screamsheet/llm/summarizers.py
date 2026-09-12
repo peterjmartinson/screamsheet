@@ -644,3 +644,30 @@ class EmailNewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             config=config,
         )
 
+
+class EmailImportantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a 1-2 sentence actionable summary of important personal/school emails.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``sender``  str — sender display name or address
+    - ``subject`` str — subject line of the email
+    - ``body``    str — extracted body text
+    """
+
+    _PROMPT_FILE = Path("email_important.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+

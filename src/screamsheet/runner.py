@@ -249,6 +249,7 @@ def _run_briefing(
         "include_xkcd": options.include_xkcd,
         "include_email_news": options.include_email_news,
         "gmail_label": options.gmail_label,
+        "important_senders": options.important_senders,
         "date": today,
     }
     if options.api_url:

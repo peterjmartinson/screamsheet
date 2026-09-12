@@ -284,3 +284,150 @@ class GmailNewsProvider:
 
         logger.info("Fetched %d email(s) from label %r within past %d hours", len(emails), self.label, lookback_hours)
         return emails
+
+    def fetch_important_emails(
+        self,
+        important_senders: List[str],
+        since: Optional[datetime] = None,
+        lookback_hours: int = 24,
+        mailbox: str = "INBOX",
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch emails from priority senders (matching specific addresses or domains)
+        received in the past lookback_hours.
+
+        Args:
+            important_senders: List of email addresses or domains (e.g. ['annashavin@gmail.com', 'mainlineclassical.org'])
+            since: Reference datetime (defaults to current UTC time).
+            lookback_hours: Hours to look back (default 24).
+            mailbox: Mailbox to search (default 'INBOX').
+
+        Returns:
+            List of matched email dicts.
+        """
+        if not self.username or not self.app_password:
+            logger.info("Gmail credentials not configured. Skipping important emails.")
+            return []
+
+        if not important_senders:
+            return []
+
+        ref_dt = since if since is not None else datetime.now(timezone.utc)
+        if ref_dt.tzinfo is None:
+            ref_dt = ref_dt.replace(tzinfo=timezone.utc)
+
+        cutoff_dt = ref_dt - timedelta(hours=lookback_hours)
+        since_date_str = (ref_dt - timedelta(days=2)).strftime("%d-%b-%Y")
+
+        emails: List[Dict[str, Any]] = []
+        try:
+            logger.info("Connecting to %s:%d to search %r for %d priority sender(s)", self.imap_host, self.imap_port, mailbox, len(important_senders))
+            imap = imaplib.IMAP4_SSL(self.imap_host, self.imap_port)
+            imap.sock.settimeout(self.timeout)
+
+            try:
+                imap.login(self.username, self.app_password)
+                status, data = imap.select(f'"{mailbox}"', readonly=True)
+                if status != "OK":
+                    status, data = imap.select(mailbox, readonly=True)
+
+                if status != "OK":
+                    logger.info("Could not select mailbox %r in Gmail: %s", mailbox, data)
+                    return []
+
+                # Search by SINCE date to limit scope
+                search_status, search_data = imap.uid("SEARCH", None, f'SINCE "{since_date_str}"')
+                if search_status != "OK" or not search_data or not search_data[0]:
+                    search_status, search_data = imap.uid("SEARCH", None, "ALL")
+
+                if search_status != "OK" or not search_data or not search_data[0]:
+                    return []
+
+                uids = search_data[0].decode().split()
+                # Process most recent first
+                for uid in reversed(uids):
+                    try:
+                        fetch_status, msg_data = imap.uid("FETCH", uid, "(RFC822)")
+                        if fetch_status != "OK" or not msg_data:
+                            continue
+
+                        raw_bytes = None
+                        for item in msg_data:
+                            if isinstance(item, tuple) and len(item) >= 2:
+                                raw_bytes = item[1]
+                                break
+
+                        if not raw_bytes:
+                            continue
+
+                        msg = email.message_from_bytes(raw_bytes)
+
+                        # Check sender first to avoid parsing body of non-matching emails
+                        from_header = msg.get("From", "")
+                        sender_name, sender_email = _parse_sender(from_header)
+
+                        if not _matches_important_sender(sender_email, important_senders):
+                            continue
+
+                        # Parse message date
+                        date_header = msg.get("Date", "")
+                        try:
+                            msg_dt = email.utils.parsedate_to_datetime(date_header)
+                            if msg_dt.tzinfo is None:
+                                msg_dt = msg_dt.replace(tzinfo=timezone.utc)
+                        except Exception:
+                            msg_dt = ref_dt
+
+                        if msg_dt < cutoff_dt:
+                            continue
+
+                        subject = _decode_header_value(msg.get("Subject", "(No Subject)"))
+                        body = _extract_body_text(msg)
+
+                        emails.append(
+                            {
+                                "id": uid,
+                                "subject": subject,
+                                "sender": sender_name,
+                                "sender_email": sender_email,
+                                "date": msg_dt,
+                                "body": body,
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to parse message UID %s: %s", uid, e)
+
+            finally:
+                try:
+                    imap.logout()
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error("Failed to connect or fetch priority emails from Gmail: %s", e)
+            return []
+
+        logger.info("Found %d priority email(s) from %d sender patterns within past %d hours", len(emails), len(important_senders), lookback_hours)
+        return emails
+
+
+def _matches_important_sender(sender_email: str, important_senders: List[str]) -> bool:
+    """Check whether sender_email matches any address or domain pattern."""
+    if not sender_email or not important_senders:
+        return False
+    _, extracted_addr = email.utils.parseaddr(sender_email)
+    if extracted_addr:
+        email_clean = extracted_addr.strip().lower()
+    else:
+        email_clean = sender_email.strip().lower()
+
+    for item in important_senders:
+        pattern = item.strip().lower()
+        if not pattern:
+            continue
+        if email_clean == pattern:
+            return True
+        domain = pattern.lstrip("@")
+        if email_clean.endswith(f"@{domain}") or email_clean.endswith(f".{domain}"):
+            return True
+    return False

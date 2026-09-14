@@ -318,7 +318,6 @@ def test_box_score_section_renders_run_on_takeaways(mock_nfl_provider):
 
 def test_nfl_data_provider_get_box_score():
     from screamsheet.providers.nfl_provider import NFLDataProvider
-    provider = NFLDataProvider()
 
     mock_summary_payload = {
         "header": {
@@ -354,6 +353,11 @@ def test_nfl_data_provider_get_box_score():
         "leaders": []
     }
 
+    with patch("requests.get") as mock_init_get:
+        mock_init_get.return_value.json.return_value = {}
+        mock_init_get.return_value.raise_for_status.return_value = None
+        provider = NFLDataProvider()
+
     with patch.object(provider, "_find_event_id", return_value="401547412"), \
          patch("requests.get") as mock_get:
         mock_resp = MagicMock()
@@ -365,4 +369,197 @@ def test_nfl_data_provider_get_box_score():
         assert box is not None
         assert box["away_team"] == "Pittsburgh Steelers"
         assert box["away_score"] == 18
+
+
+def test_nfl_news_summarizer_configuration():
+    from pathlib import Path
+    from screamsheet.llm.summarizers import NFLNewsSummarizer
+    from screamsheet.llm.config import DEFAULT_LLM_CONFIG
+
+    summarizer = NFLNewsSummarizer(config=DEFAULT_LLM_CONFIG)
+    assert summarizer._PROMPT_FILE == Path("nfl_news.txt")
+
+    prompt_path = Path(__file__).parent.parent / "src" / "screamsheet" / "llm" / "prompts" / "nfl_news.txt"
+    assert prompt_path.exists()
+    content = prompt_path.read_text(encoding="utf-8")
+    assert "200 words" in content
+    assert "2/3 standard length" in content
+
+
+def test_news_articles_section_with_schedule():
+    from screamsheet.renderers.news_articles import NewsArticlesSection
+
+    mock_provider = MagicMock()
+    mock_provider.get_articles.return_value = [
+        {"slot": f"Section {i}", "entry": {"title": f"Article {i}", "summary": f"Summary {i}", "link": f"http://example.com/{i}"}}
+        for i in range(1, 6)
+    ]
+    mock_provider.sanitize_articles.side_effect = lambda arts: arts
+
+    sched = [
+        "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)",
+    ]
+    sec = NewsArticlesSection(
+        title="NFL News & Schedule",
+        provider=mock_provider,
+        max_articles=4,
+        schedule_items=sched,
+        schedule_title="Tonight's Broadcast",
+    )
+    with patch("screamsheet.llm.summary.NewsSummarizer.generate_summary", return_value="Mock summary."):
+        sec.fetch_data()
+
+    # When schedule_items is provided, it should slice to at most 3 articles
+    assert len(sec.data) == 3
+
+    rendered = sec.render()
+    assert len(rendered) == 1  # Table flowable
+
+    md = sec.render_markdown()
+    assert "Tonight's Broadcast" in md
+    assert "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)" in md
+
+
+def test_nfl_screamsheet_integrates_day_of_schedule(tmp_path):
+    out_pdf = str(tmp_path / "nfl_sunday.pdf")
+    sunday_date = datetime(2026, 9, 13)
+
+    mock_prov = MagicMock()
+    mock_prov.get_all_teams_for_date.return_value = []
+    mock_prov.get_standings.return_value = pd.DataFrame([
+        {"conference": "AFC", "team": "Chiefs", "wins": 1, "losses": 0, "ties": 0, "winPercent": 1.0, "pointDifferential": 7, "divisionWinPercent": 1.0}
+    ])
+    mock_prov.get_injuries.return_value = []
+    mock_prov.get_day_schedule.return_value = [
+        {
+            "away_team": "Tampa Bay Buccaneers",
+            "home_team": "Cincinnati Bengals",
+            "time_et": "1:00pm ET",
+            "broadcast": "FOX",
+            "schedule_line": "Tampa Bay Buccaneers @ Cincinnati Bengals: 1:00pm ET (FOX)",
+        },
+        {
+            "away_team": "Denver Broncos",
+            "home_team": "Kansas City Chiefs",
+            "time_et": "8:15pm ET",
+            "broadcast": "NBC",
+            "schedule_line": "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (NBC)",
+        },
+    ]
+
+    with patch.object(NFLScreamsheet, "create_provider", return_value=mock_prov):
+        sheet = NFLScreamsheet(
+            output_filename=out_pdf,
+            date=datetime(2026, 9, 12),
+            display_date=sunday_date,
+            favorite_teams=[(12, "Chiefs")],
+        )
+        sections = sheet.build_sections()
+        assert len(sections) == 3  # Standings, Injuries, NewsArticlesSection
+
+        news_sec = sections[2]
+        from screamsheet.renderers.news_articles import NewsArticlesSection
+        assert isinstance(news_sec, NewsArticlesSection)
+        assert news_sec.max_articles == 3
+        assert len(news_sec.schedule_items) == 2
+        # Verify favorite team is bolded in schedule line
+        assert any("<b>" in item and "Chiefs" in item for item in news_sec.schedule_items)
+
+
+def test_nfl_screamsheet_monday_recap_with_tonight_schedule(tmp_path):
+    out_pdf = str(tmp_path / "nfl_monday.pdf")
+    sunday_game_date = datetime(2026, 9, 13)
+    monday_display_date = datetime(2026, 9, 14)
+
+    mock_prov = MagicMock()
+    mock_prov.get_all_teams_for_date.return_value = [(12, "Chiefs")]
+    mock_prov.has_game.return_value = True
+    mock_prov.get_game_scores.return_value = []
+    mock_prov.get_standings.return_value = pd.DataFrame([
+        {"conference": "AFC", "team": "Chiefs", "wins": 1, "losses": 0, "ties": 0, "winPercent": 1.0, "pointDifferential": 7, "divisionWinPercent": 1.0}
+    ])
+    mock_prov.get_box_score.return_value = {
+        "away_team": "Chiefs",
+        "away_abbrev": "KC",
+        "away_score": 24,
+        "away_linescores": ["7", "7", "3", "7"],
+        "home_team": "Raiders",
+        "home_abbrev": "LV",
+        "home_score": 17,
+        "home_linescores": ["3", "7", "7", "0"],
+        "quarter_labels": ["1", "2", "3", "4"],
+        "team_stats": [],
+        "top_performers": [],
+    }
+    mock_prov.get_game_summary.return_value = "Chiefs won."
+    mock_prov.get_day_schedule.return_value = [
+        {
+            "away_team": "Denver Broncos",
+            "home_team": "Seattle Seahawks",
+            "time_et": "8:15pm ET",
+            "broadcast": "ESPN",
+            "schedule_line": "Denver Broncos @ Seattle Seahawks: 8:15pm ET (ESPN)",
+        }
+    ]
+
+    with patch.object(NFLScreamsheet, "create_provider", return_value=mock_prov):
+        sheet = NFLScreamsheet(
+            output_filename=out_pdf,
+            date=sunday_game_date,
+            display_date=monday_display_date,
+            favorite_teams=[(12, "Chiefs")],
+        )
+        sections = sheet.build_sections()
+        assert len(sections) == 3  # GameScoresSection, StandingsSection, BoxScoreSection
+
+        scores_sec = sections[0]
+        from screamsheet.renderers import GameScoresSection
+        assert isinstance(scores_sec, GameScoresSection)
+        assert len(scores_sec.upcoming_games) == 1
+        assert "Denver Broncos @ Seattle Seahawks: 8:15pm ET (ESPN)" in scores_sec.upcoming_games[0]
+
+
+def test_nfl_data_provider_get_day_schedule():
+    from screamsheet.providers.nfl_provider import NFLDataProvider
+
+    with patch("requests.get") as mock_init_get:
+        mock_init_get.return_value.json.return_value = {}
+        mock_init_get.return_value.raise_for_status.return_value = None
+        provider = NFLDataProvider()
+
+    mock_scoreboard_payload = {
+        "events": [
+            {
+                "id": "401872931",
+                "date": "2026-09-15T00:15Z",
+                "competitions": [
+                    {
+                        "status": {"type": {"name": "STATUS_SCHEDULED"}},
+                        "broadcasts": [{"names": ["ESPN", "ABC"]}],
+                        "competitors": [
+                            {"homeAway": "home", "team": {"displayName": "Kansas City Chiefs"}},
+                            {"homeAway": "away", "team": {"displayName": "Denver Broncos"}},
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_scoreboard_payload
+        mock_resp.raise_for_status.return_value = None
+        mock_get.return_value = mock_resp
+
+        # 2026-09-15T00:15Z is 8:15pm ET on 2026-09-14
+        games = provider.get_day_schedule(date=datetime(2026, 9, 14))
+        assert len(games) == 1
+        assert games[0]["away_team"] == "Denver Broncos"
+        assert games[0]["home_team"] == "Kansas City Chiefs"
+        assert games[0]["time_et"] == "8:15pm ET"
+        assert games[0]["broadcast"] == "ESPN, ABC"
+        assert games[0]["schedule_line"] == "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)"
+
+
 

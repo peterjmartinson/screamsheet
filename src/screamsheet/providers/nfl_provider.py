@@ -1,4 +1,4 @@
-"""NFL data provider for fetching NFL game data."""
+import logging
 import requests
 import pandas as pd
 import re
@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, List, Dict
 
 from ..base import DataProvider
+
+logger = logging.getLogger(__name__)
 
 
 class NFLDataProvider(DataProvider):
@@ -66,7 +68,40 @@ class NFLDataProvider(DataProvider):
             previous_week=False
         )
 
-    
+    def get_day_schedule(self, date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """
+        Get games scheduled to be played on a specific calendar date (Eastern Time).
+
+        Args:
+            date: Target date to fetch schedule for (defaults to today in ET).
+
+        Returns:
+            List of game dicts with 'away_team', 'home_team', 'time_et', 'broadcast', 'schedule_line', etc.
+        """
+        from .parsers.nfl_parsers import extract_scoreboard
+        from zoneinfo import ZoneInfo
+
+        dt = date or datetime.now(ZoneInfo("America/New_York"))
+        target_date_et = dt.date() if isinstance(dt, datetime) else dt
+        date_str = target_date_et.strftime("%Y%m%d")
+
+        url = f"{self.base_url}/scoreboard?dates={date_str}"
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            games = extract_scoreboard(data)
+            # Filter games to those matching target_date_et
+            day_games = []
+            for g in games:
+                g_date_et = g.get("game_date_et")
+                if g_date_et is None or g_date_et == target_date_et:
+                    day_games.append(g)
+            return day_games
+        except requests.exceptions.RequestException as e:
+            logger.warning("Error fetching NFL day schedule for %s: %s", date_str, e)
+            return []
+
     def get_standings(self, date: Optional[datetime] = None) -> pd.DataFrame:
         """
         Get current NFL league standings for the active season type (preseason, regular season, postseason).

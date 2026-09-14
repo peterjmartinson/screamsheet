@@ -618,6 +618,33 @@ class NFLGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+class NFLNewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a tight ~180-200 word summary of an NFL news article (2/3 standard length).
+
+    Uses ``nfl_news.txt`` prompt.
+
+    Typical ``data`` shapes
+    -----------------------
+    - News article: ``{'title': str, 'summary': str, 'link': str, ...}``
+    """
+
+    _PROMPT_FILE = Path("nfl_news.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
 class EmailNewsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates a 2-3 sentence summary of an email newsletter or news alert.

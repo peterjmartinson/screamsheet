@@ -1,7 +1,7 @@
 """Game scores section renderer."""
 from datetime import datetime
 from typing import List, Any, Optional, Dict, Tuple
-from reportlab.platypus import Table, TableStyle, Spacer
+from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
@@ -56,10 +56,11 @@ class GameScoresSection(Section):
     Shows all game scores from a specific date in a multi-column layout.
     """
     
-    def __init__(self, title: str, provider: DataProvider, date: datetime):
+    def __init__(self, title: str, provider: DataProvider, date: datetime, upcoming_games: Optional[List[str]] = None):
         super().__init__(title)
         self.provider = provider
         self.date = date
+        self.upcoming_games = upcoming_games or []
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -149,7 +150,21 @@ class GameScoresSection(Section):
         )
         
         elements.append(scores_table)
-        
+
+        if self.upcoming_games:
+            elements.append(Spacer(1, 6))
+            note_style = ParagraphStyle(
+                name="UpcomingGameNote",
+                parent=self.styles['Normal'],
+                fontName='Helvetica-Bold',
+                fontSize=9,
+                textColor=colors.HexColor('#1a1a1a'),
+                alignment=TA_CENTER,
+            )
+            for ug in self.upcoming_games:
+                clean_ug = ug.replace("<b>", "").replace("</b>", "")
+                elements.append(Paragraph(f"Tonight: {clean_ug}", note_style))
+
         return elements
 
     def render_markdown(self) -> str:
@@ -172,5 +187,8 @@ class GameScoresSection(Section):
             status = g.get("status", "Final")
             lines.append(f"| {away} | {away_score} | {home} | {home_score} | {status} |")
         
+        if self.upcoming_games:
+            lines.append("\n**Tonight:** " + ", ".join(self.upcoming_games))
+
         return "\n".join(lines)
 

@@ -1,11 +1,12 @@
 """NFL screamsheet implementation."""
 from typing import List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .base_sports import SportsScreamsheet
 from .nfl_router import ScreamSheetRouter, NFLDayStrategy
 from ..providers.nfl_provider import NFLDataProvider
 from ..providers.nfl_news_provider import NFLNewsProvider
+from ..llm.summary import NFLNewsSummarizer
 from ..base import Section
 from ..renderers import (
     GameScoresSection,
@@ -25,6 +26,7 @@ class NFLScreamsheet(SportsScreamsheet):
         team_id: Optional[int] = None,
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
     ):
@@ -35,7 +37,8 @@ class NFLScreamsheet(SportsScreamsheet):
             output_filename: Path to save the PDF
             team_id: NFL team ID (deprecated — use favorite_teams)
             team_name: Team name (deprecated — use favorite_teams)
-            date: Target date (defaults to yesterday)
+            date: Target date (defaults to yesterday for scores)
+            display_date: Publication / display date (defaults to today)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, enable enraged hometown-fan recap on loss. Defaults to False.
         """
@@ -45,11 +48,12 @@ class NFLScreamsheet(SportsScreamsheet):
             team_id=team_id,
             team_name=team_name,
             date=date,
+            display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
         )
-        self.router = ScreamSheetRouter(override_date=self.date)
-        self.strategy = self.router.get_strategy(self.date)
+        self.router = ScreamSheetRouter(override_date=self.display_date or self.date)
+        self.strategy = self.router.get_strategy(self.display_date or self.date)
         # Create news provider for non-game days
         fav_team_names = [t[1] for t in self.favorite_teams] if self.favorite_teams else []
         self.news_provider = NFLNewsProvider(favorite_teams=fav_team_names, max_articles=4)
@@ -65,16 +69,52 @@ class NFLScreamsheet(SportsScreamsheet):
 
     def get_date_string(self) -> str:
         """Return the formatted date string without cluttered season/week labels."""
-        return self.date.strftime("%B %d, %Y")
+        return (self.display_date or self.date).strftime("%B %d, %Y")
 
     def build_sections(self) -> List[Section]:
         """Build sections dynamically based on game availability and day strategy.
 
         Page distribution rule:
         - Page 1 (front): Game Scores and Standings (or Standings + Injuries on front).
-        - Page 2 (back): Narrative Game Summaries (MNF/TNF/Sunday) or News Articles.
+        - Page 2 (back): Narrative Game Summaries (MNF/TNF/Sunday) or News Articles + Day-of Schedule.
         """
         sections: List[Section] = []
+
+        # Target date for day-of game schedule lookups (publication day)
+        today_date = self.display_date or (self.date + timedelta(days=1))
+        today_games = self.provider.get_day_schedule(today_date)
+        fav_names = [t[1].lower() for t in self.favorite_teams] if self.favorite_teams else []
+
+        today_schedule_lines: List[str] = []
+        for g in today_games:
+            line = g.get("schedule_line", "")
+            if not line:
+                away = g.get("away_team", "")
+                home = g.get("home_team", "")
+                time_et = g.get("time_et", "")
+                b_str = g.get("broadcast", "")
+                line = f"{away} @ {home}: {time_et} ({b_str})" if b_str else f"{away} @ {home}: {time_et}"
+            away_lower = str(g.get("away_team", "")).lower()
+            home_lower = str(g.get("home_team", "")).lower()
+            is_fav = any(f in away_lower or f in home_lower for f in fav_names)
+            if is_fav and not line.startswith("<b>"):
+                line = f"<b>{line}</b>"
+            today_schedule_lines.append(line)
+
+        has_sched = len(today_schedule_lines) > 0
+
+        def create_news_section(title: str) -> NewsArticlesSection:
+            sched_title = "Tonight's Broadcast" if len(today_schedule_lines) == 1 else "Today's Broadcasts"
+            sec = NewsArticlesSection(
+                title=title,
+                provider=self.news_provider,
+                max_articles=3 if has_sched else 4,
+                summarizer_class=NFLNewsSummarizer,
+                schedule_items=today_schedule_lines if has_sched else None,
+                schedule_title=sched_title,
+            )
+            sec.page_slot = "back"
+            return sec
         
         # Check if completed games were played on self.date
         completed_teams = self.provider.get_all_teams_for_date(self.date)
@@ -87,7 +127,12 @@ class NFLScreamsheet(SportsScreamsheet):
 
         # 1. Monday (RECAP) or any day when games were played yesterday (including Tuesday MNF or Friday TNF)
         if has_games_played or self.strategy == NFLDayStrategy.RECAP:
-            sections.append(GameScoresSection(title="NFL Game Scores", provider=self.provider, date=self.date))
+            sections.append(GameScoresSection(
+                title="NFL Game Scores",
+                provider=self.provider,
+                date=self.date,
+                upcoming_games=today_schedule_lines if (featured and featured_id) else None,
+            ))
             sections.append(StandingsSection(title="NFL Standings", provider=self.provider, date=self.date))
             if featured and featured_id:
                 is_primary = bool(self.favorite_teams) and featured == self.favorite_teams[0]
@@ -102,62 +147,48 @@ class NFLScreamsheet(SportsScreamsheet):
                 box_section.page_slot = "back"
                 sections.append(box_section)
             else:
-                back_news = NewsArticlesSection(title="NFL Headlines & Recap", provider=self.news_provider, max_articles=4)
-                back_news.page_slot = "back"
-                sections.append(back_news)
+                sections.append(create_news_section("NFL Headlines & Recap"))
 
         # 2. Tuesday: STANDINGS_AND_INJURIES (when no MNF game played)
         elif self.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES:
             sections.append(StandingsSection(title="NFL Standings & Division Check", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Injury Report", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="NFL News & Injury Analysis", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("NFL News & Injury Analysis"))
 
         # 3. Wednesday: FILM_ROOM
         elif self.strategy == NFLDayStrategy.FILM_ROOM:
             sections.append(StandingsSection(title="NFL Standings & Power Metrics", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Practice & Roster Notes", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="NFL Film Room & League Intel", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("NFL Film Room & League Intel"))
 
         # 4. Thursday: TNF_SCOUTING
         elif self.strategy == NFLDayStrategy.TNF_SCOUTING:
             sections.append(StandingsSection(title="NFL Standings", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Injury & Depth Report", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="Thursday Night Football Scouting & News", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("Thursday Night Football Scouting & News"))
 
         # 5. Friday: KEYS_TO_VICTORY (when no Thursday game played)
         elif self.strategy == NFLDayStrategy.KEYS_TO_VICTORY:
             sections.append(StandingsSection(title="NFL Standings & Playoff Picture", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Final Injury Designations", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="Weekend Keys to Victory & News", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("Weekend Keys to Victory & News"))
 
         # 6. Saturday: WEEKEND_PREP
         elif self.strategy == NFLDayStrategy.WEEKEND_PREP:
             sections.append(StandingsSection(title="NFL Standings", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Gameday Status Report", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="Weekend Matchup Previews & Headlines", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("Weekend Matchup Previews & Headlines"))
 
         # 7. Sunday: GAMEDAY_CARD
         else:
             sections.append(StandingsSection(title="NFL Standings", provider=self.provider, date=self.date))
             if featured_id:
                 sections.append(NFLInjuriesSection(title=f"{featured_name} Inactives & Lineup Notes", provider=self.provider, team_id=featured_id))
-            back_news = NewsArticlesSection(title="Sunday Gameday News & Roster Updates", provider=self.news_provider, max_articles=4)
-            back_news.page_slot = "back"
-            sections.append(back_news)
+            sections.append(create_news_section("Sunday Gameday News & Roster Updates"))
 
         return sections

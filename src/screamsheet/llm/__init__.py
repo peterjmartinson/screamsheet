@@ -17,6 +17,8 @@ from .summarizers import (
     FrenchMLBA2Summarizer,
     FrenchMLBB2C1Summarizer,
     FrenchMLBLexiconSummarizer,
+    NFLGameSummarizer,
+    NFLNewsSummarizer,
     EmailNewsSummarizer,
     EmailImportantSummarizer,
 )
@@ -37,6 +39,8 @@ __all__ = [
     "FrenchMLBA2Summarizer",
     "FrenchMLBB2C1Summarizer",
     "FrenchMLBLexiconSummarizer",
+    "NFLGameSummarizer",
+    "NFLNewsSummarizer",
     "EmailNewsSummarizer",
     "EmailImportantSummarizer",
 ]

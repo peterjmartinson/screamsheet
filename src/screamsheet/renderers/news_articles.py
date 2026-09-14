@@ -1,6 +1,6 @@
 """News articles section renderer."""
 import logging
-from typing import List, Any
+from typing import List, Any, Optional
 import os
 from dotenv import load_dotenv
 from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
@@ -22,12 +22,23 @@ class NewsArticlesSection(Section):
     Shows summarized news articles from a news provider.
     """
     
-    def __init__(self, title: str, provider: DataProvider, max_articles: int = 4, start_index: int = 0, summarizer_class=None):
+    def __init__(
+        self,
+        title: str,
+        provider: DataProvider,
+        max_articles: int = 4,
+        start_index: int = 0,
+        summarizer_class=None,
+        schedule_items: Optional[List[str]] = None,
+        schedule_title: str = "Today's Broadcasts",
+    ):
         super().__init__(title)
         self.provider = provider
         self.max_articles = max_articles
         self.start_index = start_index
         self._summarizer_class = summarizer_class  # None → default NewsSummarizer
+        self.schedule_items = schedule_items or []
+        self.schedule_title = schedule_title
         self.styles = getSampleStyleSheet()
         
         self.subtitle_style = ParagraphStyle(
@@ -77,7 +88,9 @@ class NewsArticlesSection(Section):
 
             # Only summarize the slice of articles for this section to avoid
             # duplicate LLM calls when multiple sections use the same provider.
-            articles_slice = articles[self.start_index:self.start_index + self.max_articles]
+            # If schedule_items is provided, take at most 3 articles to keep layout balanced
+            limit = min(self.max_articles, 3) if self.schedule_items else self.max_articles
+            articles_slice = articles[self.start_index:self.start_index + limit]
 
             summarized_slice = self._generate_summaries(articles_slice, summarizer)
 
@@ -91,7 +104,8 @@ class NewsArticlesSection(Section):
             # Fall back: build minimal summarized-like entries from the sliced
             # articles so rendering has a stable structure.
             try:
-                articles_slice = articles[self.start_index:self.start_index + self.max_articles]
+                limit = min(self.max_articles, 3) if self.schedule_items else self.max_articles
+                articles_slice = articles[self.start_index:self.start_index + limit]
                 fallback = []
                 for article in articles_slice:
                     entry = article.get('entry', {})
@@ -264,6 +278,29 @@ class NewsArticlesSection(Section):
                 left_column.extend(article_elements)
             else:
                 right_column.extend(article_elements)
+
+        # Append schedule card if schedule items are provided
+        if self.schedule_items:
+            schedule_elements = [
+                Paragraph(f"<b>{self.schedule_title}</b>", self.article_heading_style),
+            ]
+            item_font_size = 8.5 if len(self.schedule_items) > 6 else 9.5
+            item_leading = 11 if len(self.schedule_items) > 6 else 13
+            item_style = ParagraphStyle(
+                name="ScheduleItemText",
+                parent=self.styles['Normal'],
+                fontName='Helvetica',
+                fontSize=item_font_size,
+                leading=item_leading,
+                spaceAfter=2,
+            )
+            for item in self.schedule_items:
+                schedule_elements.append(Paragraph(item, item_style))
+
+            if len(left_column) > len(right_column):
+                right_column.extend(schedule_elements)
+            else:
+                left_column.extend(schedule_elements)
         
         # Create table for two-column layout
         news_table = Table(
@@ -288,7 +325,7 @@ class NewsArticlesSection(Section):
         if not self.data:
             self.fetch_data()
         
-        if not self.data:
+        if not self.data and not self.schedule_items:
             return ""
         
         lines = []
@@ -309,5 +346,12 @@ class NewsArticlesSection(Section):
             link_str = f"\n\n[Source]({link})" if link else ""
             lines.append(f"### {title}\n\n{byline_str}{summary}{link_str}")
         
+        if self.schedule_items:
+            sched_lines = [f"### {self.schedule_title}\n"]
+            for item in self.schedule_items:
+                clean_item = item.replace("<b>", "**").replace("</b>", "**")
+                sched_lines.append(f"- {clean_item}")
+            lines.append("\n".join(sched_lines))
+
         return "\n\n---\n\n".join(lines)
 

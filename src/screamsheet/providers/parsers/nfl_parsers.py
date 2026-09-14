@@ -1,5 +1,7 @@
 """Pure parser functions for NFL ESPN API payloads."""
+from datetime import datetime
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 
 def extract_scoreboard(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -84,11 +86,52 @@ def extract_scoreboard(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         except (ValueError, TypeError):
             away_team_id = None
 
+        # Broadcasts
+        broadcast_names: List[str] = []
+        for b in comp.get("broadcasts", []):
+            if isinstance(b, dict):
+                for n in b.get("names", []):
+                    if n and str(n) not in broadcast_names:
+                        broadcast_names.append(str(n))
+        if not broadcast_names:
+            for gb in comp.get("geoBroadcasts", []):
+                if isinstance(gb, dict):
+                    media_name = gb.get("media", {}).get("shortName")
+                    if media_name and str(media_name) not in broadcast_names:
+                        broadcast_names.append(str(media_name))
+
+        broadcast_str = ", ".join(broadcast_names)
+
+        # Kickoff time (ET)
+        time_et = ""
+        game_date_et = None
+        if game_date:
+            try:
+                dt = datetime.fromisoformat(game_date.replace("Z", "+00:00"))
+                dt_et = dt.astimezone(ZoneInfo("America/New_York"))
+                time_et = dt_et.strftime("%-I:%M%p").lower() + " ET"
+                game_date_et = dt_et.date()
+            except Exception:
+                time_et = ""
+                game_date_et = None
+
+        if time_et and broadcast_str:
+            schedule_line = f"{away_team_name} @ {home_team_name}: {time_et} ({broadcast_str})"
+        elif time_et:
+            schedule_line = f"{away_team_name} @ {home_team_name}: {time_et}"
+        else:
+            schedule_line = f"{away_team_name} @ {home_team_name}"
+
         games.append({
             "gameId": game_id,
             "game_id": game_id,
             "gameDate": game_date,
             "game_date": game_date,
+            "game_date_et": game_date_et,
+            "time_et": time_et,
+            "broadcasts": broadcast_names,
+            "broadcast": broadcast_str,
+            "schedule_line": schedule_line,
             "status": status_name,
             "away_team": away_team_name,
             "away_score": parse_score(away_comp.get("score")),

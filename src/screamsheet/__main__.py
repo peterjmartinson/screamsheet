@@ -182,6 +182,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 output_filename=f'Files/NFL_scores_{today_str}.pdf',
                 favorite_teams=nfl_teams,
                 date=game_date,
+                display_date=today,
                 mad_fan=cfg.nfl.mad_fan,
             ),
         ),

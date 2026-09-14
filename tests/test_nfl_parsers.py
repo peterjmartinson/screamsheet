@@ -317,3 +317,44 @@ def test_extract_box_score_empty():
     assert extract_box_score(None) == {}
     assert extract_box_score({"header": {}}) == {}
 
+
+def test_extract_scoreboard_with_broadcasts():
+    payload = {
+        "events": [
+            {
+                "id": "401872931",
+                "date": "2026-09-15T00:15Z",
+                "competitions": [
+                    {
+                        "status": {"type": {"name": "STATUS_SCHEDULED"}},
+                        "broadcasts": [
+                            {"market": "national", "names": ["ESPN", "ABC"]}
+                        ],
+                        "competitors": [
+                            {
+                                "homeAway": "home",
+                                "team": {"displayName": "Kansas City Chiefs", "name": "Chiefs", "id": 12},
+                                "score": "0",
+                            },
+                            {
+                                "homeAway": "away",
+                                "team": {"displayName": "Denver Broncos", "name": "Broncos", "id": 7},
+                                "score": "0",
+                            },
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+    games = extract_scoreboard(payload)
+    assert len(games) == 1
+    g = games[0]
+    assert g["away_team"] == "Denver Broncos"
+    assert g["home_team"] == "Kansas City Chiefs"
+    assert g["broadcasts"] == ["ESPN", "ABC"]
+    assert g["broadcast"] == "ESPN, ABC"
+    assert g["time_et"] == "8:15pm ET"
+    assert g["schedule_line"] == "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)"
+
+

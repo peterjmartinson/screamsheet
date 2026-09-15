@@ -187,3 +187,14 @@ class TestMadFanOrderOptions:
             mock_factory.return_value = mock_sheet
             _run_mlb(order_mlb, _TODAY, "20260516", "/tmp")
             assert mock_factory.call_args[1]["mad_fan"] is True
+
+    def test_runner_nfl_forwards_display_date_to_factory(self) -> None:
+        from screamsheet.runner import _run_nfl
+        from screamsheet.order import NFLOrderOptions
+        order_nfl = NFLOrderOptions(favorite_teams=[TeamEntry(id=23, name="Steelers")], mad_fan=True)
+        with patch("screamsheet.runner.ScreamsheetFactory.create_nfl_screamsheet") as mock_factory:
+            mock_sheet = MagicMock()
+            mock_factory.return_value = mock_sheet
+            _run_nfl(order_nfl, _TODAY, "20260914", "/tmp")
+            assert mock_factory.call_args[1]["display_date"] == _TODAY
+            assert mock_factory.call_args[1]["mad_fan"] is True

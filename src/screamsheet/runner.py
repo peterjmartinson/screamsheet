@@ -112,6 +112,7 @@ def _run_nfl(options: NFLOrderOptions, today: datetime, today_str: str, output_d
         output_filename=_output_path(output_dir, f"NFL_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
         date=game_date,
+        display_date=today,
         mad_fan=options.mad_fan,
     )
     return sheet.generate()

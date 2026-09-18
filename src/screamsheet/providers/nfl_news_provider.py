@@ -24,6 +24,7 @@ class NFLNewsProvider(DataProvider):
         "odds, tips",
         "stream games",
         "fantasy football",
+        "prospects",
     ]
 
     _NEWS_API_URL: str = "http://site.api.espn.com/apis/site/v2/sports/football/nfl/news"

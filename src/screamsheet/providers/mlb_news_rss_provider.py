@@ -131,6 +131,7 @@ class MLBNewsRssProvider(DataProvider):
     JUNK_KEYWORDS: List[str] = [
         "Spring Breakout",
         "stream games",
+        "prospects",
     ]
 
     # CSS selectors tried in order when scraping MLB.com article pages.

@@ -48,6 +48,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         gmail_app_password: Optional[str] = None,
         important_senders: Optional[List[str]] = None,
         email_provider: Optional[GmailNewsProvider] = None,
+        latest_email_per_sender: bool = True,
     ):
         target_date = date if date is not None else datetime.now()
         super().__init__(output_filename, date=target_date, display_date=target_date)
@@ -67,6 +68,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.gmail_app_password = gmail_app_password
         self.important_senders = important_senders or []
         self.email_provider = email_provider
+        self.latest_email_per_sender = latest_email_per_sender
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
         self.xkcd_provider = XKCDProvider() if self.include_xkcd else None
 
@@ -124,6 +126,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                 provider=ep,
                 date=self.date,
                 title="Morning News Briefing",
+                latest_per_sender=self.latest_email_per_sender,
             )
 
         important_sec = None
@@ -138,6 +141,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                 provider=ep,
                 date=self.date,
                 title="Important Notices & Updates",
+                latest_per_sender=self.latest_email_per_sender,
             )
 
         if news_sec or important_sec:

@@ -230,6 +230,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 include_email_news=cfg.briefing.include_email_news,
                 gmail_label=cfg.briefing.gmail_label,
                 important_senders=cfg.briefing.important_senders,
+                latest_email_per_sender=cfg.briefing.latest_email_per_sender,
                 date=today,
             ),
         ),

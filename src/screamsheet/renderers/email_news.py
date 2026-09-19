@@ -31,6 +31,7 @@ class EmailNewsSection(Section):
         max_emails: int = 8,
         lookback_hours: int = 24,
         summarizer_class=None,
+        latest_per_sender: bool = True,
     ) -> None:
         super().__init__(title)
         self.page_slot = "back"
@@ -39,6 +40,7 @@ class EmailNewsSection(Section):
         self.max_emails = max_emails
         self.lookback_hours = lookback_hours
         self._summarizer_class = summarizer_class or EmailNewsSummarizer
+        self.latest_per_sender = latest_per_sender
         self.items: List[Dict[str, Any]] = []
         self._setup_styles()
 
@@ -101,6 +103,19 @@ class EmailNewsSection(Section):
         if not emails:
             self.items = []
             return
+
+        if self.latest_per_sender:
+            seen_senders = set()
+            deduped = []
+            for em in emails:
+                key = (em.get("sender_email") or em.get("sender") or "").strip().lower()
+                if key:
+                    if key not in seen_senders:
+                        seen_senders.add(key)
+                        deduped.append(em)
+                else:
+                    deduped.append(em)
+            emails = deduped
 
         emails = emails[: self.max_emails]
 

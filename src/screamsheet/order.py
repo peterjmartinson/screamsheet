@@ -168,6 +168,7 @@ class BriefingOrderOptions:
     include_email_news: bool = True
     gmail_label: str = "Morning Briefing"
     important_senders: list[str] = field(default_factory=list)
+    latest_email_per_sender: bool = True
 
 
 @dataclass

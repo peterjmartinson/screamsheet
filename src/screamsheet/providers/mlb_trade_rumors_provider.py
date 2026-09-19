@@ -20,7 +20,7 @@ class MLBTradeRumorsProvider(DataProvider):
     EXCLUSION_KEYWORDS = [
         'Top 50', 'Contest', 'Prediction', 'Subscribers', 'Email List',
         'Presents Our', 'Podcast', 'Live Chat', 'Q&A', 'Ask Us Anything',
-        'Best of', 'MLBTR Chat', 'Front Office'
+        'Best of', 'MLBTR Chat', 'Front Office', 'Prospects'
     ]
     
     def __init__(self, favorite_teams: Optional[List[str]] = None, max_articles: int = 4, **config):

@@ -251,6 +251,7 @@ def _run_briefing(
         "include_email_news": options.include_email_news,
         "gmail_label": options.gmail_label,
         "important_senders": options.important_senders,
+        "latest_email_per_sender": options.latest_email_per_sender,
         "date": today,
     }
     if options.api_url:

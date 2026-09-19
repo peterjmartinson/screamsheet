@@ -246,6 +246,123 @@ def test_agenda_task_due_date_formatting():
     assert "2026-09-15T16:00:00.000Z" not in md
 
 
+def test_parse_due_date():
+    from datetime import date as dt_date
+    from screamsheet.renderers.agenda import parse_due_date
+
+    assert parse_due_date("2026-09-18T16:00:00.000Z") == dt_date(2026, 9, 18)
+    assert parse_due_date("2026-09-18T12:00:00Z") == dt_date(2026, 9, 18)
+    assert parse_due_date("2026-09-18") == dt_date(2026, 9, 18)
+    assert parse_due_date(datetime(2026, 9, 18, 8, 30)) == dt_date(2026, 9, 18)
+    assert parse_due_date(dt_date(2026, 9, 18)) == dt_date(2026, 9, 18)
+    assert parse_due_date(None) is None
+    assert parse_due_date("") is None
+    assert parse_due_date("invalid-date") is None
+
+
+def test_classify_and_sort_tasks_by_due():
+    from datetime import date as dt_date
+    from screamsheet.renderers.agenda import classify_task_due_status, group_and_sort_tasks_by_due
+
+    ref_date = dt_date(2026, 9, 18)
+    t_past = {"title": "Overdue Task", "due": "2026-09-10"}
+    t_today = {"title": "Today's Task", "due": "2026-09-18"}
+    t_future = {"title": "Future Task", "due": "2026-09-25"}
+    t_nodue = {"title": "Undated Task", "due": None}
+
+    assert classify_task_due_status(t_past, ref_date) == "past_due"
+    assert classify_task_due_status(t_today, ref_date) == "due_today"
+    assert classify_task_due_status(t_future, ref_date) == "due_future"
+    assert classify_task_due_status(t_nodue, ref_date) == "due_future"
+
+    tasks = [
+        {"title": "B-Future", "due": "2026-09-26"},
+        {"title": "No-Due-Date", "due": None},
+        {"title": "A-Future", "due": "2026-09-20"},
+        {"title": "B-Past", "due": "2026-09-15"},
+        {"title": "A-Past", "due": "2026-09-10"},
+        {"title": "Z-Today", "due": "2026-09-18"},
+        {"title": "A-Today", "due": "2026-09-18"},
+    ]
+
+    groups = group_and_sort_tasks_by_due(tasks, ref_date)
+    cat_keys = [g[0] for g in groups]
+    assert cat_keys == ["past_due", "due_today", "due_future"]
+
+    # past due sorted earliest first
+    past_tasks = groups[0][2]
+    assert [t["title"] for t in past_tasks] == ["A-Past", "B-Past"]
+
+    # due today sorted by title
+    today_tasks = groups[1][2]
+    assert [t["title"] for t in today_tasks] == ["A-Today", "Z-Today"]
+
+    # due future sorted earliest date first, then undated at end
+    future_tasks = groups[2][2]
+    assert [t["title"] for t in future_tasks] == ["A-Future", "B-Future", "No-Due-Date"]
+
+
+def test_homework_assignee_categorization_rendering():
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection
+
+    ref_date = datetime(2026, 9, 18)
+    sections_data = [
+        {
+            "title": "Homework",
+            "tasks": [
+                # Isaac's tasks
+                {"id": "i1", "title": "Math Worksheet", "due": "2026-09-15", "assignee": "Isaac"},
+                {"id": "i2", "title": "History Reading", "due": "2026-09-18", "assignee": "Isaac"},
+                {"id": "i3", "title": "Science Fair", "due": "2026-09-22", "assignee": "Isaac"},
+                # Asher's tasks (no past due tasks)
+                {"id": "a1", "title": "Spelling List", "due": "2026-09-18", "assignee": "Asher"},
+                {"id": "a2", "title": "Book Report", "due": "2026-09-24", "assignee": "Asher"},
+                {"id": "a3", "title": "Drawing Practice", "due": None, "assignee": "Asher"},
+            ],
+        }
+    ]
+
+    multi_day = [{"date": "2026-09-18", "agenda": [], "sections": sections_data}]
+    section = TwoColumnAgendaSection(
+        date=ref_date,
+        multi_day_data=multi_day,
+        upcoming_days=1,
+    )
+
+    # 1. Test PDF flowables
+    flowables = section._render_tasks_block(sections_data, ref_date=ref_date)
+    texts = [getattr(f, "text", "") for f in flowables if hasattr(f, "text")]
+
+    # Check assignee headers
+    assert any("Homework &mdash; Isaac" in t for t in texts)
+    assert any("Homework &mdash; Asher" in t for t in texts)
+
+    # Under Isaac, all three categories should appear
+    isaac_idx = next(i for i, t in enumerate(texts) if "Homework &mdash; Isaac" in t)
+    asher_idx = next(i for i, t in enumerate(texts) if "Homework &mdash; Asher" in t)
+    assert isaac_idx < asher_idx
+
+    isaac_texts = texts[isaac_idx:asher_idx]
+    asher_texts = texts[asher_idx:]
+
+    assert any("PAST DUE" in t for t in isaac_texts)
+    assert any("DUE TODAY" in t for t in isaac_texts)
+    assert any("DUE IN FUTURE" in t for t in isaac_texts)
+
+    # Asher has no past due tasks, so PAST DUE should NOT appear under Asher
+    assert not any("PAST DUE" in t for t in asher_texts)
+    assert any("DUE TODAY" in t for t in asher_texts)
+    assert any("DUE IN FUTURE" in t for t in asher_texts)
+
+    # 2. Test Markdown rendering
+    md = section.render_markdown()
+    assert "### Homework — Isaac" in md
+    assert "### Homework — Asher" in md
+    assert "#### PAST DUE" in md
+    assert "#### DUE TODAY" in md
+    assert "#### DUE IN FUTURE" in md
+
+
 def test_gmail_provider_sender_parsing():
     from screamsheet.providers.gmail_provider import _parse_sender
 
@@ -565,4 +682,117 @@ def test_two_column_briefing_back_section_render_and_overflow():
     md = back_sec.render_markdown()
     assert "News Source 1" in md
     assert "School Office" in md
+
+
+def test_email_news_deduplication_latest_per_sender():
+    from screamsheet.renderers.email_news import EmailNewsSection
+
+    mock_provider = MagicMock()
+    mock_provider.fetch_emails.return_value = [
+        {
+            "id": "1",
+            "sender": "Politico",
+            "sender_email": "editor@politico.com",
+            "subject": "Politico Evening",
+            "date": datetime(2026, 8, 28, 18, 0),
+            "body": "Politico evening update.",
+        },
+        {
+            "id": "2",
+            "sender": "Punchbowl News",
+            "sender_email": "newsletters@punchbowl.news",
+            "subject": "Punchbowl PM",
+            "date": datetime(2026, 8, 28, 16, 0),
+            "body": "Punchbowl afternoon update.",
+        },
+        {
+            "id": "3",
+            "sender": "Politico",
+            "sender_email": "editor@politico.com",
+            "subject": "Politico Afternoon",
+            "date": datetime(2026, 8, 28, 12, 0),
+            "body": "Politico afternoon update.",
+        },
+        {
+            "id": "4",
+            "sender": "Politico",
+            "sender_email": "editor@politico.com",
+            "subject": "Politico Morning",
+            "date": datetime(2026, 8, 28, 7, 0),
+            "body": "Politico morning update.",
+        },
+        {
+            "id": "5",
+            "sender": "Punchbowl News",
+            "sender_email": "newsletters@punchbowl.news",
+            "subject": "Punchbowl AM",
+            "date": datetime(2026, 8, 28, 6, 0),
+            "body": "Punchbowl morning update.",
+        },
+    ]
+
+    # Test with default latest_per_sender=True
+    sec = EmailNewsSection(provider=mock_provider, date=datetime(2026, 8, 28))
+    sec.fetch_data()
+    assert len(sec.items) == 2
+    assert sec.items[0]["subject"] == "Politico Evening"
+    assert sec.items[1]["subject"] == "Punchbowl PM"
+
+    # Test with latest_per_sender=False
+    sec_all = EmailNewsSection(provider=mock_provider, date=datetime(2026, 8, 28), latest_per_sender=False)
+    sec_all.fetch_data()
+    assert len(sec_all.items) == 5
+
+
+def test_important_emails_deduplication_latest_per_sender():
+    from screamsheet.renderers.important_emails import ImportantEmailsSection
+
+    mock_provider = MagicMock()
+    mock_provider.fetch_important_emails.return_value = [
+        {
+            "id": "1",
+            "sender": "Principal Smith",
+            "sender_email": "admin@mainlineclassical.org",
+            "subject": "Bus Route Update 2",
+            "date": datetime(2026, 8, 28, 15, 0),
+            "body": "Second bus update.",
+        },
+        {
+            "id": "2",
+            "sender": "Principal Smith",
+            "sender_email": "admin@mainlineclassical.org",
+            "subject": "Bus Route Update 1",
+            "date": datetime(2026, 8, 28, 10, 0),
+            "body": "First bus update.",
+        },
+        {
+            "id": "3",
+            "sender": "Anna Shavin",
+            "sender_email": "annashavin@gmail.com",
+            "subject": "Doctor Appointment",
+            "date": datetime(2026, 8, 28, 9, 0),
+            "body": "Reminder about appointment.",
+        },
+    ]
+
+    # Test with default latest_per_sender=True
+    sec = ImportantEmailsSection(
+        important_senders=["mainlineclassical.org", "annashavin@gmail.com"],
+        provider=mock_provider,
+        date=datetime(2026, 8, 28),
+    )
+    sec.fetch_data()
+    assert len(sec.items) == 2
+    assert sec.items[0]["subject"] == "Bus Route Update 2"
+    assert sec.items[1]["subject"] == "Doctor Appointment"
+
+    # Test with latest_per_sender=False
+    sec_all = ImportantEmailsSection(
+        important_senders=["mainlineclassical.org", "annashavin@gmail.com"],
+        provider=mock_provider,
+        date=datetime(2026, 8, 28),
+        latest_per_sender=False,
+    )
+    sec_all.fetch_data()
+    assert len(sec_all.items) == 3
 

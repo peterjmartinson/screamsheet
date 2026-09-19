@@ -468,6 +468,7 @@ class ScreamsheetFactory:
         gmail_app_password: Optional[str] = None,
         important_senders: Optional[List[str]] = None,
         email_provider: Optional[Any] = None,
+        latest_email_per_sender: bool = True,
     ) -> MorningBriefingScreamsheet:
         """
         Create a Morning Briefing screamsheet.
@@ -490,6 +491,7 @@ class ScreamsheetFactory:
             gmail_app_password: Optional Gmail app password override.
             important_senders: Optional list of priority senders (addresses or domains) to scan from INBOX.
             email_provider: Optional custom email provider.
+            latest_email_per_sender: Only show the latest email per sender (default True).
 
         Returns:
             MorningBriefingScreamsheet instance
@@ -512,5 +514,6 @@ class ScreamsheetFactory:
             gmail_app_password=gmail_app_password,
             important_senders=important_senders,
             email_provider=email_provider,
+            latest_email_per_sender=latest_email_per_sender,
         )
 

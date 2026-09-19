@@ -136,6 +136,28 @@ def convert_time_to_eastern_and_duration(
     return f"{start_fmt}{dur_str}"
 
 
+def parse_due_date(due: Any) -> Optional[dt_date]:
+    """
+    Extract the due date as a dt_date object from an ISO datetime string,
+    a date string (YYYY-MM-DD), datetime, or date.
+    Returns None if missing or unparseable.
+    """
+    if not due:
+        return None
+    if isinstance(due, datetime):
+        return due.date()
+    if isinstance(due, dt_date):
+        return due
+    due_str = str(due).strip()
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})", due_str)
+    if m:
+        try:
+            return datetime.strptime(m.group(1), "%Y-%m-%d").date()
+        except Exception:
+            return None
+    return None
+
+
 def format_due_date(due: Any) -> str:
     """
     Format a due date string or datetime into YYYY-MM-DD.
@@ -151,6 +173,75 @@ def format_due_date(due: Any) -> str:
     if m:
         return m.group(1)
     return due_str
+
+
+DUE_CATEGORIES = [
+    ("past_due", "PAST DUE"),
+    ("due_today", "DUE TODAY"),
+    ("due_future", "DUE IN FUTURE"),
+]
+
+
+def classify_task_due_status(task: Dict[str, Any], ref_date: dt_date) -> str:
+    """
+    Classify a task based on its due date relative to ref_date:
+    - 'past_due': due date exists and is earlier than ref_date.
+    - 'due_today': due date exists and equals ref_date.
+    - 'due_future': due date is later than ref_date, or task has no due date.
+    """
+    due_d = parse_due_date(task.get("due"))
+    if due_d is None:
+        return "due_future"
+    if due_d < ref_date:
+        return "past_due"
+    if due_d == ref_date:
+        return "due_today"
+    return "due_future"
+
+
+def group_and_sort_tasks_by_due(
+    tasks: List[Dict[str, Any]],
+    ref_date: dt_date,
+) -> List[tuple[str, str, List[Dict[str, Any]]]]:
+    """
+    Categorize tasks into (cat_key, cat_label, sorted_tasks) tuples.
+    Only categories with at least one task are returned.
+    Sorting within categories:
+    - past_due: earliest due date first (most overdue), then title.
+    - due_today: title.
+    - due_future: tasks with due date first (earliest upcoming), then undated tasks, then title.
+    """
+    buckets: Dict[str, List[Dict[str, Any]]] = {
+        "past_due": [],
+        "due_today": [],
+        "due_future": [],
+    }
+    for task in tasks:
+        cat = classify_task_due_status(task, ref_date)
+        buckets[cat].append(task)
+
+    buckets["past_due"].sort(
+        key=lambda t: (
+            parse_due_date(t.get("due")) or dt_date.min,
+            (t.get("title") or "").strip().lower(),
+        )
+    )
+    buckets["due_today"].sort(
+        key=lambda t: (t.get("title") or "").strip().lower()
+    )
+    buckets["due_future"].sort(
+        key=lambda t: (
+            parse_due_date(t.get("due")) or dt_date.max,
+            (t.get("title") or "").strip().lower(),
+        )
+    )
+
+    result = []
+    for cat_key, cat_label in DUE_CATEGORIES:
+        cat_tasks = buckets[cat_key]
+        if cat_tasks:
+            result.append((cat_key, cat_label, cat_tasks))
+    return result
 
 
 class TwoColumnAgendaSection(Section):
@@ -235,6 +326,47 @@ class TwoColumnAgendaSection(Section):
             leading=11.5,
             textColor=colors.HexColor("#777777"),
         )
+        self._cat_hdr_styles = {
+            "past_due": ParagraphStyle(
+                "CatHdrPastDue",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.HexColor("#A00000"),
+            ),
+            "due_today": ParagraphStyle(
+                "CatHdrDueToday",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.HexColor("#006622"),
+            ),
+            "due_future": ParagraphStyle(
+                "CatHdrDueFuture",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.HexColor("#555555"),
+            ),
+        }
+        self._task_item_style = ParagraphStyle(
+            "ColTaskItem",
+            parent=self._item_style,
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=11.5,
+            leftIndent=6,
+            textColor=colors.HexColor("#222222"),
+        )
 
     def fetch_data(self):
         if not self.multi_day_data and self.provider:
@@ -268,8 +400,21 @@ class TwoColumnAgendaSection(Section):
                 flowables.append(Spacer(1, 1.5))
         return flowables
 
-    def _render_tasks_block(self, sections: List[Dict[str, Any]]) -> List[Any]:
+    def _render_tasks_block(
+        self,
+        sections: List[Dict[str, Any]],
+        ref_date: Optional[Union[datetime, dt_date]] = None,
+    ) -> List[Any]:
         flowables: List[Any] = []
+        if ref_date is not None:
+            target_date = ref_date.date() if isinstance(ref_date, datetime) else ref_date
+        elif isinstance(self.date, datetime):
+            target_date = self.date.date()
+        elif isinstance(self.date, dt_date):
+            target_date = self.date
+        else:
+            target_date = datetime.now().date()
+
         for sec in sections:
             tasks = sec.get("tasks", [])
             if not tasks:
@@ -293,19 +438,24 @@ class TwoColumnAgendaSection(Section):
                 flowables.append(Paragraph(f"<b>{hdr_title}</b>", self._sub_hdr))
                 flowables.append(HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2))
 
-                for task in t_list:
-                    t_title = task.get("title", "")
-                    due = format_due_date(task.get("due", ""))
-                    accessory = task.get("accessory", "")
+                cat_groups = group_and_sort_tasks_by_due(t_list, target_date)
+                for cat_key, cat_label, cat_tasks in cat_groups:
+                    cat_style = self._cat_hdr_styles.get(cat_key, self._cat_hdr_styles["due_future"])
+                    flowables.append(Paragraph(f"<b>{cat_label}</b>", cat_style))
 
-                    task_line = t_title
-                    if due:
-                        task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
-                    if accessory:
-                        task_line += f" <b>({accessory})</b>"
+                    for task in cat_tasks:
+                        t_title = task.get("title", "")
+                        due = format_due_date(task.get("due", ""))
+                        accessory = task.get("accessory", "")
 
-                    flowables.append(Paragraph(task_line, self._item_style))
-                    flowables.append(Spacer(1, 1))
+                        task_line = t_title
+                        if due:
+                            task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
+                        if accessory:
+                            task_line += f" <b>({accessory})</b>"
+
+                        flowables.append(Paragraph(task_line, self._task_item_style))
+                        flowables.append(Spacer(1, 1))
 
                 flowables.append(Spacer(1, 3))
         return flowables
@@ -340,7 +490,7 @@ class TwoColumnAgendaSection(Section):
             # Multi-day mode: Tasks go in left column under Today
             flowables.append(Spacer(1, 4))
             sections = today_data.get("sections", [])
-            flowables.extend(self._render_tasks_block(sections))
+            flowables.extend(self._render_tasks_block(sections, ref_date=today_dt))
 
         return flowables
 
@@ -353,7 +503,12 @@ class TwoColumnAgendaSection(Section):
             if not sections or not any(s.get("tasks") for s in sections):
                 flowables.append(Paragraph("<i>No active tasks</i>", self._empty_style))
             else:
-                flowables.extend(self._render_tasks_block(sections))
+                today_date_str = (today_data or {}).get("date")
+                try:
+                    today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+                except Exception:
+                    today_dt = self.date
+                flowables.extend(self._render_tasks_block(sections, ref_date=today_dt))
         else:
             # Multi-day mode: Right column is Next N Days
             title = f"NEXT {len(upcoming_days_data)} DAYS" if len(upcoming_days_data) != 5 else "NEXT 5 DAYS"
@@ -480,6 +635,7 @@ class TwoColumnAgendaSection(Section):
                 lines.append("")
 
             lines.append("---\n")
+            ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
             for sec in today_data.get("sections", []):
                 sec_title = sec.get("title", "Tasks")
                 grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
@@ -492,18 +648,22 @@ class TwoColumnAgendaSection(Section):
                 for assignee, t_list in grouped_tasks.items():
                     sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
                     lines.append(f"### {sub_title}\n")
-                    for task in t_list:
-                        t_title = task.get("title", "")
-                        due = format_due_date(task.get("due", ""))
-                        accessory = task.get("accessory", "")
-                        task_line = t_title
-                        if due:
-                            task_line += f" _(Due: {due})_"
-                        if accessory:
-                            task_line += f" **({accessory})**"
-                        lines.append(task_line)
-                    lines.append("")
+                    cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
+                    for cat_key, cat_label, cat_tasks in cat_groups:
+                        lines.append(f"#### {cat_label}")
+                        for task in cat_tasks:
+                            t_title = task.get("title", "")
+                            due = format_due_date(task.get("due", ""))
+                            accessory = task.get("accessory", "")
+                            task_line = t_title
+                            if due:
+                                task_line += f" _(Due: {due})_"
+                            if accessory:
+                                task_line += f" **({accessory})**"
+                            lines.append(task_line)
+                        lines.append("")
         else:
+            ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
             for sec in today_data.get("sections", []):
                 sec_title = sec.get("title", "Tasks")
                 grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
@@ -516,17 +676,20 @@ class TwoColumnAgendaSection(Section):
                 for assignee, t_list in grouped_tasks.items():
                     sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
                     lines.append(f"### {sub_title}\n")
-                    for task in t_list:
-                        t_title = task.get("title", "")
-                        due = format_due_date(task.get("due", ""))
-                        accessory = task.get("accessory", "")
-                        task_line = t_title
-                        if due:
-                            task_line += f" _(Due: {due})_"
-                        if accessory:
-                            task_line += f" **({accessory})**"
-                        lines.append(task_line)
-                    lines.append("")
+                    cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
+                    for cat_key, cat_label, cat_tasks in cat_groups:
+                        lines.append(f"#### {cat_label}")
+                        for task in cat_tasks:
+                            t_title = task.get("title", "")
+                            due = format_due_date(task.get("due", ""))
+                            accessory = task.get("accessory", "")
+                            task_line = t_title
+                            if due:
+                                task_line += f" _(Due: {due})_"
+                            if accessory:
+                                task_line += f" **({accessory})**"
+                            lines.append(task_line)
+                        lines.append("")
 
             lines.append("---\n")
             upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []

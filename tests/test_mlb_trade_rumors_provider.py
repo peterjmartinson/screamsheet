@@ -83,3 +83,20 @@ def test_full_team_name_matches_nickname_in_title(mock_parse):
     # Section 2 should be D-backs (priority 1)
     assert articles[1]["slot"] == "Section 2"
     assert "D-backs" in articles[1]["entry"]["title"]
+
+
+@patch("screamsheet.providers.mlb_trade_rumors_provider.feedparser.parse")
+def test_prospects_article_is_excluded(mock_parse):
+    entries = [
+        {"title": "Phillies Top 30 Prospects List", "link": "http://ex.com/p1", "summary": ""},
+        {"title": "Phillies Sign Free Agent Starter", "link": "http://ex.com/p2", "summary": ""},
+        {"title": "Blue Jays Sign Pitcher", "link": "http://ex.com/1", "summary": ""},
+        {"title": "Cubs Trade Outfielder", "link": "http://ex.com/2", "summary": ""},
+        {"title": "Rangers Extension Update", "link": "http://ex.com/3", "summary": ""},
+    ]
+    mock_parse.return_value = _make_feed(entries)
+    provider = MLBTradeRumorsProvider(favorite_teams=["Phillies"])
+    articles = provider.get_articles()
+    titles = [a["entry"]["title"] for a in articles]
+    assert "Phillies Top 30 Prospects List" not in titles
+    assert "Phillies Sign Free Agent Starter" in titles

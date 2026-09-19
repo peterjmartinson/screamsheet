@@ -226,6 +226,16 @@ class TestMLBNewsRssProviderIsJunkArticle:
         entry = {"title": "spring breakout recap", "link": "https://mlb.com/1"}
         assert provider._is_junk_article(entry) is True
 
+    def test_prospects_in_title_is_junk(self, provider: MLBNewsRssProvider) -> None:
+        entry1 = {"title": "Phillies' Top 30 Prospects list", "link": "https://mlb.com/1"}
+        entry2 = {"title": "Padres' Top 30 Prospects list", "link": "https://mlb.com/2"}
+        assert provider._is_junk_article(entry1) is True
+        assert provider._is_junk_article(entry2) is True
+
+    def test_singular_prospect_is_not_junk(self, provider: MLBNewsRssProvider) -> None:
+        entry = {"title": "Top prospect called up to majors", "link": "https://mlb.com/callup"}
+        assert provider._is_junk_article(entry) is False
+
     def test_regular_phillies_article_is_not_junk(self, provider: MLBNewsRssProvider) -> None:
         entry = {"title": "Phillies sign new starter", "link": "https://mlb.com/2"}
         assert provider._is_junk_article(entry) is False

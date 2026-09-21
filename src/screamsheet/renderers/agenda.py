@@ -136,6 +136,45 @@ def convert_time_to_eastern_and_duration(
     return f"{start_fmt}{dur_str}"
 
 
+def convert_accessory_to_eastern(
+    accessory: Optional[str],
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> str:
+    """
+    Convert UTC departure/leave-by timestamps inside the accessory string
+    (e.g., 'Leave by 06:15 PM') into Eastern timezone (e.g., 'Leave by 2:15 PM').
+    Uses ref_date to determine the correct Daylight Saving Time offset (EDT vs EST).
+    """
+    if not accessory:
+        return ""
+
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    def _replace_leave_by(match: re.Match) -> str:
+        prefix = match.group(1)
+        h, m, p = int(match.group(2)), int(match.group(3)), match.group(4).upper()
+        if p == "PM" and h != 12:
+            h += 12
+        elif p == "AM" and h == 12:
+            h = 0
+        dt_utc = datetime(year, month, day, h, m, tzinfo=UTC_TZ)
+        dt_est = dt_utc.astimezone(EASTERN_TZ)
+        est_hour = dt_est.strftime("%I").lstrip("0")
+        est_time = f"{est_hour}:{dt_est.strftime('%M %p')}"
+        return f"{prefix}{est_time}"
+
+    return re.sub(
+        r"\b(Leave by\s+)(\d{1,2}):(\d{2})\s*(AM|PM)\b",
+        _replace_leave_by,
+        accessory,
+        flags=re.IGNORECASE,
+    )
+
+
 def parse_due_date(due: Any) -> Optional[dt_date]:
     """
     Extract the due date as a dt_date object from an ISO datetime string,
@@ -389,7 +428,7 @@ class TwoColumnAgendaSection(Section):
                 time_raw = ev.get("time", "")
                 converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=target_date)
                 title = ev.get("title", "")
-                accessory = ev.get("accessory", "")
+                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=target_date)
 
                 line_text = f"<b>{converted_time}</b> - {title}"
                 flowables.append(Paragraph(line_text, self._item_style))
@@ -537,7 +576,7 @@ class TwoColumnAgendaSection(Section):
                         time_raw = ev.get("time", "")
                         converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
                         title = ev.get("title", "")
-                        accessory = ev.get("accessory", "")
+                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
 
                         if accessory:
                             acc_short = accessory.split("\n")[0]
@@ -602,7 +641,7 @@ class TwoColumnAgendaSection(Section):
                 time_raw = ev.get("time", "")
                 c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=today_dt)
                 title = ev.get("title", "")
-                accessory = ev.get("accessory", "")
+                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=today_dt)
                 lines.append(f"{c_time} - {title}")
                 if accessory:
                     acc_clean = accessory.replace("\n", " • ")
@@ -627,7 +666,7 @@ class TwoColumnAgendaSection(Section):
                     time_raw = ev.get("time", "")
                     c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=tomorrow_dt)
                     title = ev.get("title", "")
-                    accessory = ev.get("accessory", "")
+                    accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=tomorrow_dt)
                     lines.append(f"{c_time} - {title}")
                     if accessory:
                         acc_clean = accessory.replace("\n", " • ")
@@ -713,7 +752,7 @@ class TwoColumnAgendaSection(Section):
                         time_raw = ev.get("time", "")
                         c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
                         title = ev.get("title", "")
-                        accessory = ev.get("accessory", "")
+                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
                         acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""
                         lines.append(f"{c_time} - {title}{acc_str}")
                     lines.append("")

@@ -166,6 +166,74 @@ def test_convert_time_to_eastern_and_duration():
     assert convert_time_to_eastern_and_duration("All Day", ref_date=summer_dt) == "All Day"
 
 
+def test_convert_accessory_to_eastern():
+    from screamsheet.renderers.agenda import convert_accessory_to_eastern
+
+    # Summer date (EDT is UTC-4): 06:15 PM UTC -> 2:15 PM EDT
+    summer_dt = datetime(2026, 9, 1)
+    acc_summer = "Address: 104 Main St, Anytown, USA (15 min drive time. Leave by 06:15 PM)"
+    res_summer = convert_accessory_to_eastern(acc_summer, ref_date=summer_dt)
+    assert res_summer == "Address: 104 Main St, Anytown, USA (15 min drive time. Leave by 2:15 PM)"
+
+    # Winter date (EST is UTC-5): 06:15 PM UTC -> 1:15 PM EST
+    winter_dt = datetime(2026, 1, 15)
+    acc_winter = "Address: 104 Main St, Anytown, USA (15 min drive time. Leave by 06:15 PM)"
+    res_winter = convert_accessory_to_eastern(acc_winter, ref_date=winter_dt)
+    assert res_winter == "Address: 104 Main St, Anytown, USA (15 min drive time. Leave by 1:15 PM)"
+
+    # Morning departure: 01:10 PM UTC -> 9:10 AM EDT
+    acc_morning = "Address: 123 Main St (20 min drive time. Leave by 01:10 PM)"
+    assert convert_accessory_to_eastern(acc_morning, ref_date=summer_dt) == "Address: 123 Main St (20 min drive time. Leave by 9:10 AM)"
+
+    # Case insensitivity
+    assert convert_accessory_to_eastern("leave by 06:15 pm", ref_date=summer_dt) == "leave by 2:15 PM"
+
+    # Non-leave-by accessories preserved
+    assert convert_accessory_to_eastern("Room 101", ref_date=summer_dt) == "Room 101"
+    assert convert_accessory_to_eastern("Phone: (555) 012-3456", ref_date=summer_dt) == "Phone: (555) 012-3456"
+    assert convert_accessory_to_eastern("", ref_date=summer_dt) == ""
+    assert convert_accessory_to_eastern(None, ref_date=summer_dt) == ""
+
+
+def test_agenda_event_leave_by_rendering():
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection
+
+    summer_dt = datetime(2026, 9, 1)
+    test_data = [
+        {
+            "date": "2026-09-01",
+            "agenda": [
+                {
+                    "id": "evt-1",
+                    "type": "event",
+                    "title": "Dentist Appointment",
+                    "time": "06:30 PM - 07:30 PM",
+                    "accessory": "Address: 104 Main St, Anytown, USA (15 min drive time. Leave by 06:15 PM)",
+                }
+            ],
+            "sections": [],
+        }
+    ]
+
+    section = TwoColumnAgendaSection(
+        date=summer_dt,
+        multi_day_data=test_data,
+        upcoming_days=1,
+    )
+    # Check PDF flowables
+    events_flowables = section._render_events_block(test_data[0]["agenda"], ref_date=summer_dt)
+    rendered_text = " ".join(getattr(f, "text", "") for f in events_flowables)
+    assert "2:30 PM (1 hr)" in rendered_text
+    assert "Leave by 2:15 PM" in rendered_text
+    assert "Leave by 06:15 PM" not in rendered_text
+
+    # Check Markdown
+    md = section.render_markdown()
+    assert "2:30 PM (1 hr) - Dentist Appointment" in md
+    assert "Leave by 2:15 PM" in md
+    assert "Leave by 06:15 PM" not in md
+
+
 def test_sort_agenda_events():
     from screamsheet.renderers.agenda import sort_agenda_events
 

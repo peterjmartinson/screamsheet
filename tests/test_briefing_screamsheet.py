@@ -264,14 +264,14 @@ def test_format_due_date():
     from datetime import date as dt_date
     from screamsheet.renderers.agenda import format_due_date
 
-    assert format_due_date("2026-09-15T16:00:00.000Z") == "2026-09-15"
-    assert format_due_date("2026-09-15T12:00:00Z") == "2026-09-15"
-    assert format_due_date("2026-09-15") == "2026-09-15"
-    assert format_due_date(datetime(2026, 9, 15, 12, 0)) == "2026-09-15"
-    assert format_due_date(dt_date(2026, 9, 15)) == "2026-09-15"
+    assert format_due_date("2026-09-15T16:00:00.000Z") == "Sep 15"
+    assert format_due_date("2026-09-15T12:00:00Z") == "Sep 15"
+    assert format_due_date("2026-09-15") == "Sep 15"
+    assert format_due_date(datetime(2026, 9, 15, 12, 0)) == "Sep 15"
+    assert format_due_date(dt_date(2026, 9, 15)) == "Sep 15"
     assert format_due_date("") == ""
     assert format_due_date(None) == ""
-    assert format_due_date("Not a date") == "Not a date"
+    assert format_due_date("Not a date") == ""
 
 
 def test_agenda_task_due_date_formatting():
@@ -305,13 +305,15 @@ def test_agenda_task_due_date_formatting():
     # Check PDF flowables
     tasks_flowables = section._render_tasks_block(test_data[0]["sections"])
     rendered_text = " ".join(getattr(f, "text", "") for f in tasks_flowables)
-    assert "(Due: 2026-09-15)" in rendered_text
-    assert "2026-09-15T16:00:00.000Z" not in rendered_text
+    assert "(Sep 15)" in rendered_text
+    assert "Due:" not in rendered_text
+    assert "2026-09-15" not in rendered_text
 
     # Check Markdown
     md = section.render_markdown()
-    assert "(Due: 2026-09-15)" in md
-    assert "2026-09-15T16:00:00.000Z" not in md
+    assert "(Sep 15)" in md
+    assert "Due:" not in md
+    assert "2026-09-15" not in md
 
 
 def test_parse_due_date():
@@ -356,6 +358,8 @@ def test_classify_and_sort_tasks_by_due():
     groups = group_and_sort_tasks_by_due(tasks, ref_date)
     cat_keys = [g[0] for g in groups]
     assert cat_keys == ["past_due", "due_today", "due_future"]
+    cat_labels = [g[1] for g in groups]
+    assert cat_labels == ["PAST", "TODAY", "FUTURE"]
 
     # past due sorted earliest first
     past_tasks = groups[0][2]
@@ -379,12 +383,12 @@ def test_homework_assignee_categorization_rendering():
             "title": "Homework",
             "tasks": [
                 # Isaac's tasks
-                {"id": "i1", "title": "Math Worksheet", "due": "2026-09-15", "assignee": "Isaac"},
-                {"id": "i2", "title": "History Reading", "due": "2026-09-18", "assignee": "Isaac"},
-                {"id": "i3", "title": "Science Fair", "due": "2026-09-22", "assignee": "Isaac"},
+                {"id": "i1", "title": "Math Worksheet", "due": "2026-09-15", "assignee": "Isaac", "labels": ["Math"], "accessory": "PAST DUE"},
+                {"id": "i2", "title": "History Reading", "due": "2026-09-18", "assignee": "Isaac", "labels": [{"name": "History"}]},
+                {"id": "i3", "title": "Science Fair", "due": "2026-09-22", "assignee": "Isaac", "label": "Science"},
                 # Asher's tasks (no past due tasks)
-                {"id": "a1", "title": "Spelling List", "due": "2026-09-18", "assignee": "Asher"},
-                {"id": "a2", "title": "Book Report", "due": "2026-09-24", "assignee": "Asher"},
+                {"id": "a1", "title": "Spelling List", "due": "2026-09-18", "assignee": "Asher", "labels": ["Spelling"]},
+                {"id": "a2", "title": "Book Report", "due": "2026-09-24", "assignee": "Asher", "labels": ["Reading"]},
                 {"id": "a3", "title": "Drawing Practice", "due": None, "assignee": "Asher"},
             ],
         }
@@ -413,22 +417,89 @@ def test_homework_assignee_categorization_rendering():
     isaac_texts = texts[isaac_idx:asher_idx]
     asher_texts = texts[asher_idx:]
 
-    assert any("PAST DUE" in t for t in isaac_texts)
-    assert any("DUE TODAY" in t for t in isaac_texts)
-    assert any("DUE IN FUTURE" in t for t in isaac_texts)
+    assert any("PAST" in t for t in isaac_texts)
+    assert any("TODAY" in t for t in isaac_texts)
+    assert any("FUTURE" in t for t in isaac_texts)
 
-    # Asher has no past due tasks, so PAST DUE should NOT appear under Asher
-    assert not any("PAST DUE" in t for t in asher_texts)
-    assert any("DUE TODAY" in t for t in asher_texts)
-    assert any("DUE IN FUTURE" in t for t in asher_texts)
+    # Asher has no past due tasks, so PAST should NOT appear under Asher
+    assert not any("PAST" in t for t in asher_texts)
+    assert any("TODAY" in t for t in asher_texts)
+    assert any("FUTURE" in t for t in asher_texts)
+
+    # Check labels and date format: <b>Label</b> Title (Mmm DD)
+    all_text = " ".join(texts)
+    assert "<b>Math</b> Math Worksheet (Sep 15)" in all_text
+    assert "<b>History</b> History Reading (Sep 18)" in all_text
+    assert "<b>Science</b> Science Fair (Sep 22)" in all_text
+    assert "<b>Spelling</b> Spelling List (Sep 18)" in all_text
+    assert "<b>Reading</b> Book Report (Sep 24)" in all_text
+    assert "Drawing Practice" in all_text
+    # Redundant accessory like (PAST DUE) should be eliminated from the item line
+    assert "(PAST DUE)" not in all_text
 
     # 2. Test Markdown rendering
     md = section.render_markdown()
     assert "### Homework — Isaac" in md
     assert "### Homework — Asher" in md
-    assert "#### PAST DUE" in md
-    assert "#### DUE TODAY" in md
-    assert "#### DUE IN FUTURE" in md
+    assert "#### PAST" in md
+    assert "#### TODAY" in md
+    assert "#### FUTURE" in md
+    assert "**Math** Math Worksheet (Sep 15)" in md
+    assert "**History** History Reading (Sep 18)" in md
+    assert "**Science** Science Fair (Sep 22)" in md
+    assert "**Spelling** Spelling List (Sep 18)" in md
+    assert "**Reading** Book Report (Sep 24)" in md
+    assert "Drawing Practice" in md
+    assert "(PAST DUE)" not in md
+
+
+def test_matching_section_title_and_assignee_header():
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection
+
+    ref_date = datetime(2026, 9, 18)
+    sections_matching = [
+        {
+            "title": "Isaac",
+            "tasks": [
+                {"id": "i1", "title": "Math Worksheet", "due": "2026-09-15", "assignee": "Isaac", "labels": ["Math"]},
+            ],
+        },
+        {
+            "title": "Asher",
+            "tasks": [
+                {"id": "a1", "title": "Spelling List", "due": "2026-09-18", "assignee": "Asher", "labels": ["Spelling"]},
+            ],
+        },
+    ]
+
+    section = TwoColumnAgendaSection(
+        date=ref_date,
+        multi_day_data=[{"date": "2026-09-18", "agenda": [], "sections": sections_matching}],
+        upcoming_days=1,
+    )
+    flowables = section._render_tasks_block(sections_matching, ref_date=ref_date)
+    texts = [getattr(f, "text", "") for f in flowables if hasattr(f, "text")]
+
+    # Should be simply "Isaac" and "Asher", NOT "Isaac &mdash; Isaac"
+    assert "<b>Isaac</b>" in texts
+    assert "<b>Asher</b>" in texts
+    assert not any("Isaac &mdash; Isaac" in t for t in texts)
+    assert not any("Asher &mdash; Asher" in t for t in texts)
+
+    md = section.render_markdown()
+    assert "### Isaac\n" in md
+    assert "### Asher\n" in md
+    assert "Isaac — Isaac" not in md
+    assert "Asher — Asher" not in md
+
+
+def test_agenda_accessory_style_black():
+    from reportlab.lib import colors
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection
+
+    section = TwoColumnAgendaSection(date=datetime(2026, 9, 18))
+    assert section._accessory_style.textColor == colors.black
+    assert section._accessory_style.fontName == "Helvetica-Oblique"
 
 
 def test_gmail_provider_sender_parsing():

@@ -197,27 +197,52 @@ def parse_due_date(due: Any) -> Optional[dt_date]:
     return None
 
 
+def extract_task_label(task: Dict[str, Any]) -> str:
+    """
+    Extract subject label from a task dict.
+    Supports 'labels', 'label', 'tags', and 'subject' keys, whether as
+    strings, lists of strings, or lists of Trello label dicts.
+    """
+    raw = task.get("labels") or task.get("label") or task.get("tags") or task.get("subject")
+    if not raw:
+        return ""
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, (list, tuple)):
+        extracted = []
+        for item in raw:
+            if isinstance(item, str):
+                s = item.strip()
+                if s:
+                    extracted.append(s)
+            elif isinstance(item, dict):
+                name = item.get("name") or item.get("label") or item.get("title") or ""
+                if str(name).strip():
+                    extracted.append(str(name).strip())
+        return ", ".join(extracted)
+    if isinstance(raw, dict):
+        name = raw.get("name") or raw.get("label") or raw.get("title") or ""
+        return str(name).strip()
+    return str(raw).strip()
+
+
 def format_due_date(due: Any) -> str:
     """
-    Format a due date string or datetime into YYYY-MM-DD.
-    Extracts the YYYY-MM-DD date part from ISO datetime strings
-    (e.g., '2026-09-15T16:00:00.000Z' -> '2026-09-15').
+    Format a due date string or datetime into 'Mmm DD' (e.g. 'Sep 22').
+    Returns empty string if missing or unparseable.
     """
     if not due:
         return ""
-    if isinstance(due, (datetime, dt_date)):
-        return due.strftime("%Y-%m-%d")
-    due_str = str(due).strip()
-    m = re.match(r"^(\d{4}-\d{2}-\d{2})", due_str)
-    if m:
-        return m.group(1)
-    return due_str
+    d = parse_due_date(due)
+    if d is not None:
+        return d.strftime("%b %d")
+    return ""
 
 
 DUE_CATEGORIES = [
-    ("past_due", "PAST DUE"),
-    ("due_today", "DUE TODAY"),
-    ("due_future", "DUE IN FUTURE"),
+    ("past_due", "PAST"),
+    ("due_today", "TODAY"),
+    ("due_future", "FUTURE"),
 ]
 
 
@@ -355,7 +380,7 @@ class TwoColumnAgendaSection(Section):
             fontName="Helvetica-Oblique",
             fontSize=8.5,
             leading=10.5,
-            textColor=colors.HexColor("#555555"),
+            textColor=colors.black,
         )
         self._empty_style = ParagraphStyle(
             "ColEmpty",
@@ -374,7 +399,7 @@ class TwoColumnAgendaSection(Section):
                 leading=10.5,
                 spaceBefore=3.5,
                 spaceAfter=1.5,
-                textColor=colors.HexColor("#A00000"),
+                textColor=colors.black,
             ),
             "due_today": ParagraphStyle(
                 "CatHdrDueToday",
@@ -384,7 +409,7 @@ class TwoColumnAgendaSection(Section):
                 leading=10.5,
                 spaceBefore=3.5,
                 spaceAfter=1.5,
-                textColor=colors.HexColor("#006622"),
+                textColor=colors.black,
             ),
             "due_future": ParagraphStyle(
                 "CatHdrDueFuture",
@@ -394,7 +419,7 @@ class TwoColumnAgendaSection(Section):
                 leading=10.5,
                 spaceBefore=3.5,
                 spaceAfter=1.5,
-                textColor=colors.HexColor("#555555"),
+                textColor=colors.black,
             ),
         }
         self._task_item_style = ParagraphStyle(
@@ -458,7 +483,7 @@ class TwoColumnAgendaSection(Section):
             tasks = sec.get("tasks", [])
             if not tasks:
                 continue
-            sec_title = sec.get("title", "Tasks")
+            sec_title = (sec.get("title") or "Tasks").strip()
 
             # Group tasks by assignee preserving order of appearance
             grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
@@ -470,7 +495,10 @@ class TwoColumnAgendaSection(Section):
 
             for assignee, t_list in grouped_tasks.items():
                 if assignee:
-                    hdr_title = f"{sec_title} &mdash; {assignee}"
+                    if sec_title.lower() == assignee.lower():
+                        hdr_title = sec_title
+                    else:
+                        hdr_title = f"{sec_title} &mdash; {assignee}"
                 else:
                     hdr_title = sec_title
 
@@ -483,15 +511,18 @@ class TwoColumnAgendaSection(Section):
                     flowables.append(Paragraph(f"<b>{cat_label}</b>", cat_style))
 
                     for task in cat_tasks:
-                        t_title = task.get("title", "")
+                        label = extract_task_label(task)
+                        t_title = (task.get("title") or task.get("name") or "").strip()
                         due = format_due_date(task.get("due", ""))
-                        accessory = task.get("accessory", "")
 
-                        task_line = t_title
+                        parts = []
+                        if label:
+                            parts.append(f"<b>{label}</b>")
+                        if t_title:
+                            parts.append(t_title)
+                        task_line = " ".join(parts)
                         if due:
-                            task_line += f" <font color='#555555'><i>(Due: {due})</i></font>"
-                        if accessory:
-                            task_line += f" <b>({accessory})</b>"
+                            task_line += f" ({due})"
 
                         flowables.append(Paragraph(task_line, self._task_item_style))
                         flowables.append(Spacer(1, 1))
@@ -580,7 +611,7 @@ class TwoColumnAgendaSection(Section):
 
                         if accessory:
                             acc_short = accessory.split("\n")[0]
-                            acc_part = f" <font color='#555555'>({acc_short})</font>"
+                            acc_part = f" <i>({acc_short})</i>"
                         else:
                             acc_part = ""
 
@@ -676,7 +707,7 @@ class TwoColumnAgendaSection(Section):
             lines.append("---\n")
             ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
             for sec in today_data.get("sections", []):
-                sec_title = sec.get("title", "Tasks")
+                sec_title = (sec.get("title") or "Tasks").strip()
                 grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
                 for task in sec.get("tasks", []):
                     assignee = (task.get("assignee") or "").strip()
@@ -685,27 +716,38 @@ class TwoColumnAgendaSection(Section):
                     grouped_tasks[assignee].append(task)
 
                 for assignee, t_list in grouped_tasks.items():
-                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    if assignee:
+                        if sec_title.lower() == assignee.lower():
+                            sub_title = sec_title
+                        else:
+                            sub_title = f"{sec_title} — {assignee}"
+                    else:
+                        sub_title = sec_title
+
                     lines.append(f"### {sub_title}\n")
                     cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
                     for cat_key, cat_label, cat_tasks in cat_groups:
                         lines.append(f"#### {cat_label}")
                         for task in cat_tasks:
-                            t_title = task.get("title", "")
+                            label = extract_task_label(task)
+                            t_title = (task.get("title") or task.get("name") or "").strip()
                             due = format_due_date(task.get("due", ""))
-                            accessory = task.get("accessory", "")
-                            task_line = t_title
+
+                            parts = []
+                            if label:
+                                parts.append(f"**{label}**")
+                            if t_title:
+                                parts.append(t_title)
+                            task_line = " ".join(parts)
                             if due:
-                                task_line += f" _(Due: {due})_"
-                            if accessory:
-                                task_line += f" **({accessory})**"
+                                task_line += f" ({due})"
                             lines.append(task_line)
                         lines.append("")
         else:
             ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
             for sec in today_data.get("sections", []):
-                sec_title = sec.get("title", "Tasks")
-                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+                sec_title = (sec.get("title") or "Tasks").strip()
+                grouped_tasks = {}
                 for task in sec.get("tasks", []):
                     assignee = (task.get("assignee") or "").strip()
                     if assignee not in grouped_tasks:
@@ -713,20 +755,31 @@ class TwoColumnAgendaSection(Section):
                     grouped_tasks[assignee].append(task)
 
                 for assignee, t_list in grouped_tasks.items():
-                    sub_title = f"{sec_title} — {assignee}" if assignee else sec_title
+                    if assignee:
+                        if sec_title.lower() == assignee.lower():
+                            sub_title = sec_title
+                        else:
+                            sub_title = f"{sec_title} — {assignee}"
+                    else:
+                        sub_title = sec_title
+
                     lines.append(f"### {sub_title}\n")
                     cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
                     for cat_key, cat_label, cat_tasks in cat_groups:
                         lines.append(f"#### {cat_label}")
                         for task in cat_tasks:
-                            t_title = task.get("title", "")
+                            label = extract_task_label(task)
+                            t_title = (task.get("title") or task.get("name") or "").strip()
                             due = format_due_date(task.get("due", ""))
-                            accessory = task.get("accessory", "")
-                            task_line = t_title
+
+                            parts = []
+                            if label:
+                                parts.append(f"**{label}**")
+                            if t_title:
+                                parts.append(t_title)
+                            task_line = " ".join(parts)
                             if due:
-                                task_line += f" _(Due: {due})_"
-                            if accessory:
-                                task_line += f" **({accessory})**"
+                                task_line += f" ({due})"
                             lines.append(task_line)
                         lines.append("")
 

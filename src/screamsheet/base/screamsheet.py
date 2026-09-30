@@ -92,6 +92,7 @@ class BaseScreamsheet(ABC):
         front_frame = Frame(margin, margin, frame_w, frame_h, id="front_frame")
         back_frame = Frame(margin, margin, frame_w, frame_h, id="back_frame")
 
+        Path(self.output_filename).parent.mkdir(parents=True, exist_ok=True)
         doc = BaseDocTemplate(
             self.output_filename,
             pagesize=letter,

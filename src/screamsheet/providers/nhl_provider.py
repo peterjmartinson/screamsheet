@@ -58,7 +58,15 @@ class NHLDataProvider(DataProvider):
             self._dump_json(response, "nhl_game_scores")
         
         games = []
-        games_for_the_day = data.get('gameWeek', [{}])[0].get('games', [])
+        games_for_the_day = []
+        game_weeks = data.get('gameWeek', [])
+        for day in game_weeks:
+            if day.get('date') == game_date:
+                games_for_the_day = day.get('games', [])
+                break
+        else:
+            if game_weeks:
+                games_for_the_day = game_weeks[0].get('games', [])
         
         for game in games_for_the_day:
             game_state = game['gameState']
@@ -135,6 +143,9 @@ class NHLDataProvider(DataProvider):
             division = team_record.get("divisionName")
             conference = team_record.get("conferenceName")
             
+            streak_code = team_record.get("streakCode")
+            streak_count = team_record.get("streakCount")
+            streak_str = f"{streak_code}{streak_count}" if streak_code and streak_count is not None else "-"
             team_obj = {
                 "conference": conference,
                 "division": division,
@@ -149,7 +160,7 @@ class NHLDataProvider(DataProvider):
                 "GF": team_record.get("goalFor"),
                 "GA": team_record.get("goalAgainst"),
                 "DIFF": team_record.get("goalDifferential"),
-                "STRK": team_record.get("streakCode") + str(team_record.get("streakCount"))
+                "STRK": streak_str,
             }
             team_list.append(team_obj)
         
@@ -260,6 +271,8 @@ class NHLDataProvider(DataProvider):
 
         teams: List[Tuple[int, str]] = []
         for day in data.get("gameWeek", []):
+            if "date" in day and day.get("date") != game_date:
+                continue
             for game in day.get("games", []):
                 game_state = game.get("gameState", "")
                 game_type = game.get("gameType", 2)
@@ -301,6 +314,8 @@ class NHLDataProvider(DataProvider):
             
             if 'gameWeek' in schedule_data and schedule_data['gameWeek']:
                 for day in schedule_data['gameWeek']:
+                    if "date" in day and day.get("date") != game_date_str:
+                        continue
                     for game in day.get('games', []):
                         if str(game['gameState']) == self.FINAL_STATUS_CODE:
                             home_id = game['homeTeam']['id']

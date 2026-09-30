@@ -218,6 +218,35 @@ class TestGameScoresSectionPlayoff:
         text = _rendered_text(result)
         assert "(won 4-1)" in text
 
+    def test_mlb_playoff_game_renders_series_badge(self):
+        game = {
+            "away_team": "NY Yankees",
+            "home_team": "LA Dodgers",
+            "away_abbrev": "NYY",
+            "home_abbrev": "LAD",
+            "away_score": 2,
+            "home_score": 4,
+            "status": "Final",
+            "game_type": "W",
+            "series_status": {
+                "top_seed_abbrev": "NYY",
+                "top_seed_wins": 0,
+                "bottom_seed_abbrev": "LAD",
+                "bottom_seed_wins": 2,
+                "needed_to_win": 4,
+            },
+            "gameDate": "2024-10-26T00:08:00Z",
+        }
+        provider = _fake_provider_with_scores([game])
+        sec = GameScoresSection("Scores", provider, date=datetime(2024, 10, 26))
+        sec.data = [game]
+        result = sec.render()
+        text = _rendered_text(result)
+        assert "NY Yankees" in text
+        assert "LA Dodgers" in text
+        assert "(leads 2-0)" in text
+
+
 
 # ---------------------------------------------------------------------------
 # StandingsSection

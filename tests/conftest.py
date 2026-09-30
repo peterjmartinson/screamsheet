@@ -47,6 +47,58 @@ def mlb_schedule_response():
 
 
 @pytest.fixture
+def mlb_playoff_schedule_response():
+    """Minimal MLB /schedule API response — playoff game (gameType W) with seriesStatus."""
+    return {
+        "dates": [
+            {
+                "games": [
+                    {
+                        "gameDate": "2024-10-26T00:08:00Z",
+                        "gameType": "W",
+                        "gamedayType": "P",
+                        "gamesInSeries": 7,
+                        "seriesGameNumber": 2,
+                        "teams": {
+                            "away": {
+                                "team": {
+                                    "id": 147,
+                                    "name": "New York Yankees",
+                                    "shortName": "NY Yankees",
+                                    "abbreviation": "NYY",
+                                },
+                                "leagueRecord": {"wins": 0, "losses": 2, "ties": 0, "pct": ".000"},
+                                "score": 2,
+                            },
+                            "home": {
+                                "team": {
+                                    "id": 119,
+                                    "name": "Los Angeles Dodgers",
+                                    "shortName": "LA Dodgers",
+                                    "abbreviation": "LAD",
+                                },
+                                "leagueRecord": {"wins": 2, "losses": 0, "ties": 0, "pct": "1.000"},
+                                "score": 4,
+                            },
+                        },
+                        "seriesStatus": {
+                            "gameNumber": 2,
+                            "totalGames": 7,
+                            "isTied": False,
+                            "isOver": False,
+                            "wins": 2,
+                            "losses": 0,
+                            "result": "LAD leads 2-0",
+                        },
+                        "status": {"detailedState": "Final"},
+                    }
+                ]
+            }
+        ]
+    }
+
+
+@pytest.fixture
 def mlb_standings_response():
     """Minimal MLB /standings API response (two divisions, two teams each)."""
     return {

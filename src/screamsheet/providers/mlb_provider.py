@@ -7,6 +7,58 @@ from typing import Any, Optional, List, Dict, Tuple
 from ..base import DataProvider
 
 
+POSTSEASON_GAME_TYPES = {"F", "D", "L", "W", "C", "P"}
+
+
+def _extract_mlb_series_status(
+    game: Dict[str, Any], away_abbrev: str, home_abbrev: str
+) -> Optional[Dict[str, Any]]:
+    """Extract series status dict for an MLB postseason game."""
+    raw_series = game.get("seriesStatus")
+    away_team_data = game.get("teams", {}).get("away", {})
+    home_team_data = game.get("teams", {}).get("home", {})
+
+    away_rec = away_team_data.get("leagueRecord", {})
+    home_rec = home_team_data.get("leagueRecord", {})
+
+    away_wins = away_rec.get("wins")
+    home_wins = home_rec.get("wins")
+
+    if away_wins is None or home_wins is None:
+        if raw_series:
+            wins = raw_series.get("wins", 0)
+            losses = raw_series.get("losses", 0)
+            if raw_series.get("isTied"):
+                away_wins = wins
+                home_wins = wins
+            else:
+                winning_id = raw_series.get("winningTeam", {}).get("id")
+                away_id = away_team_data.get("team", {}).get("id")
+                if winning_id is not None and winning_id == away_id:
+                    away_wins = wins
+                    home_wins = losses
+                else:
+                    home_wins = wins
+                    away_wins = losses
+        else:
+            return None
+
+    games_in_series = (
+        game.get("gamesInSeries")
+        or (raw_series.get("totalGames") if raw_series else None)
+        or 7
+    )
+    needed_to_win = (int(games_in_series) // 2) + 1
+
+    return {
+        "top_seed_abbrev": away_abbrev,
+        "top_seed_wins": int(away_wins or 0),
+        "bottom_seed_abbrev": home_abbrev,
+        "bottom_seed_wins": int(home_wins or 0),
+        "needed_to_win": needed_to_win,
+    }
+
+
 class MLBDataProvider(DataProvider):
     """
     Data provider for MLB using the MLB Stats API.
@@ -39,6 +91,7 @@ class MLBDataProvider(DataProvider):
             f"?sportId=1"
             f"&startDate={game_date}"
             f"&endDate={game_date}"
+            f"&hydrate=team,seriesStatus"
         )
         
         response = requests.get(url)
@@ -48,13 +101,45 @@ class MLBDataProvider(DataProvider):
         games = []
         for date_data in data.get("dates", []):
             for game in date_data.get("games", []):
+                away_data = game.get("teams", {}).get("away", {})
+                home_data = game.get("teams", {}).get("home", {})
+                away_team = away_data.get("team", {})
+                home_team = home_data.get("team", {})
+
+                game_type = game.get("gameType", "R")
+                is_playoff = game_type in POSTSEASON_GAME_TYPES
+
+                away_name = away_team.get("name", "")
+                home_name = home_team.get("name", "")
+                away_abbrev = away_team.get("abbreviation") or (away_name[:3].upper() if away_name else "")
+                home_abbrev = home_team.get("abbreviation") or (home_name[:3].upper() if home_name else "")
+
+                # In playoffs, use shortName if available to fit table width
+                if is_playoff:
+                    away_display = away_team.get("shortName") or away_name
+                    home_display = home_team.get("shortName") or home_name
+                else:
+                    away_display = away_name
+                    home_display = home_name
+
+                away_score = away_data.get("score")
+                home_score = home_data.get("score")
+
+                series_status: Optional[Dict[str, Any]] = None
+                if is_playoff:
+                    series_status = _extract_mlb_series_status(game, away_abbrev, home_abbrev)
+
                 game_info = {
                     "gameDate": game.get("gameDate"),
-                    "away_team": game["teams"]["away"]["team"]["name"],
-                    "home_team": game["teams"]["home"]["team"]["name"],
-                    "away_score": game["teams"]["away"].get("score"),
-                    "home_score": game["teams"]["home"].get("score"),
-                    "status": game["status"]["detailedState"]
+                    "away_team": away_display,
+                    "home_team": home_display,
+                    "away_abbrev": away_abbrev,
+                    "home_abbrev": home_abbrev,
+                    "away_score": away_score,
+                    "home_score": home_score,
+                    "status": game.get("status", {}).get("detailedState", ""),
+                    "game_type": game_type,
+                    "series_status": series_status,
                 }
                 games.append(game_info)
         return games

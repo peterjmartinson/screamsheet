@@ -60,6 +60,87 @@ class TestMLBGetGameScores:
 
 
 # ---------------------------------------------------------------------------
+# get_game_scores — new fields (game_type, abbrev, series_status)
+# ---------------------------------------------------------------------------
+
+class TestMLBGetGameScoresNewFields:
+    def test_game_type_included_in_regular_season_game(self, provider, mlb_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["game_type"] == "R"
+
+    def test_away_abbrev_included_in_game_dict(self, provider, mlb_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        # In mlb_schedule_response, no abbrev was provided so it falls back to first 3 letters
+        assert result[0]["away_abbrev"] == "NEW"
+
+    def test_home_abbrev_included_in_game_dict(self, provider, mlb_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["home_abbrev"] == "PHI"
+
+    def test_regular_season_uses_full_team_name(self, provider, mlb_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["away_team"] == "New York Mets"
+        assert result[0]["home_team"] == "Philadelphia Phillies"
+
+    def test_series_status_absent_for_regular_season(self, provider, mlb_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["series_status"] is None
+
+    def test_playoff_game_uses_short_name(self, provider, mlb_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["away_team"] == "NY Yankees"
+        assert result[0]["home_team"] == "LA Dodgers"
+
+    def test_series_status_present_for_playoff_game(self, provider, mlb_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        assert result[0]["series_status"] is not None
+
+    def test_series_status_has_expected_keys(self, provider, mlb_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        ss = result[0]["series_status"]
+        for key in ("top_seed_abbrev", "top_seed_wins", "bottom_seed_abbrev",
+                    "bottom_seed_wins", "needed_to_win"):
+            assert key in ss
+
+    def test_series_status_values_correctly_mapped(self, provider, mlb_playoff_schedule_response, sample_date):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mlb_playoff_schedule_response
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_game_scores(sample_date)
+        ss = result[0]["series_status"]
+        assert ss["top_seed_abbrev"] == "NYY"
+        assert ss["top_seed_wins"] == 0
+        assert ss["bottom_seed_abbrev"] == "LAD"
+        assert ss["bottom_seed_wins"] == 2
+        assert ss["needed_to_win"] == 4
+
+
+
+# ---------------------------------------------------------------------------
 # get_standings
 # ---------------------------------------------------------------------------
 

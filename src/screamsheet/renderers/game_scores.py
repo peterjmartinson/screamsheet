@@ -111,7 +111,7 @@ class GameScoresSection(Section):
                         [game['away_team'], str(game["away_score"]), away_badge],
                         [f"@{game['home_team']}", str(game["home_score"]), home_badge],
                     ]
-                    col_widths = [65, 20, 65]
+                    col_widths = [75, 20, 55]
                 else:
                     table_data = [
                         [game['away_team'], str(game["away_score"])],

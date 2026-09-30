@@ -118,6 +118,18 @@ class TestNHLGetStandings:
         for col in ("conference", "division", "GP", "W", "L"):
             assert col in result.columns
 
+    def test_handles_none_streak_code_at_season_start(self, provider, nhl_standings_response):
+        # Teams that haven't played yet have streakCode=None, streakCount=None
+        resp = dict(nhl_standings_response)
+        standings = list(resp["standings"])
+        standings[0] = dict(standings[0], streakCode=None, streakCount=None)
+        resp["standings"] = standings
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = resp
+        with patch("requests.get", return_value=mock_resp):
+            result = provider.get_standings()
+        assert result.iloc[0]["STRK"] == "-"
+
 
 # ---------------------------------------------------------------------------
 # _get_game_pk

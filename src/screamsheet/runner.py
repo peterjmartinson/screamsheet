@@ -23,6 +23,7 @@ from .order import (
     MLBTradeRumorsOrderOptions,
     NBAOrderOptions,
     NFLOrderOptions,
+    CFBOrderOptions,
     NHLOrderOptions,
     NHLNewsOrderOptions,
     PresidentialOrderOptions,
@@ -51,7 +52,7 @@ def _output_path(output_dir: str, basename: str) -> str:
 
 def _options_summary_entry(field_name: str, options: Any) -> list[str]:
     """Extract a human-readable summary list from a sheet options object."""
-    if field_name in ("nhl", "mlb", "nba", "nfl"):
+    if field_name in ("nhl", "mlb", "nba", "nfl", "cfb"):
         return [t.name for t in getattr(options, "favorite_teams", [])]
     if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "french_mlb_news", "presidential"):
         weather = getattr(options, "weather", None)
@@ -110,6 +111,19 @@ def _run_nfl(options: NFLOrderOptions, today: datetime, today_str: str, output_d
     teams = [(t.id, t.name) for t in options.favorite_teams]
     sheet = ScreamsheetFactory.create_nfl_screamsheet(
         output_filename=_output_path(output_dir, f"NFL_gamescores_{today_str}.pdf"),
+        favorite_teams=teams,
+        date=game_date,
+        display_date=today,
+        mad_fan=options.mad_fan,
+    )
+    return sheet.generate()
+
+
+def _run_cfb(options: CFBOrderOptions, today: datetime, today_str: str, output_dir: str) -> str:
+    game_date = today - timedelta(days=1)
+    teams = [(t.id, t.name) for t in options.favorite_teams]
+    sheet = ScreamsheetFactory.create_cfb_screamsheet(
+        output_filename=_output_path(output_dir, f"CFB_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
         date=game_date,
         display_date=today,
@@ -278,6 +292,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "mlb":              _run_mlb,
     "nba":              _run_nba,
     "nfl":              _run_nfl,
+    "cfb":              _run_cfb,
     "mlb_news":         _run_mlb_news,
     "mlb_trade_rumors": _run_mlb_trade_rumors,
     "french_mlb_news":  _run_french_mlb_news,

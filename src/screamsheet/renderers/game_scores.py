@@ -117,7 +117,7 @@ class GameScoresSection(Section):
                         [game['away_team'], str(game["away_score"])],
                         [f"@{game['home_team']}", str(game["home_score"])],
                     ]
-                    col_widths = [80, 50]
+                    col_widths = [115, 35]
                 table_style = TableStyle([
                     ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
                     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),

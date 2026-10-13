@@ -59,7 +59,10 @@ class StandingsSection(Section):
         # Section title suppressed (document top-level title used instead)
         
         # Detect sport type and render accordingly
-        if 'conference' in self.data.columns and 'division' in self.data.columns and 'GP' in self.data.columns:
+        if 'rank' in self.data.columns and ('points' in self.data.columns or 'record' in self.data.columns or 'previous' in self.data.columns):
+            # College Football / AP Top 25 rankings
+            elements.append(self._render_cfb_rankings(self.data))
+        elif 'conference' in self.data.columns and 'division' in self.data.columns and 'GP' in self.data.columns:
             # NHL-style standings (has conference, division, and GP)
             elements.append(self._render_nhl_standings(self.data))
         elif 'conference' in self.data.columns and 'winPercent' in self.data.columns:
@@ -298,6 +301,56 @@ class StandingsSection(Section):
         final_table.setStyle(master_style)
         
         return final_table
+
+    def _render_cfb_rankings(self, df: pd.DataFrame) -> Table:
+        """Render College Football Top 25 rankings in a two-column layout."""
+        top_half = df.iloc[:13]
+        bottom_half = df.iloc[13:25]
+
+        HEADER = ["#", "Team", "REC", "PRV"]
+        COL_WIDTHS = [22, 148, 52, 38]
+
+        def make_table(sub_df: pd.DataFrame) -> Table:
+            rows = [HEADER]
+            for _, row in sub_df.iterrows():
+                rank_str = str(row.get('rank', ''))
+                team_str = str(row.get('team', ''))
+                rec_str = str(row.get('record', ''))
+                prv_str = str(row.get('previous', '-'))
+                rows.append([rank_str, team_str, rec_str, prv_str])
+            t = Table(rows, colWidths=COL_WIDTHS)
+            t.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ]))
+            return t
+
+        left_t = make_table(top_half)
+        right_t = make_table(bottom_half) if not bottom_half.empty else ""
+
+        grid_data = [
+            [Paragraph("<b>AP TOP 25 RANKINGS (1–13)</b>", self.centered_style),
+             Paragraph("<b>AP TOP 25 RANKINGS (14–25)</b>", self.centered_style)],
+            [left_t, right_t],
+        ]
+
+        master_table = Table(grid_data, colWidths=[270, 270])
+        master_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        return master_table
     
     def _render_generic_standings(self, standings_df: pd.DataFrame) -> Table:
         """Render generic standings table."""

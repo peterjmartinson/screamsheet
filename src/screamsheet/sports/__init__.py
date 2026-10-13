@@ -7,6 +7,7 @@ from .nfl import NFLScreamsheet
 from .nba import NBAScreamsheet
 from .worldcup import FIFAWorldCupScreamsheet
 from .derby import HomeRunDerbyScreamsheet
+from .cfb import CFBScreamsheet
 
 __all__ = [
     'SportsScreamsheet',
@@ -15,6 +16,7 @@ __all__ = [
     'NHLScreamsheet',
     'NFLScreamsheet',
     'NBAScreamsheet',
+    'CFBScreamsheet',
     'FIFAWorldCupScreamsheet',
     'HomeRunDerbyScreamsheet',
 ]

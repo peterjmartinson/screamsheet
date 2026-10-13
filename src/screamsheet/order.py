@@ -92,6 +92,14 @@ class NFLOrderOptions:
 
 
 @dataclass
+class CFBOrderOptions:
+    """Options for the College Football sports sheet."""
+
+    favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
+
+
+@dataclass
 class MLBNewsOrderOptions:
     """Options for the MLB News sheet."""
 
@@ -200,6 +208,7 @@ class ScreamsheetOrder:
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None
     nfl: NFLOrderOptions | None = None
+    cfb: CFBOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None
 

@@ -148,6 +148,7 @@ class ScreamsheetConfig:
     french_mlb: FrenchMLBConfig = field(default_factory=FrenchMLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
+    cfb: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
     briefing: BriefingConfig = field(default_factory=BriefingConfig)
@@ -327,6 +328,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         french_mlb=_parse_french_mlb(raw.get("french_mlb", {})),
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
+        cfb=_parse_sport(raw.get("cfb", {})),
         worldcup=_parse_worldcup(raw.get("worldcup", {})),
         weather=weather,
         sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),

@@ -51,7 +51,7 @@ from .team_aliases_data import ALL_SEEDS
 
 logger = logging.getLogger(__name__)
 
-Sport = Literal["nhl", "mlb", "nba", "nfl"]
+Sport = Literal["nhl", "mlb", "nba", "nfl", "cfb"]
 
 DEFAULT_CSV_PATH = Path(__file__).parent / "data" / "team_aliases.csv"
 
@@ -96,6 +96,15 @@ class _NFLTeam(_Base):
     last_synced = Column(String(25))
 
 
+class _CFBTeam(_Base):
+    __tablename__ = "cfb_teams"
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    team_id     = Column(Integer, nullable=False, index=True)
+    full_name   = Column(String(150), nullable=False)
+    abbrev      = Column(String(10), index=True)
+    last_synced = Column(String(25))
+
+
 class _TeamAlias(_Base):
     __tablename__ = "team_aliases"
     id          = Column(Integer, primary_key=True, autoincrement=True)
@@ -110,6 +119,7 @@ _MODELS: dict[str, type] = {
     "mlb": _MLBTeam,
     "nba": _NBATeam,
     "nfl": _NFLTeam,
+    "cfb": _CFBTeam,
 }
 
 
@@ -599,9 +609,21 @@ def resolve_team(
     if match:
         return match
 
-    # 4. Name substring match
+    # 4. Name substring match (prioritize exact/prefix matches)
     matches = lookup_team_by_name(sport, query_str, db_path)
     if matches:
-        return matches[0]
+        q_lower = query_str.lower()
+        def match_score(m: dict) -> int:
+            fn = m.get("full_name", "").lower()
+            if fn == q_lower:
+                return 0
+            if fn.startswith(f"{q_lower} "):
+                return 1
+            words = fn.split()
+            if q_lower in words:
+                return 2
+            return 3
+        sorted_matches = sorted(matches, key=match_score)
+        return sorted_matches[0]
 
     return None

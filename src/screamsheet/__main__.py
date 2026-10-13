@@ -31,9 +31,10 @@ from .order import (
     TeamEntry,
     WeatherLocationOptions,
     WorldCupOrderOptions,
+    CFBOrderOptions,
 )
 from .runner import run_order
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, CFBScreamsheet, FIFAWorldCupScreamsheet, MLBAllStarScreamsheet, HomeRunDerbyScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -45,6 +46,7 @@ __all__ = [
     'NHLScreamsheet',
     'NFLScreamsheet',
     'NBAScreamsheet',
+    'CFBScreamsheet',
     'MLBTradeRumorsScreamsheet',
     'MLBNewsScreamsheet',
     'NHLNewsScreamsheet',
@@ -86,6 +88,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
     nhl_teams = [(t.id, t.name) for t in cfg.nhl.favorite_teams]
     nba_teams = [(t.id, t.name) for t in cfg.nba.favorite_teams]
     nfl_teams = [(t.id, t.name) for t in cfg.nfl.favorite_teams]
+    cfb_teams = [(t.id, t.name) for t in cfg.cfb.favorite_teams]
     nhl_news_names = cfg.nhl.news_names
     mlb_news_names = cfg.mlb.news_names
     french_mlb_news_names = cfg.french_mlb.news_names
@@ -184,6 +187,16 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 date=game_date,
                 display_date=today,
                 mad_fan=cfg.nfl.mad_fan,
+            ),
+        ),
+        (
+            "College Football  — " + (cfg.cfb.favorite_teams[0].name if cfg.cfb.favorite_teams else "Top 25"),
+            lambda: ScreamsheetFactory.create_cfb_screamsheet(
+                output_filename=f'Files/CFB_scores_{today_str}.pdf',
+                favorite_teams=cfb_teams,
+                date=game_date,
+                display_date=today,
+                mad_fan=cfg.cfb.mad_fan,
             ),
         ),
         (

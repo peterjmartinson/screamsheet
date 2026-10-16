@@ -362,3 +362,84 @@ class TestNBAGetGameSummary:
             assert summary == "Rant summary"
             mock_rant.assert_called_once()
             mock_gen.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# NBAGameExtractor — V3 location teamId=0 filtering & full team name resolution
+# ---------------------------------------------------------------------------
+
+class TestNBAGameExtractor:
+    def test_v3_ignores_zero_team_id_and_resolves_full_team_names(self):
+        """PlayByPlayV3 rows with teamId=0 must not override home/away team IDs,
+        and BoxScoreTraditionalV2 rows without TEAM_NAME must resolve full names."""
+        from screamsheet.providers.extractors import NBAGameExtractor
+
+        box_df = pd.DataFrame([
+            {
+                "GAME_ID": "0012600013",
+                "TEAM_ID": 1610612755,
+                "TEAM_ABBREVIATION": "PHI",
+                "TEAM_CITY": "Philadelphia",
+                "PLAYER_NAME": "VJ Edgecombe",
+                "MIN": "26:01",
+                "PTS": 19,
+                "REB": 3,
+                "AST": 4,
+            },
+            {
+                "GAME_ID": "0012600013",
+                "TEAM_ID": 1610612738,
+                "TEAM_ABBREVIATION": "BOS",
+                "TEAM_CITY": "Boston",
+                "PLAYER_NAME": "Jayson Tatum",
+                "MIN": "28:00",
+                "PTS": 23,
+                "REB": 7,
+                "AST": 5,
+            },
+        ])
+        pbp_df = pd.DataFrame([
+            {
+                "period": 1,
+                "clock": "PT12M00.00S",
+                "teamId": 0,
+                "location": "h",
+                "actionType": "period",
+                "description": "Period Start",
+                "scoreHome": "",
+                "scoreAway": "",
+            },
+            {
+                "period": 1,
+                "clock": "PT11M30.00S",
+                "teamId": 1610612738,
+                "location": "h",
+                "actionType": "Made Shot",
+                "description": "Tatum 3PT Jump Shot",
+                "scoreHome": "144",
+                "scoreAway": "106",
+            },
+            {
+                "period": 1,
+                "clock": "PT11M10.00S",
+                "teamId": 1610612755,
+                "location": "v",
+                "actionType": "Made Shot",
+                "description": "Edgecombe Driving Layup",
+                "scoreHome": "144",
+                "scoreAway": "106",
+            },
+        ])
+        raw_data = {"play_by_play": pbp_df, "boxscore": box_df, "pbp_version": 3}
+
+        extractor = NBAGameExtractor()
+        info = extractor.extract_key_info(raw_data, featured_team_id=1610612755)
+
+        assert isinstance(info, dict)
+        assert info["home_team"] == "Boston Celtics"
+        assert info["away_team"] == "Philadelphia 76ers"
+        assert info["featured_team_is_home"] is False
+        assert info["losing_team"] == "Philadelphia 76ers"
+        assert info["home_score"] == 144
+        assert info["away_score"] == 106
+

@@ -357,10 +357,11 @@ class NBAGameExtractor:
             away_team_id: int = int(team_ids[1])
 
             # V3 play-by-play has a `location` column: 'h' = home, 'v' = visitor.
-            # Use it to reliably map team_id → home/away.
+            # Use it to reliably map team_id → home/away (filtering out teamId=0 period/team events).
+            valid_team_ids = [int(t) for t in team_ids if pd.notna(t) and int(t) != 0]
             if pbp_version == 3 and not pbp.empty and "location" in pbp.columns and "teamId" in pbp.columns:
-                home_rows_pbp = pbp[(pbp["location"] == "h") & pbp["teamId"].notna()]
-                away_rows_pbp = pbp[(pbp["location"] == "v") & pbp["teamId"].notna()]
+                home_rows_pbp = pbp[(pbp["location"] == "h") & pbp["teamId"].isin(valid_team_ids)]
+                away_rows_pbp = pbp[(pbp["location"] == "v") & pbp["teamId"].isin(valid_team_ids)]
                 if not home_rows_pbp.empty and not away_rows_pbp.empty:
                     home_team_id = int(home_rows_pbp.iloc[0]["teamId"])
                     away_team_id = int(away_rows_pbp.iloc[0]["teamId"])
@@ -370,12 +371,28 @@ class NBAGameExtractor:
 
             def _team_name(tid: int) -> str:
                 rows = box[box["TEAM_ID"] == tid]
-                if rows.empty:
-                    return "Unknown Team"
-                r = rows.iloc[0]
-                city = str(r.get("TEAM_CITY", ""))
-                name = str(r.get("TEAM_NICKNAME", r.get("TEAM_NAME", "")))
-                return f"{city} {name}".strip()
+                city = ""
+                name = ""
+                if not rows.empty:
+                    r = rows.iloc[0]
+                    city = str(r.get("TEAM_CITY") or "").strip()
+                    name = str(r.get("TEAM_NICKNAME") or r.get("TEAM_NAME") or "").strip()
+                    if city == "nan":
+                        city = ""
+                    if name == "nan":
+                        name = ""
+                if city and name:
+                    return f"{city} {name}".strip()
+                if name:
+                    return name
+                try:
+                    from nba_api.stats.static import teams as nba_teams
+                    info = nba_teams.find_team_name_by_id(tid)
+                    if info and info.get("full_name"):
+                        return str(info["full_name"])
+                except Exception:
+                    pass
+                return city or "Unknown Team"
 
             home_team_name = _team_name(home_team_id)
             away_team_name = _team_name(away_team_id)

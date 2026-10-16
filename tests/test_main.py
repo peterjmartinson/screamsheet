@@ -115,6 +115,15 @@ class TestBuildOrderFromConfig:
         assert order.french_mlb_news is not None
         assert isinstance(order.french_mlb_news.news_names, list)
 
+    def test_nba_in_batch_order(self):
+        from datetime import datetime
+        from screamsheet.__main__ import _build_order_from_config
+
+        order = _build_order_from_config(datetime(2026, 10, 15))
+        assert order.nba is not None
+        assert len(order.nba.favorite_teams) > 0
+        assert order.nba.favorite_teams[0].name == "Philadelphia 76ers"
+
 
 class TestBuildSheets:
     @pytest.fixture(autouse=True)

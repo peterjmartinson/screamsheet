@@ -300,6 +300,10 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
             news_names=cfg.nhl.news_names,
             weather=weather_nhl,
         ),
+        nba=NBAOrderOptions(
+            favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams],
+            mad_fan=cfg.nba.mad_fan,
+        ),
         presidential=PresidentialOrderOptions(weather=weather_presidential),
         sky=SkyOrderOptions(
             lat=cfg.sky.lat,

@@ -172,3 +172,557 @@ mlb,158,Milwaukee Brewers,MIL,brewers,slug
 mlb,158,Milwaukee Brewers,MIL,Milwaukee,nickname
 mlb,158,Milwaukee Brewers,MIL,Crew,nickname
 mlb,158,Milwaukee Brewers,MIL,Brew Crew,nickname
+nhl,1,New Jersey Devils,NJD,New Jersey Devils,name
+nhl,1,New Jersey Devils,NJD,NJD,abbrev
+nhl,1,New Jersey Devils,NJD,devils,slug
+nhl,1,New Jersey Devils,NJD,Devils,nickname
+nhl,1,New Jersey Devils,NJD,New Jersey,nickname
+nhl,1,New Jersey Devils,NJD,Jersey Devils,nickname
+nhl,2,New York Islanders,NYI,New York Islanders,name
+nhl,2,New York Islanders,NYI,NYI,abbrev
+nhl,2,New York Islanders,NYI,islanders,slug
+nhl,2,New York Islanders,NYI,Islanders,nickname
+nhl,2,New York Islanders,NYI,Isles,nickname
+nhl,2,New York Islanders,NYI,NY Islanders,nickname
+nhl,3,New York Rangers,NYR,New York Rangers,name
+nhl,3,New York Rangers,NYR,NYR,abbrev
+nhl,3,New York Rangers,NYR,rangers,slug
+nhl,3,New York Rangers,NYR,Rangers,nickname
+nhl,3,New York Rangers,NYR,NY Rangers,nickname
+nhl,3,New York Rangers,NYR,Blueshirts,nickname
+nhl,4,Philadelphia Flyers,PHI,Philadelphia Flyers,name
+nhl,4,Philadelphia Flyers,PHI,PHI,abbrev
+nhl,4,Philadelphia Flyers,PHI,flyers,slug
+nhl,4,Philadelphia Flyers,PHI,Flyers,nickname
+nhl,4,Philadelphia Flyers,PHI,Philadelphia,nickname
+nhl,4,Philadelphia Flyers,PHI,Broad Street Bullies,nickname
+nhl,5,Pittsburgh Penguins,PIT,Pittsburgh Penguins,name
+nhl,5,Pittsburgh Penguins,PIT,PIT,abbrev
+nhl,5,Pittsburgh Penguins,PIT,penguins,slug
+nhl,5,Pittsburgh Penguins,PIT,Penguins,nickname
+nhl,5,Pittsburgh Penguins,PIT,Pens,nickname
+nhl,5,Pittsburgh Penguins,PIT,Pittsburgh,nickname
+nhl,6,Boston Bruins,BOS,Boston Bruins,name
+nhl,6,Boston Bruins,BOS,BOS,abbrev
+nhl,6,Boston Bruins,BOS,bruins,slug
+nhl,6,Boston Bruins,BOS,Bruins,nickname
+nhl,6,Boston Bruins,BOS,Boston,nickname
+nhl,6,Boston Bruins,BOS,B's,nickname
+nhl,7,Buffalo Sabres,BUF,Buffalo Sabres,name
+nhl,7,Buffalo Sabres,BUF,BUF,abbrev
+nhl,7,Buffalo Sabres,BUF,sabres,slug
+nhl,7,Buffalo Sabres,BUF,Sabres,nickname
+nhl,7,Buffalo Sabres,BUF,Buffalo,nickname
+nhl,8,Montréal Canadiens,MTL,Montréal Canadiens,name
+nhl,8,Montréal Canadiens,MTL,MTL,abbrev
+nhl,8,Montréal Canadiens,MTL,canadiens,slug
+nhl,8,Montréal Canadiens,MTL,Canadiens,nickname
+nhl,8,Montréal Canadiens,MTL,Habs,nickname
+nhl,8,Montréal Canadiens,MTL,Montreal Canadiens,nickname
+nhl,8,Montréal Canadiens,MTL,Montreal,nickname
+nhl,8,Montréal Canadiens,MTL,Montréal,nickname
+nhl,9,Ottawa Senators,OTT,Ottawa Senators,name
+nhl,9,Ottawa Senators,OTT,OTT,abbrev
+nhl,9,Ottawa Senators,OTT,senators,slug
+nhl,9,Ottawa Senators,OTT,Senators,nickname
+nhl,9,Ottawa Senators,OTT,Sens,nickname
+nhl,9,Ottawa Senators,OTT,Ottawa,nickname
+nhl,10,Toronto Maple Leafs,TOR,Toronto Maple Leafs,name
+nhl,10,Toronto Maple Leafs,TOR,TOR,abbrev
+nhl,10,Toronto Maple Leafs,TOR,mapleleafs,slug
+nhl,10,Toronto Maple Leafs,TOR,Maple Leafs,nickname
+nhl,10,Toronto Maple Leafs,TOR,Leafs,nickname
+nhl,10,Toronto Maple Leafs,TOR,Toronto,nickname
+nhl,12,Carolina Hurricanes,CAR,Carolina Hurricanes,name
+nhl,12,Carolina Hurricanes,CAR,CAR,abbrev
+nhl,12,Carolina Hurricanes,CAR,hurricanes,slug
+nhl,12,Carolina Hurricanes,CAR,Hurricanes,nickname
+nhl,12,Carolina Hurricanes,CAR,Canes,nickname
+nhl,12,Carolina Hurricanes,CAR,Carolina,nickname
+nhl,13,Florida Panthers,FLA,Florida Panthers,name
+nhl,13,Florida Panthers,FLA,FLA,abbrev
+nhl,13,Florida Panthers,FLA,panthers,slug
+nhl,13,Florida Panthers,FLA,Panthers,nickname
+nhl,13,Florida Panthers,FLA,Cats,nickname
+nhl,13,Florida Panthers,FLA,Florida,nickname
+nhl,14,Tampa Bay Lightning,TBL,Tampa Bay Lightning,name
+nhl,14,Tampa Bay Lightning,TBL,TBL,abbrev
+nhl,14,Tampa Bay Lightning,TBL,lightning,slug
+nhl,14,Tampa Bay Lightning,TBL,Lightning,nickname
+nhl,14,Tampa Bay Lightning,TBL,Bolts,nickname
+nhl,14,Tampa Bay Lightning,TBL,Tampa Bay,nickname
+nhl,14,Tampa Bay Lightning,TBL,TB,nickname
+nhl,15,Washington Capitals,WSH,Washington Capitals,name
+nhl,15,Washington Capitals,WSH,WSH,abbrev
+nhl,15,Washington Capitals,WSH,capitals,slug
+nhl,15,Washington Capitals,WSH,Capitals,nickname
+nhl,15,Washington Capitals,WSH,Caps,nickname
+nhl,15,Washington Capitals,WSH,Washington,nickname
+nhl,15,Washington Capitals,WSH,WAS,nickname
+nhl,16,Chicago Blackhawks,CHI,Chicago Blackhawks,name
+nhl,16,Chicago Blackhawks,CHI,CHI,abbrev
+nhl,16,Chicago Blackhawks,CHI,blackhawks,slug
+nhl,16,Chicago Blackhawks,CHI,Blackhawks,nickname
+nhl,16,Chicago Blackhawks,CHI,Hawks,nickname
+nhl,16,Chicago Blackhawks,CHI,Chicago,nickname
+nhl,17,Detroit Red Wings,DET,Detroit Red Wings,name
+nhl,17,Detroit Red Wings,DET,DET,abbrev
+nhl,17,Detroit Red Wings,DET,redwings,slug
+nhl,17,Detroit Red Wings,DET,Red Wings,nickname
+nhl,17,Detroit Red Wings,DET,Wings,nickname
+nhl,17,Detroit Red Wings,DET,Detroit,nickname
+nhl,18,Nashville Predators,NSH,Nashville Predators,name
+nhl,18,Nashville Predators,NSH,NSH,abbrev
+nhl,18,Nashville Predators,NSH,predators,slug
+nhl,18,Nashville Predators,NSH,Predators,nickname
+nhl,18,Nashville Predators,NSH,Preds,nickname
+nhl,18,Nashville Predators,NSH,Nashville,nickname
+nhl,19,St. Louis Blues,STL,St. Louis Blues,name
+nhl,19,St. Louis Blues,STL,STL,abbrev
+nhl,19,St. Louis Blues,STL,blues,slug
+nhl,19,St. Louis Blues,STL,Blues,nickname
+nhl,19,St. Louis Blues,STL,St. Louis,nickname
+nhl,19,St. Louis Blues,STL,Saint Louis Blues,nickname
+nhl,20,Calgary Flames,CGY,Calgary Flames,name
+nhl,20,Calgary Flames,CGY,CGY,abbrev
+nhl,20,Calgary Flames,CGY,flames,slug
+nhl,20,Calgary Flames,CGY,Flames,nickname
+nhl,20,Calgary Flames,CGY,Calgary,nickname
+nhl,21,Colorado Avalanche,COL,Colorado Avalanche,name
+nhl,21,Colorado Avalanche,COL,COL,abbrev
+nhl,21,Colorado Avalanche,COL,avalanche,slug
+nhl,21,Colorado Avalanche,COL,Avalanche,nickname
+nhl,21,Colorado Avalanche,COL,Avs,nickname
+nhl,21,Colorado Avalanche,COL,Colorado,nickname
+nhl,22,Edmonton Oilers,EDM,Edmonton Oilers,name
+nhl,22,Edmonton Oilers,EDM,EDM,abbrev
+nhl,22,Edmonton Oilers,EDM,oilers,slug
+nhl,22,Edmonton Oilers,EDM,Oilers,nickname
+nhl,22,Edmonton Oilers,EDM,Edmonton,nickname
+nhl,23,Vancouver Canucks,VAN,Vancouver Canucks,name
+nhl,23,Vancouver Canucks,VAN,VAN,abbrev
+nhl,23,Vancouver Canucks,VAN,canucks,slug
+nhl,23,Vancouver Canucks,VAN,Canucks,nickname
+nhl,23,Vancouver Canucks,VAN,Nucks,nickname
+nhl,23,Vancouver Canucks,VAN,Vancouver,nickname
+nhl,24,Anaheim Ducks,ANA,Anaheim Ducks,name
+nhl,24,Anaheim Ducks,ANA,ANA,abbrev
+nhl,24,Anaheim Ducks,ANA,ducks,slug
+nhl,24,Anaheim Ducks,ANA,Ducks,nickname
+nhl,24,Anaheim Ducks,ANA,Anaheim,nickname
+nhl,24,Anaheim Ducks,ANA,Mighty Ducks,nickname
+nhl,25,Dallas Stars,DAL,Dallas Stars,name
+nhl,25,Dallas Stars,DAL,DAL,abbrev
+nhl,25,Dallas Stars,DAL,stars,slug
+nhl,25,Dallas Stars,DAL,Stars,nickname
+nhl,25,Dallas Stars,DAL,Dallas,nickname
+nhl,26,Los Angeles Kings,LAK,Los Angeles Kings,name
+nhl,26,Los Angeles Kings,LAK,LAK,abbrev
+nhl,26,Los Angeles Kings,LAK,kings,slug
+nhl,26,Los Angeles Kings,LAK,Kings,nickname
+nhl,26,Los Angeles Kings,LAK,Los Angeles,nickname
+nhl,26,Los Angeles Kings,LAK,LA Kings,nickname
+nhl,26,Los Angeles Kings,LAK,LA,nickname
+nhl,28,San Jose Sharks,SJS,San Jose Sharks,name
+nhl,28,San Jose Sharks,SJS,SJS,abbrev
+nhl,28,San Jose Sharks,SJS,sharks,slug
+nhl,28,San Jose Sharks,SJS,Sharks,nickname
+nhl,28,San Jose Sharks,SJS,San Jose,nickname
+nhl,28,San Jose Sharks,SJS,SJ,nickname
+nhl,29,Columbus Blue Jackets,CBJ,Columbus Blue Jackets,name
+nhl,29,Columbus Blue Jackets,CBJ,CBJ,abbrev
+nhl,29,Columbus Blue Jackets,CBJ,bluejackets,slug
+nhl,29,Columbus Blue Jackets,CBJ,Blue Jackets,nickname
+nhl,29,Columbus Blue Jackets,CBJ,Jackets,nickname
+nhl,29,Columbus Blue Jackets,CBJ,Columbus,nickname
+nhl,30,Minnesota Wild,MIN,Minnesota Wild,name
+nhl,30,Minnesota Wild,MIN,MIN,abbrev
+nhl,30,Minnesota Wild,MIN,wild,slug
+nhl,30,Minnesota Wild,MIN,Wild,nickname
+nhl,30,Minnesota Wild,MIN,Minnesota,nickname
+nhl,52,Winnipeg Jets,WPG,Winnipeg Jets,name
+nhl,52,Winnipeg Jets,WPG,WPG,abbrev
+nhl,52,Winnipeg Jets,WPG,jets,slug
+nhl,52,Winnipeg Jets,WPG,Jets,nickname
+nhl,52,Winnipeg Jets,WPG,Winnipeg,nickname
+nhl,54,Vegas Golden Knights,VGK,Vegas Golden Knights,name
+nhl,54,Vegas Golden Knights,VGK,VGK,abbrev
+nhl,54,Vegas Golden Knights,VGK,goldenknights,slug
+nhl,54,Vegas Golden Knights,VGK,Golden Knights,nickname
+nhl,54,Vegas Golden Knights,VGK,Knights,nickname
+nhl,54,Vegas Golden Knights,VGK,Vegas,nickname
+nhl,54,Vegas Golden Knights,VGK,Las Vegas Golden Knights,nickname
+nhl,54,Vegas Golden Knights,VGK,Las Vegas Golden Nights,nickname
+nhl,55,Seattle Kraken,SEA,Seattle Kraken,name
+nhl,55,Seattle Kraken,SEA,SEA,abbrev
+nhl,55,Seattle Kraken,SEA,kraken,slug
+nhl,55,Seattle Kraken,SEA,Kraken,nickname
+nhl,55,Seattle Kraken,SEA,Seattle,nickname
+nhl,68,Utah Mammoth,UTA,Utah Mammoth,name
+nhl,68,Utah Mammoth,UTA,UTA,abbrev
+nhl,68,Utah Mammoth,UTA,mammoth,slug
+nhl,68,Utah Mammoth,UTA,Mammoth,nickname
+nhl,68,Utah Mammoth,UTA,Utah,nickname
+nhl,68,Utah Mammoth,UTA,Utah Hockey Club,nickname
+nba,1610612737,Atlanta Hawks,ATL,Atlanta Hawks,name
+nba,1610612737,Atlanta Hawks,ATL,ATL,abbrev
+nba,1610612737,Atlanta Hawks,ATL,hawks,slug
+nba,1610612737,Atlanta Hawks,ATL,Hawks,nickname
+nba,1610612737,Atlanta Hawks,ATL,Atlanta,nickname
+nba,1610612738,Boston Celtics,BOS,Boston Celtics,name
+nba,1610612738,Boston Celtics,BOS,BOS,abbrev
+nba,1610612738,Boston Celtics,BOS,celtics,slug
+nba,1610612738,Boston Celtics,BOS,Celtics,nickname
+nba,1610612738,Boston Celtics,BOS,Celts,nickname
+nba,1610612738,Boston Celtics,BOS,Boston,nickname
+nba,1610612739,Cleveland Cavaliers,CLE,Cleveland Cavaliers,name
+nba,1610612739,Cleveland Cavaliers,CLE,CLE,abbrev
+nba,1610612739,Cleveland Cavaliers,CLE,cavaliers,slug
+nba,1610612739,Cleveland Cavaliers,CLE,Cavaliers,nickname
+nba,1610612739,Cleveland Cavaliers,CLE,Cavs,nickname
+nba,1610612739,Cleveland Cavaliers,CLE,Cleveland,nickname
+nba,1610612740,New Orleans Pelicans,NOP,New Orleans Pelicans,name
+nba,1610612740,New Orleans Pelicans,NOP,NOP,abbrev
+nba,1610612740,New Orleans Pelicans,NOP,pelicans,slug
+nba,1610612740,New Orleans Pelicans,NOP,Pelicans,nickname
+nba,1610612740,New Orleans Pelicans,NOP,Pels,nickname
+nba,1610612740,New Orleans Pelicans,NOP,New Orleans,nickname
+nba,1610612740,New Orleans Pelicans,NOP,NO,nickname
+nba,1610612741,Chicago Bulls,CHI,Chicago Bulls,name
+nba,1610612741,Chicago Bulls,CHI,CHI,abbrev
+nba,1610612741,Chicago Bulls,CHI,bulls,slug
+nba,1610612741,Chicago Bulls,CHI,Bulls,nickname
+nba,1610612741,Chicago Bulls,CHI,Chicago,nickname
+nba,1610612742,Dallas Mavericks,DAL,Dallas Mavericks,name
+nba,1610612742,Dallas Mavericks,DAL,DAL,abbrev
+nba,1610612742,Dallas Mavericks,DAL,mavericks,slug
+nba,1610612742,Dallas Mavericks,DAL,Mavericks,nickname
+nba,1610612742,Dallas Mavericks,DAL,Mavs,nickname
+nba,1610612742,Dallas Mavericks,DAL,Dallas,nickname
+nba,1610612743,Denver Nuggets,DEN,Denver Nuggets,name
+nba,1610612743,Denver Nuggets,DEN,DEN,abbrev
+nba,1610612743,Denver Nuggets,DEN,nuggets,slug
+nba,1610612743,Denver Nuggets,DEN,Nuggets,nickname
+nba,1610612743,Denver Nuggets,DEN,Denver,nickname
+nba,1610612744,Golden State Warriors,GSW,Golden State Warriors,name
+nba,1610612744,Golden State Warriors,GSW,GSW,abbrev
+nba,1610612744,Golden State Warriors,GSW,warriors,slug
+nba,1610612744,Golden State Warriors,GSW,Warriors,nickname
+nba,1610612744,Golden State Warriors,GSW,Dubs,nickname
+nba,1610612744,Golden State Warriors,GSW,Golden State,nickname
+nba,1610612744,Golden State Warriors,GSW,GS,nickname
+nba,1610612745,Houston Rockets,HOU,Houston Rockets,name
+nba,1610612745,Houston Rockets,HOU,HOU,abbrev
+nba,1610612745,Houston Rockets,HOU,rockets,slug
+nba,1610612745,Houston Rockets,HOU,Rockets,nickname
+nba,1610612745,Houston Rockets,HOU,Houston,nickname
+nba,1610612746,Los Angeles Clippers,LAC,Los Angeles Clippers,name
+nba,1610612746,Los Angeles Clippers,LAC,LAC,abbrev
+nba,1610612746,Los Angeles Clippers,LAC,clippers,slug
+nba,1610612746,Los Angeles Clippers,LAC,Clippers,nickname
+nba,1610612746,Los Angeles Clippers,LAC,Clips,nickname
+nba,1610612746,Los Angeles Clippers,LAC,LA Clippers,nickname
+nba,1610612747,Los Angeles Lakers,LAL,Los Angeles Lakers,name
+nba,1610612747,Los Angeles Lakers,LAL,LAL,abbrev
+nba,1610612747,Los Angeles Lakers,LAL,lakers,slug
+nba,1610612747,Los Angeles Lakers,LAL,Lakers,nickname
+nba,1610612747,Los Angeles Lakers,LAL,LA Lakers,nickname
+nba,1610612748,Miami Heat,MIA,Miami Heat,name
+nba,1610612748,Miami Heat,MIA,MIA,abbrev
+nba,1610612748,Miami Heat,MIA,heat,slug
+nba,1610612748,Miami Heat,MIA,Heat,nickname
+nba,1610612748,Miami Heat,MIA,Miami,nickname
+nba,1610612749,Milwaukee Bucks,MIL,Milwaukee Bucks,name
+nba,1610612749,Milwaukee Bucks,MIL,MIL,abbrev
+nba,1610612749,Milwaukee Bucks,MIL,bucks,slug
+nba,1610612749,Milwaukee Bucks,MIL,Bucks,nickname
+nba,1610612749,Milwaukee Bucks,MIL,Milwaukee,nickname
+nba,1610612750,Minnesota Timberwolves,MIN,Minnesota Timberwolves,name
+nba,1610612750,Minnesota Timberwolves,MIN,MIN,abbrev
+nba,1610612750,Minnesota Timberwolves,MIN,timberwolves,slug
+nba,1610612750,Minnesota Timberwolves,MIN,Timberwolves,nickname
+nba,1610612750,Minnesota Timberwolves,MIN,Wolves,nickname
+nba,1610612750,Minnesota Timberwolves,MIN,T-Wolves,nickname
+nba,1610612750,Minnesota Timberwolves,MIN,Minnesota,nickname
+nba,1610612751,Brooklyn Nets,BKN,Brooklyn Nets,name
+nba,1610612751,Brooklyn Nets,BKN,BKN,abbrev
+nba,1610612751,Brooklyn Nets,BKN,nets,slug
+nba,1610612751,Brooklyn Nets,BKN,Nets,nickname
+nba,1610612751,Brooklyn Nets,BKN,Brooklyn,nickname
+nba,1610612751,Brooklyn Nets,BKN,BRK,nickname
+nba,1610612752,New York Knicks,NYK,New York Knicks,name
+nba,1610612752,New York Knicks,NYK,NYK,abbrev
+nba,1610612752,New York Knicks,NYK,knicks,slug
+nba,1610612752,New York Knicks,NYK,Knicks,nickname
+nba,1610612752,New York Knicks,NYK,NY Knicks,nickname
+nba,1610612753,Orlando Magic,ORL,Orlando Magic,name
+nba,1610612753,Orlando Magic,ORL,ORL,abbrev
+nba,1610612753,Orlando Magic,ORL,magic,slug
+nba,1610612753,Orlando Magic,ORL,Magic,nickname
+nba,1610612753,Orlando Magic,ORL,Orlando,nickname
+nba,1610612754,Indiana Pacers,IND,Indiana Pacers,name
+nba,1610612754,Indiana Pacers,IND,IND,abbrev
+nba,1610612754,Indiana Pacers,IND,pacers,slug
+nba,1610612754,Indiana Pacers,IND,Pacers,nickname
+nba,1610612754,Indiana Pacers,IND,Indiana,nickname
+nba,1610612755,Philadelphia 76ers,PHI,Philadelphia 76ers,name
+nba,1610612755,Philadelphia 76ers,PHI,PHI,abbrev
+nba,1610612755,Philadelphia 76ers,PHI,sixers,slug
+nba,1610612755,Philadelphia 76ers,PHI,76ers,nickname
+nba,1610612755,Philadelphia 76ers,PHI,Sixers,nickname
+nba,1610612755,Philadelphia 76ers,PHI,Philadelphia,nickname
+nba,1610612755,Philadelphia 76ers,PHI,Philly 76ers,nickname
+nba,1610612756,Phoenix Suns,PHX,Phoenix Suns,name
+nba,1610612756,Phoenix Suns,PHX,PHX,abbrev
+nba,1610612756,Phoenix Suns,PHX,suns,slug
+nba,1610612756,Phoenix Suns,PHX,Suns,nickname
+nba,1610612756,Phoenix Suns,PHX,Phoenix,nickname
+nba,1610612756,Phoenix Suns,PHX,PHO,nickname
+nba,1610612757,Portland Trail Blazers,POR,Portland Trail Blazers,name
+nba,1610612757,Portland Trail Blazers,POR,POR,abbrev
+nba,1610612757,Portland Trail Blazers,POR,blazers,slug
+nba,1610612757,Portland Trail Blazers,POR,Trail Blazers,nickname
+nba,1610612757,Portland Trail Blazers,POR,Blazers,nickname
+nba,1610612757,Portland Trail Blazers,POR,Portland,nickname
+nba,1610612758,Sacramento Kings,SAC,Sacramento Kings,name
+nba,1610612758,Sacramento Kings,SAC,SAC,abbrev
+nba,1610612758,Sacramento Kings,SAC,kings,slug
+nba,1610612758,Sacramento Kings,SAC,Kings,nickname
+nba,1610612758,Sacramento Kings,SAC,Sacramento,nickname
+nba,1610612759,San Antonio Spurs,SAS,San Antonio Spurs,name
+nba,1610612759,San Antonio Spurs,SAS,SAS,abbrev
+nba,1610612759,San Antonio Spurs,SAS,spurs,slug
+nba,1610612759,San Antonio Spurs,SAS,Spurs,nickname
+nba,1610612759,San Antonio Spurs,SAS,San Antonio,nickname
+nba,1610612759,San Antonio Spurs,SAS,SA,nickname
+nba,1610612760,Oklahoma City Thunder,OKC,Oklahoma City Thunder,name
+nba,1610612760,Oklahoma City Thunder,OKC,OKC,abbrev
+nba,1610612760,Oklahoma City Thunder,OKC,thunder,slug
+nba,1610612760,Oklahoma City Thunder,OKC,Thunder,nickname
+nba,1610612760,Oklahoma City Thunder,OKC,Oklahoma City,nickname
+nba,1610612761,Toronto Raptors,TOR,Toronto Raptors,name
+nba,1610612761,Toronto Raptors,TOR,TOR,abbrev
+nba,1610612761,Toronto Raptors,TOR,raptors,slug
+nba,1610612761,Toronto Raptors,TOR,Raptors,nickname
+nba,1610612761,Toronto Raptors,TOR,Raps,nickname
+nba,1610612761,Toronto Raptors,TOR,Toronto,nickname
+nba,1610612762,Utah Jazz,UTA,Utah Jazz,name
+nba,1610612762,Utah Jazz,UTA,UTA,abbrev
+nba,1610612762,Utah Jazz,UTA,jazz,slug
+nba,1610612762,Utah Jazz,UTA,Jazz,nickname
+nba,1610612762,Utah Jazz,UTA,Utah,nickname
+nba,1610612763,Memphis Grizzlies,MEM,Memphis Grizzlies,name
+nba,1610612763,Memphis Grizzlies,MEM,MEM,abbrev
+nba,1610612763,Memphis Grizzlies,MEM,grizzlies,slug
+nba,1610612763,Memphis Grizzlies,MEM,Grizzlies,nickname
+nba,1610612763,Memphis Grizzlies,MEM,Grizz,nickname
+nba,1610612763,Memphis Grizzlies,MEM,Memphis,nickname
+nba,1610612764,Washington Wizards,WAS,Washington Wizards,name
+nba,1610612764,Washington Wizards,WAS,WAS,abbrev
+nba,1610612764,Washington Wizards,WAS,wizards,slug
+nba,1610612764,Washington Wizards,WAS,Wizards,nickname
+nba,1610612764,Washington Wizards,WAS,Wiz,nickname
+nba,1610612764,Washington Wizards,WAS,Washington,nickname
+nba,1610612764,Washington Wizards,WAS,WSH,nickname
+nba,1610612765,Detroit Pistons,DET,Detroit Pistons,name
+nba,1610612765,Detroit Pistons,DET,DET,abbrev
+nba,1610612765,Detroit Pistons,DET,pistons,slug
+nba,1610612765,Detroit Pistons,DET,Pistons,nickname
+nba,1610612765,Detroit Pistons,DET,Detroit,nickname
+nba,1610612766,Charlotte Hornets,CHA,Charlotte Hornets,name
+nba,1610612766,Charlotte Hornets,CHA,CHA,abbrev
+nba,1610612766,Charlotte Hornets,CHA,hornets,slug
+nba,1610612766,Charlotte Hornets,CHA,Hornets,nickname
+nba,1610612766,Charlotte Hornets,CHA,Charlotte,nickname
+nba,1610612766,Charlotte Hornets,CHA,CHO,nickname
+nfl,1,Atlanta Falcons,ATL,Atlanta Falcons,name
+nfl,1,Atlanta Falcons,ATL,ATL,abbrev
+nfl,1,Atlanta Falcons,ATL,falcons,slug
+nfl,1,Atlanta Falcons,ATL,Falcons,nickname
+nfl,1,Atlanta Falcons,ATL,Dirty Birds,nickname
+nfl,1,Atlanta Falcons,ATL,Atlanta,nickname
+nfl,2,Buffalo Bills,BUF,Buffalo Bills,name
+nfl,2,Buffalo Bills,BUF,BUF,abbrev
+nfl,2,Buffalo Bills,BUF,bills,slug
+nfl,2,Buffalo Bills,BUF,Bills,nickname
+nfl,2,Buffalo Bills,BUF,Buffalo,nickname
+nfl,3,Chicago Bears,CHI,Chicago Bears,name
+nfl,3,Chicago Bears,CHI,CHI,abbrev
+nfl,3,Chicago Bears,CHI,bears,slug
+nfl,3,Chicago Bears,CHI,Bears,nickname
+nfl,3,Chicago Bears,CHI,Da Bears,nickname
+nfl,3,Chicago Bears,CHI,Chicago,nickname
+nfl,4,Cincinnati Bengals,CIN,Cincinnati Bengals,name
+nfl,4,Cincinnati Bengals,CIN,CIN,abbrev
+nfl,4,Cincinnati Bengals,CIN,bengals,slug
+nfl,4,Cincinnati Bengals,CIN,Bengals,nickname
+nfl,4,Cincinnati Bengals,CIN,Cincinnati,nickname
+nfl,5,Cleveland Browns,CLE,Cleveland Browns,name
+nfl,5,Cleveland Browns,CLE,CLE,abbrev
+nfl,5,Cleveland Browns,CLE,browns,slug
+nfl,5,Cleveland Browns,CLE,Browns,nickname
+nfl,5,Cleveland Browns,CLE,Cleveland,nickname
+nfl,6,Dallas Cowboys,DAL,Dallas Cowboys,name
+nfl,6,Dallas Cowboys,DAL,DAL,abbrev
+nfl,6,Dallas Cowboys,DAL,cowboys,slug
+nfl,6,Dallas Cowboys,DAL,Cowboys,nickname
+nfl,6,Dallas Cowboys,DAL,Boys,nickname
+nfl,6,Dallas Cowboys,DAL,Dallas,nickname
+nfl,7,Denver Broncos,DEN,Denver Broncos,name
+nfl,7,Denver Broncos,DEN,DEN,abbrev
+nfl,7,Denver Broncos,DEN,broncos,slug
+nfl,7,Denver Broncos,DEN,Broncos,nickname
+nfl,7,Denver Broncos,DEN,Denver,nickname
+nfl,8,Detroit Lions,DET,Detroit Lions,name
+nfl,8,Detroit Lions,DET,DET,abbrev
+nfl,8,Detroit Lions,DET,lions,slug
+nfl,8,Detroit Lions,DET,Lions,nickname
+nfl,8,Detroit Lions,DET,Detroit,nickname
+nfl,9,Green Bay Packers,GB,Green Bay Packers,name
+nfl,9,Green Bay Packers,GB,GB,abbrev
+nfl,9,Green Bay Packers,GB,packers,slug
+nfl,9,Green Bay Packers,GB,Packers,nickname
+nfl,9,Green Bay Packers,GB,Pack,nickname
+nfl,9,Green Bay Packers,GB,Green Bay,nickname
+nfl,9,Green Bay Packers,GB,GBP,nickname
+nfl,10,Tennessee Titans,TEN,Tennessee Titans,name
+nfl,10,Tennessee Titans,TEN,TEN,abbrev
+nfl,10,Tennessee Titans,TEN,titans,slug
+nfl,10,Tennessee Titans,TEN,Titans,nickname
+nfl,10,Tennessee Titans,TEN,Tennessee,nickname
+nfl,11,Indianapolis Colts,IND,Indianapolis Colts,name
+nfl,11,Indianapolis Colts,IND,IND,abbrev
+nfl,11,Indianapolis Colts,IND,colts,slug
+nfl,11,Indianapolis Colts,IND,Colts,nickname
+nfl,11,Indianapolis Colts,IND,Indianapolis,nickname
+nfl,11,Indianapolis Colts,IND,Indy,nickname
+nfl,12,Kansas City Chiefs,KC,Kansas City Chiefs,name
+nfl,12,Kansas City Chiefs,KC,KC,abbrev
+nfl,12,Kansas City Chiefs,KC,chiefs,slug
+nfl,12,Kansas City Chiefs,KC,Chiefs,nickname
+nfl,12,Kansas City Chiefs,KC,Kansas City,nickname
+nfl,12,Kansas City Chiefs,KC,KCC,nickname
+nfl,13,Las Vegas Raiders,LV,Las Vegas Raiders,name
+nfl,13,Las Vegas Raiders,LV,LV,abbrev
+nfl,13,Las Vegas Raiders,LV,raiders,slug
+nfl,13,Las Vegas Raiders,LV,Raiders,nickname
+nfl,13,Las Vegas Raiders,LV,Las Vegas,nickname
+nfl,13,Las Vegas Raiders,LV,Vegas,nickname
+nfl,13,Las Vegas Raiders,LV,LVR,nickname
+nfl,13,Las Vegas Raiders,LV,OAK,nickname
+nfl,13,Las Vegas Raiders,LV,Oakland Raiders,nickname
+nfl,14,Los Angeles Rams,LAR,Los Angeles Rams,name
+nfl,14,Los Angeles Rams,LAR,LAR,abbrev
+nfl,14,Los Angeles Rams,LAR,rams,slug
+nfl,14,Los Angeles Rams,LAR,Rams,nickname
+nfl,14,Los Angeles Rams,LAR,LA Rams,nickname
+nfl,14,Los Angeles Rams,LAR,LA,nickname
+nfl,15,Miami Dolphins,MIA,Miami Dolphins,name
+nfl,15,Miami Dolphins,MIA,MIA,abbrev
+nfl,15,Miami Dolphins,MIA,dolphins,slug
+nfl,15,Miami Dolphins,MIA,Dolphins,nickname
+nfl,15,Miami Dolphins,MIA,Fins,nickname
+nfl,15,Miami Dolphins,MIA,Miami,nickname
+nfl,16,Minnesota Vikings,MIN,Minnesota Vikings,name
+nfl,16,Minnesota Vikings,MIN,MIN,abbrev
+nfl,16,Minnesota Vikings,MIN,vikings,slug
+nfl,16,Minnesota Vikings,MIN,Vikings,nickname
+nfl,16,Minnesota Vikings,MIN,Vikes,nickname
+nfl,16,Minnesota Vikings,MIN,Minnesota,nickname
+nfl,17,New England Patriots,NE,New England Patriots,name
+nfl,17,New England Patriots,NE,NE,abbrev
+nfl,17,New England Patriots,NE,patriots,slug
+nfl,17,New England Patriots,NE,Patriots,nickname
+nfl,17,New England Patriots,NE,Pats,nickname
+nfl,17,New England Patriots,NE,New England,nickname
+nfl,17,New England Patriots,NE,NEP,nickname
+nfl,18,New Orleans Saints,NO,New Orleans Saints,name
+nfl,18,New Orleans Saints,NO,NO,abbrev
+nfl,18,New Orleans Saints,NO,saints,slug
+nfl,18,New Orleans Saints,NO,Saints,nickname
+nfl,18,New Orleans Saints,NO,New Orleans,nickname
+nfl,18,New Orleans Saints,NO,NOS,nickname
+nfl,19,New York Giants,NYG,New York Giants,name
+nfl,19,New York Giants,NYG,NYG,abbrev
+nfl,19,New York Giants,NYG,giants,slug
+nfl,19,New York Giants,NYG,Giants,nickname
+nfl,19,New York Giants,NYG,NY Giants,nickname
+nfl,19,New York Giants,NYG,G-Men,nickname
+nfl,20,New York Jets,NYJ,New York Jets,name
+nfl,20,New York Jets,NYJ,NYJ,abbrev
+nfl,20,New York Jets,NYJ,jets,slug
+nfl,20,New York Jets,NYJ,Jets,nickname
+nfl,20,New York Jets,NYJ,NY Jets,nickname
+nfl,20,New York Jets,NYJ,Gang Green,nickname
+nfl,21,Philadelphia Eagles,PHI,Philadelphia Eagles,name
+nfl,21,Philadelphia Eagles,PHI,PHI,abbrev
+nfl,21,Philadelphia Eagles,PHI,eagles,slug
+nfl,21,Philadelphia Eagles,PHI,Eagles,nickname
+nfl,21,Philadelphia Eagles,PHI,Birds,nickname
+nfl,21,Philadelphia Eagles,PHI,Philadelphia,nickname
+nfl,22,Arizona Cardinals,ARI,Arizona Cardinals,name
+nfl,22,Arizona Cardinals,ARI,ARI,abbrev
+nfl,22,Arizona Cardinals,ARI,cardinals,slug
+nfl,22,Arizona Cardinals,ARI,Cardinals,nickname
+nfl,22,Arizona Cardinals,ARI,Cards,nickname
+nfl,22,Arizona Cardinals,ARI,Arizona,nickname
+nfl,22,Arizona Cardinals,ARI,AZ,nickname
+nfl,23,Pittsburgh Steelers,PIT,Pittsburgh Steelers,name
+nfl,23,Pittsburgh Steelers,PIT,PIT,abbrev
+nfl,23,Pittsburgh Steelers,PIT,steelers,slug
+nfl,23,Pittsburgh Steelers,PIT,Steelers,nickname
+nfl,23,Pittsburgh Steelers,PIT,Pittsburgh,nickname
+nfl,24,Los Angeles Chargers,LAC,Los Angeles Chargers,name
+nfl,24,Los Angeles Chargers,LAC,LAC,abbrev
+nfl,24,Los Angeles Chargers,LAC,chargers,slug
+nfl,24,Los Angeles Chargers,LAC,Chargers,nickname
+nfl,24,Los Angeles Chargers,LAC,Bolts,nickname
+nfl,24,Los Angeles Chargers,LAC,LA Chargers,nickname
+nfl,25,San Francisco 49ers,SF,San Francisco 49ers,name
+nfl,25,San Francisco 49ers,SF,SF,abbrev
+nfl,25,San Francisco 49ers,SF,49ers,slug
+nfl,25,San Francisco 49ers,SF,Niners,nickname
+nfl,25,San Francisco 49ers,SF,San Francisco,nickname
+nfl,25,San Francisco 49ers,SF,SFO,nickname
+nfl,26,Seattle Seahawks,SEA,Seattle Seahawks,name
+nfl,26,Seattle Seahawks,SEA,SEA,abbrev
+nfl,26,Seattle Seahawks,SEA,seahawks,slug
+nfl,26,Seattle Seahawks,SEA,Seahawks,nickname
+nfl,26,Seattle Seahawks,SEA,Hawks,nickname
+nfl,26,Seattle Seahawks,SEA,Seattle,nickname
+nfl,27,Tampa Bay Buccaneers,TB,Tampa Bay Buccaneers,name
+nfl,27,Tampa Bay Buccaneers,TB,TB,abbrev
+nfl,27,Tampa Bay Buccaneers,TB,buccaneers,slug
+nfl,27,Tampa Bay Buccaneers,TB,Buccaneers,nickname
+nfl,27,Tampa Bay Buccaneers,TB,Bucs,nickname
+nfl,27,Tampa Bay Buccaneers,TB,Tampa Bay,nickname
+nfl,27,Tampa Bay Buccaneers,TB,TBB,nickname
+nfl,28,Washington Commanders,WSH,Washington Commanders,name
+nfl,28,Washington Commanders,WSH,WSH,abbrev
+nfl,28,Washington Commanders,WSH,commanders,slug
+nfl,28,Washington Commanders,WSH,Commanders,nickname
+nfl,28,Washington Commanders,WSH,Commies,nickname
+nfl,28,Washington Commanders,WSH,Washington,nickname
+nfl,28,Washington Commanders,WSH,WAS,nickname
+nfl,29,Carolina Panthers,CAR,Carolina Panthers,name
+nfl,29,Carolina Panthers,CAR,CAR,abbrev
+nfl,29,Carolina Panthers,CAR,panthers,slug
+nfl,29,Carolina Panthers,CAR,Panthers,nickname
+nfl,29,Carolina Panthers,CAR,Carolina,nickname
+nfl,30,Jacksonville Jaguars,JAX,Jacksonville Jaguars,name
+nfl,30,Jacksonville Jaguars,JAX,JAX,abbrev
+nfl,30,Jacksonville Jaguars,JAX,jaguars,slug
+nfl,30,Jacksonville Jaguars,JAX,Jaguars,nickname
+nfl,30,Jacksonville Jaguars,JAX,Jags,nickname
+nfl,30,Jacksonville Jaguars,JAX,Jacksonville,nickname
+nfl,30,Jacksonville Jaguars,JAX,JAC,nickname
+nfl,33,Baltimore Ravens,BAL,Baltimore Ravens,name
+nfl,33,Baltimore Ravens,BAL,BAL,abbrev
+nfl,33,Baltimore Ravens,BAL,ravens,slug
+nfl,33,Baltimore Ravens,BAL,Ravens,nickname
+nfl,33,Baltimore Ravens,BAL,Baltimore,nickname
+nfl,34,Houston Texans,HOU,Houston Texans,name
+nfl,34,Houston Texans,HOU,HOU,abbrev
+nfl,34,Houston Texans,HOU,texans,slug
+nfl,34,Houston Texans,HOU,Texans,nickname
+nfl,34,Houston Texans,HOU,Houston,nickname

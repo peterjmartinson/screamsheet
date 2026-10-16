@@ -582,6 +582,13 @@ def resolve_team(
     if isinstance(query, int) or (isinstance(query, str) and query.strip().isdigit()):
         tid = int(query)
         match = lookup_team_by_id(sport, tid, db_path)
+        if not match:
+            engine = _get_engine(db_path)
+            with Session(engine) as session:
+                alias_count = session.query(_TeamAlias).filter(_TeamAlias.sport == sport).count()
+                if alias_count == 0:
+                    seed_aliases(sport, db_path)
+            match = lookup_team_by_id(sport, tid, db_path)
         if match:
             return match
 

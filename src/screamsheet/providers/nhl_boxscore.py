@@ -112,8 +112,13 @@ def create_nhl_boxscore_tables(
 
     goalie_data = [["Goaltender", "SA", "SV", "SV%"]]
     for player in goalie_stats:
+        sv_pct_str = (
+            f"{player.save_percentage:.2f}"
+            if player.save_percentage is not None
+            else None
+        )
         goalie_data.append([
-            player.name, player.shots_against, player.saves, player.save_percentage,
+            player.name, player.shots_against, player.saves, sv_pct_str,
         ])
 
     goalie_table = Table(goalie_data)

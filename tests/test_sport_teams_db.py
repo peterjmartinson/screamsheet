@@ -287,3 +287,63 @@ class TestTeamAliases:
         phils = resolve_team("mlb", "Fightin' Phils", db_path)
         assert phils is not None
         assert phils["team_id"] == 143
+
+    def test_seed_aliases_seeds_nhl(self, tmp_path):
+        db_path = tmp_path / "seed_nhl_test.db"
+        count = seed_aliases("nhl", db_path)
+        assert count > 0
+
+        flyers = resolve_team("nhl", "Philadelphia Flyers", db_path)
+        assert flyers is not None
+        assert flyers["team_id"] == 4
+        assert flyers["full_name"] == "Philadelphia Flyers"
+        assert flyers["abbrev"] == "PHI"
+
+        flyers_short = resolve_team("nhl", "Flyers", db_path)
+        assert flyers_short is not None
+        assert flyers_short["team_id"] == 4
+
+        knights = resolve_team("nhl", "Las Vegas Golden Knights", db_path)
+        assert knights is not None
+        assert knights["team_id"] == 54
+
+    def test_resolve_nhl_team_auto_seeds_from_empty_db(self, tmp_path):
+        db_path = tmp_path / "auto_seed_nhl.db"
+        flyers = resolve_team("nhl", "Philadelphia Flyers", db_path)
+        assert flyers is not None
+        assert flyers["team_id"] == 4
+        assert flyers["full_name"] == "Philadelphia Flyers"
+
+    def test_seed_aliases_seeds_nba(self, tmp_path):
+        db_path = tmp_path / "seed_nba_test.db"
+        count = seed_aliases("nba", db_path)
+        assert count > 0
+
+        sixers = resolve_team("nba", "Sixers", db_path)
+        assert sixers is not None
+        assert sixers["team_id"] == 1610612755
+        assert sixers["full_name"] == "Philadelphia 76ers"
+
+        cavs = resolve_team("nba", "Cavs", db_path)
+        assert cavs is not None
+        assert cavs["team_id"] == 1610612739
+
+    def test_seed_aliases_seeds_nfl(self, tmp_path):
+        db_path = tmp_path / "seed_nfl_test.db"
+        count = seed_aliases("nfl", db_path)
+        assert count > 0
+
+        eagles = resolve_team("nfl", "Eagles", db_path)
+        assert eagles is not None
+        assert eagles["team_id"] == 21
+        assert eagles["full_name"] == "Philadelphia Eagles"
+
+        packers = resolve_team("nfl", "Green Bay Packers", db_path)
+        assert packers is not None
+        assert packers["team_id"] == 9
+
+        niners = resolve_team("nfl", "Niners", db_path)
+        assert niners is not None
+        assert niners["team_id"] == 25
+
+

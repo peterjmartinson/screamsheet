@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any, Union, List
 
 from ..db import lookup_player as _db_lookup_player
 from ..db.nhl_teams_db import lookup_team_by_id as _db_lookup_team
+from ..db.team_lookup_db import lookup_team_by_id as _lookup_canonical_team
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,9 @@ class NHLGameExtractor:
     repeated API lookups for every play in a game.
     """
 
+    def __init__(self) -> None:
+        self._game_team_names: Dict[int, str] = {}
+
     # ------------------------------------------------------------------
     # Name lookups (DB-backed)
     # ------------------------------------------------------------------
@@ -113,7 +117,14 @@ class NHLGameExtractor:
         if result:
             city = result.get("city", "")
             name = result.get("team_full_name", "")
-            return f"{city} {name}".strip() or "Unknown Team"
+            full = f"{city} {name}".strip()
+            if full:
+                return full
+        if team_id in self._game_team_names:
+            return self._game_team_names[team_id]
+        canonical = _lookup_canonical_team("nhl", team_id)
+        if canonical and canonical.get("full_name"):
+            return canonical["full_name"]
         return "Unknown Team"
 
     # ------------------------------------------------------------------
@@ -218,6 +229,12 @@ class NHLGameExtractor:
 
             home_name = home.get("placeName", {}).get("default", "Home") + " " + home.get("commonName", {}).get("default", "Team")
             away_name = away.get("placeName", {}).get("default", "Away") + " " + away.get("commonName", {}).get("default", "Team")
+
+            self._game_team_names = {}
+            if home.get("id") is not None:
+                self._game_team_names[home["id"]] = home_name.strip()
+            if away.get("id") is not None:
+                self._game_team_names[away["id"]] = away_name.strip()
 
             play_narratives: List[str] = [
                 self._build_narrative(play)

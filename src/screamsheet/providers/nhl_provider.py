@@ -317,7 +317,7 @@ class NHLDataProvider(DataProvider):
                     if "date" in day and day.get("date") != game_date_str:
                         continue
                     for game in day.get('games', []):
-                        if str(game['gameState']) == self.FINAL_STATUS_CODE:
+                        if str(game['gameState']) in ('FINAL', self.FINAL_STATUS_CODE):
                             home_id = game['homeTeam']['id']
                             away_id = game['awayTeam']['id']
                             

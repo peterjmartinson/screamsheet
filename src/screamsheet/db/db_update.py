@@ -14,6 +14,7 @@ Exit codes:
 """
 
 import argparse
+import inspect
 import sys
 from pathlib import Path
 
@@ -31,7 +32,8 @@ from ..base.markdown_output import purge_expired_markdown
 def _run(label: str, fn, db: Path, allow_zero: bool = False) -> bool:
     """Run one sync function, print its count, return False on failure."""
     try:
-        count = fn(db) if "db" in fn.__code__.co_varnames else fn()
+        sig = inspect.signature(fn)
+        count = fn(db) if len(sig.parameters) > 0 else fn()
         print(f"{label}:{count}")
         if count == 0 and not allow_zero:
             print(f"WARNING: zero rows for {label} — possible network failure.", file=sys.stderr)

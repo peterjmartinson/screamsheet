@@ -134,3 +134,25 @@ class TestCreateNHLBoxscoreTables:
         )
         assert isinstance(result["skater_table"], Table)
         assert isinstance(result["goalie_table"], Table)
+
+    def test_goalie_table_formats_save_percentage_to_two_decimals(self, sample_stats):
+        result = create_nhl_boxscore_tables(sample_stats)
+        goalie_table = result["goalie_table"]
+        assert goalie_table._cellvalues[1][3] == "0.93"
+
+    def test_goalie_table_preserves_none_save_percentage(self):
+        stats = {
+            "skater_stats": [],
+            "goalie_stats": [
+                PlayerGoalie(
+                    name="Backup Goalie",
+                    shots_against=0,
+                    saves=0,
+                    save_percentage=None,
+                )
+            ],
+        }
+        result = create_nhl_boxscore_tables(stats)
+        goalie_table = result["goalie_table"]
+        assert goalie_table._cellvalues[1][3] == ""
+

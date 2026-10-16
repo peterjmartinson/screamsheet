@@ -51,6 +51,13 @@ jobs:
           # 6. Atomic Switch
           ln -snf "$RELEASE_DIR" "$LIVE_PATH"
 
+          # 7. Refresh screamsheet package in screamsheet-subscribers_live if present
+          SUBSCRIBERS_LIVE="/home/peter/Code/screamsheet-subscribers_live"
+          if [ -d "$SUBSCRIBERS_LIVE" ]; then
+            cd "$SUBSCRIBERS_LIVE"
+            uv sync --frozen --no-editable --reinstall-package screamsheet
+          fi
+
       - name: Cleanup Old Releases
         run: |
           RELEASES_BASE="/home/peter/Code/screamsheet_releases"

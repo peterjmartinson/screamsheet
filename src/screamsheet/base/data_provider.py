@@ -29,7 +29,6 @@ class DataProvider(ABC):
         """
         self.config = config
     
-    @abstractmethod
     def get_game_scores(self, date: datetime) -> list:
         """
         Get game scores for a specific date.
@@ -40,9 +39,8 @@ class DataProvider(ABC):
         Returns:
             List of game score dictionaries
         """
-        pass
+        return []
     
-    @abstractmethod
     def get_standings(self) -> Any:
         """
         Get current league standings.
@@ -50,7 +48,7 @@ class DataProvider(ABC):
         Returns:
             Standings data (format varies by provider)
         """
-        pass
+        return None
     
     def get_box_score(self, team_id: int, date: datetime) -> Optional[Any]:
         """
@@ -111,6 +109,17 @@ class DataProvider(ABC):
         Returns:
             List of (team_id, team_name) tuples, two entries per game
             (home and away team), filtered to FINAL/completed non-preseason games.
+        """
+        return []
+
+    def get_day_schedule(self, date: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """Return scheduled games and broadcast info for a calendar date.
+
+        Args:
+            date: Target date to query (defaults to today in provider's timezone).
+
+        Returns:
+            List of scheduled game dicts (empty list by default).
         """
         return []
 
@@ -235,4 +244,28 @@ class DataProvider(ABC):
                 continue
 
         return cleaned_list
+
+
+class SportsDataProvider(DataProvider):
+    """Abstract base class for sports data providers (MLB, NHL, NBA, NFL, World Cup)."""
+
+    @abstractmethod
+    def get_game_scores(self, date: datetime) -> list:
+        """Get game scores for a specific date."""
+        pass
+
+    @abstractmethod
+    def get_standings(self) -> Any:
+        """Get current league standings."""
+        pass
+
+
+class NewsDataProvider(DataProvider):
+    """Abstract base class for news and article data providers."""
+
+    @abstractmethod
+    def get_articles(self) -> List[Dict]:
+        """Fetch and return news articles for this provider."""
+        pass
+
 

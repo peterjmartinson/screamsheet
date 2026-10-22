@@ -4,10 +4,10 @@ from typing import Any, Dict, List, Optional, Set
 from datetime import datetime
 import feedparser
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 
-class MLBTradeRumorsProvider(DataProvider):
+class MLBTradeRumorsProvider(NewsDataProvider):
     """
     Data provider for MLB Trade Rumors news via RSS feed.
     
@@ -27,14 +27,6 @@ class MLBTradeRumorsProvider(DataProvider):
         super().__init__(**config)
         self.favorite_teams = favorite_teams if favorite_teams is not None else []
         self.max_articles = max_articles
-    
-    def get_game_scores(self, date: datetime) -> list:
-        """Not applicable for news provider."""
-        return []
-    
-    def get_standings(self) -> None:
-        """Not applicable for news provider."""
-        return None
     
     def _get_team_match_patterns(self, team_name: str) -> List[str]:
         """Return a list of matching keywords/aliases for a team name."""

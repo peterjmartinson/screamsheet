@@ -5,10 +5,10 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 
-class FrenchMLBScraperProvider(DataProvider):
+class FrenchMLBScraperProvider(NewsDataProvider):
     """
     Data provider for French-language MLB news from RDS.ca and TVA Sports.
 
@@ -65,16 +65,6 @@ class FrenchMLBScraperProvider(DataProvider):
         self.favorite_teams: List[str] = (
             favorite_teams if favorite_teams is not None else []
         )
-
-    # ------------------------------------------------------------------
-    # DataProvider stubs (not applicable for a news scraper)
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        return []
-
-    def get_standings(self) -> None:
-        return None
 
     # ------------------------------------------------------------------
     # Public interface

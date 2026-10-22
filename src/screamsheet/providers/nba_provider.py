@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Any, Optional, List, Dict, Tuple
 
-from ..base import DataProvider
+from ..base import SportsDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ except ImportError:
     logger.warning("nba_api package not installed — NBA provider will have limited functionality.")
 
 
-class NBADataProvider(DataProvider):
+class NBADataProvider(SportsDataProvider):
     """
     Data provider for NBA using the nba_api package.
 

@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Any, Optional, List, Dict, Tuple
 
-from ..base import DataProvider
+from ..base import SportsDataProvider
 
 
 POSTSEASON_GAME_TYPES = {"F", "D", "L", "W", "C", "P"}
@@ -59,7 +59,7 @@ def _extract_mlb_series_status(
     }
 
 
-class MLBDataProvider(DataProvider):
+class MLBDataProvider(SportsDataProvider):
     """
     Data provider for MLB using the MLB Stats API.
     

@@ -5,10 +5,10 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 
-class NHLNewsRssProvider(DataProvider):
+class NHLNewsRssProvider(NewsDataProvider):
     """
     Data provider for NHL.com news via team-specific news pages.
 
@@ -97,18 +97,6 @@ class NHLNewsRssProvider(DataProvider):
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
         self._article_cache: Dict[Optional[str], List[Dict]] = {}
-
-    # ------------------------------------------------------------------
-    # DataProvider interface stubs (not applicable for a news provider)
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        """Not applicable for a news provider."""
-        return []
-
-    def get_standings(self) -> None:
-        """Not applicable for a news provider."""
-        return None
 
     # ------------------------------------------------------------------
     # News-specific interface

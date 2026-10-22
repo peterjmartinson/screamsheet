@@ -6,12 +6,12 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from urllib.parse import urljoin
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 logger = logging.getLogger(__name__)
 
 
-class NFLNewsProvider(DataProvider):
+class NFLNewsProvider(NewsDataProvider):
     """
     Data provider for NFL news via ESPN API and story scraping.
     """
@@ -44,12 +44,6 @@ class NFLNewsProvider(DataProvider):
         super().__init__(**config)
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
-
-    def get_game_scores(self, date: datetime) -> list:
-        return []
-
-    def get_standings(self) -> None:
-        return None
 
     def get_articles(self) -> List[Dict]:
         """

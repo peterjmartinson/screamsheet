@@ -10,6 +10,7 @@ from ..registry import ComponentRegistry
 from .base import NewsStoryComponent
 
 
+@ComponentRegistry.register("mlb_trade_rumors_news")
 @ComponentRegistry.register("mlb_trade_rumors")
 class MLBTradeRumorsComponent(NewsStoryComponent):
     """Self-contained MLB Trade Rumors news component."""

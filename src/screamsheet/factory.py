@@ -7,6 +7,7 @@ from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsh
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 from .briefing import MorningBriefingScreamsheet, DEFAULT_AGENDA_ENDPOINT
+from .components.custom_screamsheet import CustomScreamsheet
 
 
 class ScreamsheetFactory:
@@ -515,5 +516,24 @@ class ScreamsheetFactory:
             important_senders=important_senders,
             email_provider=email_provider,
             latest_email_per_sender=latest_email_per_sender,
+        )
+
+    @staticmethod
+    def create_custom_screamsheet(
+        output_filename: str,
+        components: Optional[List[Any]] = None,
+        screamsheet_title: str = "Screamsheet",
+        subtitle: Optional[str] = None,
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
+    ) -> CustomScreamsheet:
+        """Create a custom component-based screamsheet."""
+        return CustomScreamsheet(
+            output_filename=output_filename,
+            components=components,
+            screamsheet_title=screamsheet_title,
+            subtitle=subtitle,
+            date=date,
+            display_date=display_date,
         )
 

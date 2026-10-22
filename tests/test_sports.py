@@ -7,6 +7,11 @@ import pytest
 from screamsheet.sports.base_sports import SportsScreamsheet
 from screamsheet.sports.mlb import MLBScreamsheet
 from screamsheet.sports.nhl import NHLScreamsheet
+from screamsheet.components.standings import (
+    MLBStandingsComponent,
+    NHLStandingsComponent,
+    StandingsComponent,
+)
 from screamsheet.renderers.game_scores import GameScoresSection
 from screamsheet.renderers.standings import StandingsSection
 from screamsheet.renderers.box_score import BoxScoreSection
@@ -36,8 +41,8 @@ class TestSportsScreamseetBuildSections:
     def test_always_includes_standings_section(self):
         s = MLBScreamsheet("out.pdf")
         sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert StandingsSection in types
+        assert any(isinstance(sec, (StandingsSection, StandingsComponent)) for sec in sections)
+        assert any(isinstance(sec, MLBStandingsComponent) for sec in sections)
 
     def test_no_box_score_when_no_team_and_no_games_on_date(self):
         s = MLBScreamsheet("out.pdf")

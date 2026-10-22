@@ -13,6 +13,7 @@ from reportlab.lib.pagesizes import letter
 logger = logging.getLogger(__name__)
 
 from ..base import BaseScreamsheet, Section, DataProvider
+from ..components.standings import StandingsComponent
 from ..renderers import (
     GameScoresSection,
     StandingsSection,
@@ -89,6 +90,14 @@ class SportsScreamsheet(BaseScreamsheet):
             DataProvider instance for fetching sport-specific data
         """
         pass
+
+    def create_standings_component(self) -> StandingsComponent:
+        """Create the standings component for this sport."""
+        return StandingsSection(
+            title=f"{self.sport_name} Standings",
+            provider=self.provider,
+            date=self.date,
+        )
     
     def get_title(self) -> str:
         """Get the main title for this screamsheet."""
@@ -147,13 +156,8 @@ class SportsScreamsheet(BaseScreamsheet):
             )
         )
         
-        # 2. Standings Section (always included)
-        sections.append(
-            StandingsSection(
-                title=f"{self.sport_name} Standings",
-                provider=self.provider
-            )
-        )
+        # 2. Standings Component (always included)
+        sections.append(self.create_standings_component())
         
         # 3. Box Score Section — feature the first team in the priority list that played
         featured = self._resolve_featured_team()

@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from .base_sports import SportsScreamsheet
+from ..components.standings import NBAStandingsComponent
 from ..providers.nba_provider import NBADataProvider
 
 
@@ -46,3 +47,11 @@ class NBAScreamsheet(SportsScreamsheet):
     def create_provider(self) -> NBADataProvider:
         """Create NBA data provider."""
         return NBADataProvider()
+
+    def create_standings_component(self) -> NBAStandingsComponent:
+        """Create NBA standings component."""
+        return NBAStandingsComponent(
+            title="NBA Standings",
+            provider=self.provider,
+            date=self.date,
+        )

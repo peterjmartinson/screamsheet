@@ -3,12 +3,9 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from .base_sports import SportsScreamsheet
+from ..components.box_score import MLBAllStarBoxScoreComponent, MLBAllStarGameSummaryComponent
+from ..components.game_scores import MLBAllStarGameScoresComponent
 from ..providers.mlb_provider import MLBDataProvider
-from ..renderers.allstar_renderers import (
-    AllStarGameScoresSection,
-    AllStarGameSummarySection,
-    AllStarSideBySideBoxScoreSection,
-)
 
 
 class MLBAllStarScreamsheet(SportsScreamsheet):
@@ -45,25 +42,22 @@ class MLBAllStarScreamsheet(SportsScreamsheet):
     def build_sections(self) -> list:
         """Build sections for the All-Star screamsheet."""
         sections = []
-        # 1. Game score (AL vs NL) on front page
         sections.append(
-            AllStarGameScoresSection(
+            MLBAllStarGameScoresComponent(
                 title="All-Star Game Score",
                 provider=self.provider,
                 date=self.date,
             )
         )
-        # 2. Expanded ~500-word game summary on front page (no standings)
         sections.append(
-            AllStarGameSummarySection(
+            MLBAllStarGameSummaryComponent(
                 title="All-Star Game Summary",
                 provider=self.provider,
                 date=self.date,
             )
         )
-        # 3. Side-by-side box scores on back page (AL left, NL right)
         sections.append(
-            AllStarSideBySideBoxScoreSection(
+            MLBAllStarBoxScoreComponent(
                 title="All-Star Game Box Scores",
                 provider=self.provider,
                 date=self.date,

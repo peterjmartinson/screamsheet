@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..base import BaseScreamsheet, Section
+from ..components.home_run_derby import HomeRunDerbyComponent
 from ..providers.mlb_provider import MLBDataProvider
-from ..renderers.derby_section import HomeRunDerbySection
 
 
 class HomeRunDerbyScreamsheet(BaseScreamsheet):
@@ -33,7 +33,7 @@ class HomeRunDerbyScreamsheet(BaseScreamsheet):
     def build_sections(self) -> List[Section]:
         """Build and return all sections to be rendered into the PDF."""
         return [
-            HomeRunDerbySection(
+            HomeRunDerbyComponent(
                 title="Home Run Derby Results",
                 provider=self.provider,
                 date=self.date,

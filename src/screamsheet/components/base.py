@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
 from ..base.section import Section
@@ -14,14 +15,16 @@ class ComponentLayoutSpec:
 
     Attributes:
         weight: Approximate fraction of a full page's vertical height occupied by
-            this component (e.g., 0.18 for weather/TV schedule, 0.28 for game scores,
-            0.48 for standings, 0.90 for box score).
+            this component (e.g., 0.18 for weather/TV schedule, 0.25 for game scores,
+            0.48 for standings, 1.0 for box score).
         component_family: Logical family name used for per-page family limits
-            (e.g., "standings", "scores", "box_score", "news", "weather", "tv_schedule").
+            (e.g., "standings", "game_scores", "box_score", "news", "weather", "tv_schedule").
         max_on_front_page: Optional cap on how many components of this
             ``component_family`` may appear on Page 1 (e.g., 1 for standings).
         max_per_page: Optional cap on how many components of this
             ``component_family`` may appear on Page 2+ (e.g., 2 for standings).
+        full_page_only: True if this component requires an entire page to itself
+            (or all remaining space on an empty page).
         renders_own_header: True if the component draws its own section banner/title
             inside ``render()``.
         preferred_top_divider: True if a horizontal divider or extra spacing should
@@ -32,6 +35,7 @@ class ComponentLayoutSpec:
     component_family: str = "generic"
     max_on_front_page: Optional[int] = None
     max_per_page: Optional[int] = None
+    full_page_only: bool = False
     renders_own_header: bool = False
     preferred_top_divider: bool = False
 
@@ -57,17 +61,40 @@ class ScreamsheetComponent(Section, ABC):
     """
 
     component_key: str = ""
+    component_type: str = ""
     DEFAULT_LAYOUT_SPEC: ComponentLayoutSpec = ComponentLayoutSpec()
+    layout_spec: ComponentLayoutSpec = DEFAULT_LAYOUT_SPEC
 
     def __init__(
         self,
         title: str = "",
+        provider: Optional[Any] = None,
+        date: Optional[datetime] = None,
         page_slot: str = "front",
         layout_spec: Optional[ComponentLayoutSpec] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(title)
         self.page_slot = page_slot
-        self.layout_spec: ComponentLayoutSpec = layout_spec or self.DEFAULT_LAYOUT_SPEC
+        cls_spec = getattr(self.__class__, "layout_spec", None)
+        if cls_spec is None or cls_spec == ScreamsheetComponent.DEFAULT_LAYOUT_SPEC:
+            cls_spec = getattr(self.__class__, "DEFAULT_LAYOUT_SPEC", ScreamsheetComponent.DEFAULT_LAYOUT_SPEC)
+        self.layout_spec: ComponentLayoutSpec = layout_spec or cls_spec
+        self.date: datetime = date if date is not None else (datetime.now() - timedelta(days=1))
+        self.provider: Optional[Any] = (
+            provider
+            if provider is not None
+            else (self.create_default_provider() or self._create_provider())
+        )
+        self.extra_config = kwargs
+
+    def create_default_provider(self) -> Optional[Any]:
+        """Instantiate the default data provider when none is passed explicitly."""
+        return None
+
+    def _create_provider(self) -> Optional[Any]:
+        """Backward-compatible hook for instantiating the default data provider."""
+        return None
 
     @abstractmethod
     def render(

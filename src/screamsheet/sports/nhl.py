@@ -3,6 +3,8 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from .base_sports import SportsScreamsheet
+from ..components.box_score import NHLBoxScoreComponent
+from ..components.game_scores import NHLGameScoresComponent
 from ..components.standings import NHLStandingsComponent
 from ..providers.nhl_provider import NHLDataProvider
 
@@ -48,10 +50,34 @@ class NHLScreamsheet(SportsScreamsheet):
         """Create NHL data provider."""
         return NHLDataProvider()
 
+    def create_game_scores_component(self) -> NHLGameScoresComponent:
+        """Create NHL game scores component."""
+        return NHLGameScoresComponent(
+            title="NHL Game Scores",
+            provider=self.provider,
+            date=self.date,
+        )
+
     def create_standings_component(self) -> NHLStandingsComponent:
         """Create NHL standings component."""
         return NHLStandingsComponent(
             title="NHL Standings",
             provider=self.provider,
             date=self.date,
+        )
+
+    def create_box_score_component(
+        self,
+        team_id: int,
+        team_name: str,
+        is_primary_favorite: bool = False,
+    ) -> NHLBoxScoreComponent:
+        """Create NHL box score component."""
+        return NHLBoxScoreComponent(
+            title=f"{team_name} Box Score",
+            provider=self.provider,
+            team_id=team_id,
+            date=self.date,
+            is_primary_favorite=is_primary_favorite,
+            mad_fan=self.mad_fan,
         )

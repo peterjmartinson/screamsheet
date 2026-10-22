@@ -99,6 +99,9 @@ class CustomScreamsheet(BaseScreamsheet):
         if spec.max_per_page is not None and count_in_family >= spec.max_per_page:
             return False
 
+        if spec.full_page_only and not page_is_empty:
+            return False
+
         capacity = (
             cls.FRONT_PAGE_CAPACITY if page_index == 0 else cls.SUBSEQUENT_PAGE_CAPACITY
         )
@@ -172,7 +175,13 @@ class CustomScreamsheet(BaseScreamsheet):
     ) -> List[Any]:
         """Render a single component along with inter-component dividers and title header."""
         flowables: List[Any] = []
-        comp_elements = comp.render(styles=self.styles, max_width=540)
+        import inspect
+
+        sig = inspect.signature(comp.render)
+        if "styles" in sig.parameters:
+            comp_elements = comp.render(styles=self.styles, max_width=540)
+        else:
+            comp_elements = comp.render()
         if not comp_elements:
             return []
 

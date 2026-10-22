@@ -10,6 +10,7 @@ from ..llm.summary import NFLNewsSummarizer
 from ..base import Section
 from ..components.box_score import NFLBoxScoreComponent
 from ..components.game_scores import NFLGameScoresComponent
+from ..components.news import NFLNewsComponent
 from ..components.nfl_injuries import NFLInjuriesComponent
 from ..components.standings import NFLStandingsComponent
 from ..renderers import (
@@ -96,9 +97,9 @@ class NFLScreamsheet(SportsScreamsheet):
 
         has_sched = len(today_schedule_lines) > 0
 
-        def create_news_section(title: str) -> NewsArticlesSection:
+        def create_news_section(title: str) -> NFLNewsComponent:
             sched_title = "Tonight's Broadcast" if len(today_schedule_lines) == 1 else "Today's Broadcasts"
-            sec = NewsArticlesSection(
+            sec = NFLNewsComponent(
                 title=title,
                 provider=self.news_provider,
                 max_articles=3 if has_sched else 4,

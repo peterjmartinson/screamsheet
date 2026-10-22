@@ -3,33 +3,15 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..base import Section
+from ..components.news import PresidentialNewsComponent
+from ..components.weather import WeatherComponent
 from ..news.base_news import NewsScreamsheet
-from ..renderers import NewsArticlesSection, WeatherSection
 from ..providers.political_news_provider import PoliticalNewsProvider
 from ..llm.summarizers import PoliticalNewsSummarizer
 
 
 class PresidentialScreamsheet(NewsScreamsheet):
-    """
-    Assembles a one-page 'Presidential Screamsheet' PDF.
-
-    Fetches political news from 7 RSS feeds and the White House briefing
-    room, scores and deduplicates stories, optionally summarizes via LLM,
-    and renders the top four to a printable PDF.
-
-    Usage::
-
-        from screamsheet.political import PresidentialScreamsheet
-
-        sheet = PresidentialScreamsheet(output_filename="Files/presidential.pdf")
-        sheet.generate()
-
-    Or via the factory::
-
-        from screamsheet import ScreamsheetFactory
-        sheet = ScreamsheetFactory.create_presidential_screamsheet("Files/presidential.pdf")
-        sheet.generate()
-    """
+    """Assembles a 'Presidential Screamsheet' PDF."""
 
     def __init__(
         self,
@@ -64,7 +46,7 @@ class PresidentialScreamsheet(NewsScreamsheet):
 
         if self.include_weather:
             sections.append(
-                WeatherSection(
+                WeatherComponent(
                     title="Weather Report",
                     date=self.date,
                     lat=self.weather_lat,
@@ -74,7 +56,7 @@ class PresidentialScreamsheet(NewsScreamsheet):
             )
 
         sections.append(
-            NewsArticlesSection(
+            PresidentialNewsComponent(
                 title="Top Stories",
                 provider=self.provider,
                 max_articles=2,
@@ -82,7 +64,7 @@ class PresidentialScreamsheet(NewsScreamsheet):
                 summarizer_class=PoliticalNewsSummarizer,
             )
         )
-        back_section = NewsArticlesSection(
+        back_section = PresidentialNewsComponent(
             title="More Stories",
             provider=self.provider,
             max_articles=2,
@@ -92,26 +74,3 @@ class PresidentialScreamsheet(NewsScreamsheet):
         back_section.page_slot = "back"
         sections.append(back_section)
         return sections
-
-
-# ---------------------------------------------------------------------------
-# Stand-alone entry point
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import logging
-    from pathlib import Path
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    today_str = datetime.now().strftime("%Y%m%d")
-    out = Path("Files") / f"presidential_screamsheet_{today_str}.pdf"
-    out.parent.mkdir(parents=True, exist_ok=True)
-
-    sheet = PresidentialScreamsheet(output_filename=str(out))
-    generated = sheet.generate()
-    print(f"Generated: {generated}")

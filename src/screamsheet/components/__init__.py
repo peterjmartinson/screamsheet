@@ -22,6 +22,16 @@ from .game_scores import (
     WorldCupGameScoresComponent,
 )
 from .home_run_derby import HomeRunDerbyComponent
+from .news import (
+    FrenchMLBArticlesComponent,
+    FrenchMLBLexiconComponent,
+    MLBNewsComponent,
+    MLBTradeRumorsComponent,
+    NewsStoryComponent,
+    NFLNewsComponent,
+    NHLNewsComponent,
+    PresidentialNewsComponent,
+)
 from .nfl_injuries import NFLInjuriesComponent
 from .registry import ComponentRegistry
 from .standings import (
@@ -33,6 +43,7 @@ from .standings import (
     WorldCupStandingsComponent,
 )
 from .tv_schedule import NFLTVScheduleComponent, TVScheduleComponent
+from .weather import WeatherComponent
 
 __all__ = [
     "ComponentLayoutSpec",
@@ -65,4 +76,13 @@ __all__ = [
     "NFLTVScheduleComponent",
     "NFLInjuriesComponent",
     "HomeRunDerbyComponent",
+    "WeatherComponent",
+    "NewsStoryComponent",
+    "PresidentialNewsComponent",
+    "MLBTradeRumorsComponent",
+    "MLBNewsComponent",
+    "NHLNewsComponent",
+    "NFLNewsComponent",
+    "FrenchMLBArticlesComponent",
+    "FrenchMLBLexiconComponent",
 ]

@@ -48,7 +48,7 @@ class _NewsPageUnitComponent(ScreamsheetComponent):
         schedule_title: str = "Today's Broadcasts",
         title: str = "",
     ) -> None:
-        weight = 0.65 if len(articles_chunk) >= 2 else 0.45
+        weight = 0.42 if len(articles_chunk) >= 2 else 0.35
         spec = ComponentLayoutSpec(
             weight=weight,
             component_family="news",

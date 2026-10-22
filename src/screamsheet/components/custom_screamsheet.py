@@ -32,7 +32,7 @@ class CustomScreamsheet(BaseScreamsheet):
         components never duplicate stories within the same screamsheet.
     """
 
-    FRONT_PAGE_CAPACITY: float = 0.85
+    FRONT_PAGE_CAPACITY: float = 0.92
     SUBSEQUENT_PAGE_CAPACITY: float = 1.0
 
     def __init__(
@@ -83,8 +83,12 @@ class CustomScreamsheet(BaseScreamsheet):
         current_weight: float,
         family_counts: Dict[str, int],
         page_is_empty: bool,
+        page_has_full_page_only: bool = False,
     ) -> bool:
         """Return True if a component with ``spec`` can be added to ``page_index``."""
+        if page_has_full_page_only:
+            return False
+
         family = spec.component_family or "generic"
         count_in_family = family_counts.get(family, 0)
 
@@ -146,6 +150,9 @@ class CustomScreamsheet(BaseScreamsheet):
                 current_weight=page_weights[cur_idx],
                 family_counts=page_families[cur_idx],
                 page_is_empty=(len(pages[cur_idx]) == 0),
+                page_has_full_page_only=any(
+                    existing.layout_spec.full_page_only for existing in pages[cur_idx]
+                ),
             ):
                 # If the current page is empty and only failed because of a front-page
                 # restriction (e.g., max_on_front_page == 0), advance to the next page;
@@ -208,7 +215,9 @@ class CustomScreamsheet(BaseScreamsheet):
         """Pack components into pages, render the multi-page PDF, and write Markdown."""
         logger.info("Building CustomScreamsheet '%s'", self.get_title())
         self.sections = self.build_sections()
-        pages_of_components = self.pack_components_into_pages()
+        pages_of_components = (
+            self.packed_pages if self.packed_pages else self.pack_components_into_pages()
+        )
 
         rendered_pages: List[List[Any]] = []
 

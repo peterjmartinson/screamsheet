@@ -5,15 +5,19 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from reportlab.platypus import Paragraph, Spacer
-
 from ..base import BaseScreamsheet, Section
+from ..components.sky import (
+    SkyHighlightsComponent,
+    SkyHoroscopeComponent,
+    ZodiacWheelComponent,
+)
 from ..config import PersonConfig
 from ..providers.astro_provider import AstroDataProvider
 from ..providers.sky_provider import SkyDataProvider
-from ..renderers.zodiac_wheel import ZodiacWheelSection
-from ..renderers.sky_highlights import SkyHighlightsSection
-from ..renderers.sky_horoscope import SkyHoroscopeSection
+
+ZodiacWheelSection = ZodiacWheelComponent
+SkyHighlightsSection = SkyHighlightsComponent
+SkyHoroscopeSection = SkyHoroscopeComponent
 
 logger = logging.getLogger(__name__)
 
@@ -97,5 +101,3 @@ class SkyTonightScreamsheet(BaseScreamsheet):
             highlights_section,
             horoscope_section,
         ]
-
-

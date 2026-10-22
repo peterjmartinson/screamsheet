@@ -11,6 +11,13 @@ from .box_score import (
     NHLBoxScoreComponent,
     WorldCupBoxScoreComponent,
 )
+from .briefing import (
+    AgendaComponent,
+    BriefingBackComponent,
+    EmailNewsComponent,
+    ImportantEmailsComponent,
+    XKCDComponent,
+)
 from .custom_screamsheet import CustomScreamsheet
 from .game_scores import (
     GameScoresComponent,
@@ -34,6 +41,11 @@ from .news import (
 )
 from .nfl_injuries import NFLInjuriesComponent
 from .registry import ComponentRegistry
+from .sky import (
+    SkyHighlightsComponent,
+    SkyHoroscopeComponent,
+    ZodiacWheelComponent,
+)
 from .standings import (
     MLBStandingsComponent,
     NBAStandingsComponent,
@@ -85,4 +97,12 @@ __all__ = [
     "NFLNewsComponent",
     "FrenchMLBArticlesComponent",
     "FrenchMLBLexiconComponent",
+    "ZodiacWheelComponent",
+    "SkyHighlightsComponent",
+    "SkyHoroscopeComponent",
+    "AgendaComponent",
+    "EmailNewsComponent",
+    "ImportantEmailsComponent",
+    "BriefingBackComponent",
+    "XKCDComponent",
 ]

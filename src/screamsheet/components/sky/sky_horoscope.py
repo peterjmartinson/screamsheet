@@ -119,13 +119,13 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
             **kwargs,
         )
         raw_people = people or []
-        parsed_people: List[PersonConfig] = []
+        parsed_people: List[Any] = []
         for p in raw_people:
-            if isinstance(p, PersonConfig):
-                parsed_people.append(p)
-            elif isinstance(p, dict):
+            if isinstance(p, dict):
                 parsed_people.append(PersonConfig(**p))
-        self.people: List[PersonConfig] = parsed_people
+            else:
+                parsed_people.append(p)
+        self.people: List[Any] = parsed_people
         self.astro_provider = astro_provider if astro_provider is not None else AstroDataProvider()
         self.horoscope_style = horoscope_style
         self.astro_data: Optional[dict] = None

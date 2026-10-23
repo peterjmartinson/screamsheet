@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, List, Optional
 
 from reportlab.platypus import Spacer, Table, TableStyle
 
+from ...providers.gmail_provider import GmailNewsProvider
 from ..base import ComponentLayoutSpec, ScreamsheetComponent
 from ..registry import ComponentRegistry
 from .email_news import EmailNewsComponent
@@ -34,12 +36,41 @@ class BriefingBackComponent(ScreamsheetComponent):
         important_section: Optional[ImportantEmailsComponent] = None,
         title: str = "Morning News & Important Notices",
         max_left_news: int = 5,
+        include_email_news: Optional[bool] = None,
+        gmail_label: str = "Morning Briefing",
+        important_senders: Optional[List[str]] = None,
+        latest_per_sender: bool = True,
+        date: Optional[datetime] = None,
+        email_provider: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(title=title, page_slot="back", **kwargs)
+        super().__init__(title=title, date=date, page_slot="back", **kwargs)
+        self.max_left_news = max_left_news
+
+        if news_section is None and (
+            include_email_news is True
+            or (include_email_news is None and important_senders is not None)
+        ):
+            ep = email_provider or GmailNewsProvider(label=gmail_label)
+            news_section = EmailNewsComponent(
+                provider=ep,
+                date=self.date,
+                gmail_label=gmail_label,
+                latest_per_sender=latest_per_sender,
+            )
+
+        if important_section is None and important_senders:
+            ep = email_provider or GmailNewsProvider(label=gmail_label)
+            important_section = ImportantEmailsComponent(
+                important_senders=important_senders,
+                provider=ep,
+                date=self.date,
+                gmail_label=gmail_label,
+                latest_per_sender=latest_per_sender,
+            )
+
         self.news_section = news_section
         self.important_section = important_section
-        self.max_left_news = max_left_news
 
     def fetch_data(self) -> None:
         if self.news_section:

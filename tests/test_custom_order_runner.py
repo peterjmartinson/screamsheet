@@ -124,6 +124,38 @@ def test_build_component_from_spec_instantiates_registered_components():
     assert box_comp.mad_fan is True
     assert box_comp.date == datetime(2026, 10, 20)  # yesterday for box_score
 
+    # Verify briefing_back and agenda components instantiate from YAML options
+    from screamsheet.components import AgendaComponent, BriefingBackComponent
+
+    agenda_comp = _build_component_from_spec(
+        ComponentSpec(
+            type="agenda",
+            options={
+                "api_url": "https://random-task-rouge.vercel.app/api/agenda",
+                "upcoming_days": 1,
+                "payload": {"default_start_location": "Bryn Mawr, PA"},
+            },
+        ),
+        today=today,
+    )
+    assert isinstance(agenda_comp, AgendaComponent)
+    assert agenda_comp.payload == {"default_start_location": "Bryn Mawr, PA"}
+
+    back_comp = _build_component_from_spec(
+        ComponentSpec(
+            type="briefing_back",
+            options={
+                "gmail_label": "Morning Briefing",
+                "important_senders": ["mainlineclassical.org"],
+            },
+        ),
+        today=today,
+    )
+    assert isinstance(back_comp, BriefingBackComponent)
+    assert back_comp.news_section is not None
+    assert back_comp.important_section is not None
+    assert back_comp.important_section.important_senders == ["mainlineclassical.org"]
+
 
 def test_run_order_generates_custom_component_screamsheets(tmp_path, mlb_standings_df):
     today = datetime(2026, 10, 21)

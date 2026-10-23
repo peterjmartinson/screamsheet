@@ -376,6 +376,8 @@ def _build_component_from_spec(
             )
     else:
         kwargs.setdefault("date", today)
+        if comp_type == "briefing_back":
+            kwargs.setdefault("include_email_news", True)
 
     return ComponentRegistry.create(comp_type, **kwargs)
 

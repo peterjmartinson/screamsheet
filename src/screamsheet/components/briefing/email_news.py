@@ -42,8 +42,14 @@ class EmailNewsComponent(ScreamsheetComponent):
         lookback_hours: int = 24,
         summarizer_class: Any = None,
         latest_per_sender: bool = True,
+        gmail_label: str = "Morning Briefing",
+        gmail_username: Optional[str] = None,
+        gmail_app_password: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
+        self.gmail_label = gmail_label
+        self.gmail_username = gmail_username
+        self.gmail_app_password = gmail_app_password
         super().__init__(
             title=title,
             provider=provider,
@@ -52,6 +58,7 @@ class EmailNewsComponent(ScreamsheetComponent):
             max_emails=max_emails,
             lookback_hours=lookback_hours,
             latest_per_sender=latest_per_sender,
+            gmail_label=gmail_label,
             **kwargs,
         )
         self.max_emails = max_emails
@@ -62,7 +69,11 @@ class EmailNewsComponent(ScreamsheetComponent):
         self._setup_styles()
 
     def create_default_provider(self) -> Any:
-        return GmailNewsProvider()
+        return GmailNewsProvider(
+            username=self.gmail_username,
+            app_password=self.gmail_app_password,
+            label=self.gmail_label,
+        )
 
     def _setup_styles(self) -> None:
         base = getSampleStyleSheet()

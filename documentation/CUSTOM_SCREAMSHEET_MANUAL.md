@@ -207,7 +207,68 @@ Example `sky_horoscope` component in a custom sheet:
 | `agenda` | `"Agenda"` | `api_url`, `payload`, `upcoming_days: 1`, `title` | Two-column daily calendar events, commute leave-by times, and tasks. |
 | `email_news` | `"Morning News Briefing"` | `gmail_label`, `max_emails: 8`, `lookback_hours: 24`, `latest_per_sender: true`, `title` | LLM summaries of newsletter emails from a Gmail label. |
 | `important_emails` | `"Important Notices & Updates"` | `important_senders` *(list of emails/domains)*, `max_emails: 6`, `title` | LLM summaries of recent emails from priority senders/domains. |
-| `briefing_back` | `"Morning News & Important Notices"` | `max_left_news: 5`, `title` | Full-page 2-column composite back page combining `email_news` and `important_emails`. |
+| `briefing_back` | `"Morning News & Important Notices"` | `include_email_news: true`, `gmail_label: "Morning Briefing"`, `important_senders: [...]`, `max_left_news: 5`, `title` | Full-page 2-column composite back page combining `email_news` (left column, overflowing to right) and `important_emails` (right column). |
+
+#### How URLs, API Keys & Secrets Work for Morning Briefing Components
+1. **Automatic `.env` Variable Expansion in Subscriber YAML**:
+   When `screamsheet-subscribers` loads your subscriber YAML (`subscribers/peter.yaml`), it loads `~/.config/screamsheet/.env` and runs `os.path.expandvars()` on the entire YAML file before parsing.
+   Any `${VAR_NAME}` placeholder in your YAML (such as `${CALENDAR_URL_PERSONAL}`, `${TRELLO_API_KEY}`, `${GOOGLE_MAPS_API_KEY}`) is automatically replaced with the value from `~/.config/screamsheet/.env`.
+2. **Gmail Credentials (`email_news`, `important_emails`, `briefing_back`)**:
+   `GmailNewsProvider` automatically reads `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` from your environment / `~/.config/screamsheet/.env` (or `.env` in the repo root) — you do **not** need to put your Gmail password in the YAML file.
+3. **Full Custom Morning Briefing Example**:
+```yaml
+  custom_morning_briefing:
+    screamsheet_title: "Peter's Screamsheet"
+    subtitle: "Morning Briefing"
+    components:
+      - type: weather
+        show_description: false
+      - type: agenda
+        api_url: "https://random-task-rouge.vercel.app/api/agenda"
+        upcoming_days: 1
+        payload:
+          default_start_location: "1041 Reese Ave., Bryn Mawr, PA 19010"
+          calendars:
+            ical_urls:
+              - name: "Personal"
+                url: ${CALENDAR_URL_PERSONAL}
+              - name: "Family"
+                url: ${CALENDAR_URL_FAMILY}
+          google_calendar:
+            client_id: ${GOOGLE_CALENDAR_CLIENT_ID}
+            client_secret: ${GOOGLE_CALENDAR_CLIENT_SECRET}
+            refresh_token: ${GOOGLE_CALENDAR_REFRESH_TOKEN}
+            calendar_ids:
+              - ${GOOGLE_CALENDAR_ID_MLCA}
+          trello:
+            api_key: ${TRELLO_API_KEY}
+            token: ${TRELLO_TOKEN}
+            boards:
+              - name: "Homework"
+                board_id: ${TRELLO_BOARD_ID_HOMEWORK}
+                lists:
+                  - id: ${TRELLO_LIST_ID_ISAAC}
+                    name: "Isaac"
+                    assignee: "Isaac"
+                    max_tasks: 15
+                  - id: ${TRELLO_LIST_ID_ASHER}
+                    name: "Asher"
+                    assignee: "Asher"
+                    max_tasks: 15
+            include_past_due: true
+          maps:
+            enabled: true
+            api_key: ${GOOGLE_MAPS_API_KEY}
+      - type: xkcd
+      - type: briefing_back
+        gmail_label: "Morning Briefing"
+        important_senders:
+          - "annashavin@gmail.com"
+          - "mainlineclassical.org"
+          - "michelemrice@gmail.com"
+          - "vscottzelov@lowermerion.org"
+          - "asenn@theredeemer.org"
+```
 
 ---
 

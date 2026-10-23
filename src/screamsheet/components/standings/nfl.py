@@ -28,6 +28,7 @@ class NFLStandingsComponent(StandingsComponent):
         date: Optional[datetime] = None,
         page_slot: str = "front",
         layout_spec: Optional[ComponentLayoutSpec] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             title=title,
@@ -35,6 +36,7 @@ class NFLStandingsComponent(StandingsComponent):
             date=date,
             page_slot=page_slot,
             layout_spec=layout_spec,
+            **kwargs,
         )
 
     def _create_provider(self) -> DataProvider:

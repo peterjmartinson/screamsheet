@@ -15,7 +15,7 @@ from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
-from ...config import PersonConfig
+from ...config import PersonConfig, _parse_person
 from ...llm.config import DEFAULT_LLM_CONFIG
 from ...llm.summarizers import HoroscopeSummarizer
 from ...providers.astro_provider import AstroDataProvider
@@ -122,7 +122,7 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
         parsed_people: List[Any] = []
         for p in raw_people:
             if isinstance(p, dict):
-                parsed_people.append(PersonConfig(**p))
+                parsed_people.append(_parse_person(p))
             else:
                 parsed_people.append(p)
         self.people: List[Any] = parsed_people

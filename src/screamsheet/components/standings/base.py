@@ -40,8 +40,9 @@ class StandingsComponent(ScreamsheetComponent):
         date: Optional[datetime] = None,
         page_slot: str = "front",
         layout_spec: Optional[ComponentLayoutSpec] = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(title=title, page_slot=page_slot, layout_spec=layout_spec)
+        super().__init__(title=title, page_slot=page_slot, layout_spec=layout_spec, **kwargs)
         self.provider: Optional[DataProvider] = provider or self._create_provider()
         self.date: Optional[datetime] = date
         self.styles = getSampleStyleSheet()

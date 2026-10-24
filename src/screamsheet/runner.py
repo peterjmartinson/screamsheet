@@ -355,7 +355,14 @@ def _build_component_from_spec(
         team_names = _resolve_news_team_names(spec.teams)
         if team_names:
             kwargs.setdefault("favorite_teams", team_names)
-    elif comp_type == "weather" or comp_type in ("zodiac_wheel", "sky_highlights", "sky_horoscope"):
+    elif comp_type == "weather" or comp_type in (
+        "zodiac_wheel",
+        "sky_highlights",
+        "sky_summary",
+        "sky_tonight_summary",
+        "sky_horoscope",
+        "horoscope",
+    ):
         kwargs.setdefault("date", today)
         w = spec.weather or sheet_weather
         if w is not None:

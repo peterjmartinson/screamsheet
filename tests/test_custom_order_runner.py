@@ -156,6 +156,38 @@ def test_build_component_from_spec_instantiates_registered_components():
     assert back_comp.important_section is not None
     assert back_comp.important_section.important_senders == ["mainlineclassical.org"]
 
+    from screamsheet.components import SkyHighlightsComponent, SkyHoroscopeComponent, ZodiacWheelComponent
+
+    horo_comp = _build_component_from_spec(
+        ComponentSpec(
+            type="horoscope",
+            options={
+                "name": "Peter",
+                "birth_date": "1978-02-26",
+                "birth_time": "01:20",
+                "birth_location": "Wauwatosa, WI",
+                "horoscope_style": "playbook",
+            },
+        ),
+        today=today,
+    )
+    assert isinstance(horo_comp, SkyHoroscopeComponent)
+    assert len(horo_comp.people) == 1
+    assert horo_comp.people[0].name == "Peter"
+    assert horo_comp.people[0].horoscope_style == "playbook"
+
+    summary_comp = _build_component_from_spec(
+        ComponentSpec(type="sky_summary"),
+        today=today,
+    )
+    assert isinstance(summary_comp, SkyHighlightsComponent)
+
+    wheel_comp = _build_component_from_spec(
+        ComponentSpec(type="zodiac_wheel"),
+        today=today,
+    )
+    assert isinstance(wheel_comp, ZodiacWheelComponent)
+
 
 def test_run_order_generates_custom_component_screamsheets(tmp_path, mlb_standings_df):
     today = datetime(2026, 10, 21)

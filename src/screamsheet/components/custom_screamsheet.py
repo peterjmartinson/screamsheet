@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Deque, Dict, List, Optional, Set
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import HRFlowable, Paragraph, Spacer
+from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
 from ..base.screamsheet import BaseScreamsheet
 from ..base.section import Section
@@ -129,8 +130,49 @@ class CustomScreamsheet(BaseScreamsheet):
                 expanded.append(comp)
         return expanded
 
+    @classmethod
+    def _can_fit_in_open_right_column(
+        cls,
+        open_left_comp: ScreamsheetComponent,
+        right_spec: ComponentLayoutSpec,
+        page_index: int,
+        current_weight: float,
+        family_counts: Dict[str, int],
+        page_has_full_page_only: bool = False,
+    ) -> bool:
+        """Return True if a single-column component can pair into the open right column on ``page_index``."""
+        if page_has_full_page_only or right_spec.columns != 1 or right_spec.full_page_only:
+            return False
+
+        family = right_spec.component_family or "generic"
+        count_in_family = family_counts.get(family, 0)
+
+        if page_index == 0 and right_spec.max_on_front_page is not None:
+            if count_in_family >= right_spec.max_on_front_page:
+                return False
+
+        if page_index >= 1 and right_spec.max_per_page is not None:
+            if count_in_family >= right_spec.max_per_page:
+                return False
+
+        if right_spec.max_per_page is not None and count_in_family >= right_spec.max_per_page:
+            return False
+
+        capacity = (
+            cls.FRONT_PAGE_CAPACITY if page_index == 0 else cls.SUBSEQUENT_PAGE_CAPACITY
+        )
+        left_w = open_left_comp.layout_spec.weight
+        new_row_w = max(left_w, right_spec.weight)
+        new_page_w = (current_weight - left_w) + new_row_w
+        if new_page_w > capacity + 1e-6:
+            return False
+
+        return True
+
     def pack_components_into_pages(self) -> List[List[ScreamsheetComponent]]:
         """Pack active components into pages while strictly preserving YAML order."""
+        from .news.base import _NewsPageUnitComponent
+
         units = self._expand_components_for_packing()
         if not units:
             self.packed_pages = []
@@ -139,10 +181,107 @@ class CustomScreamsheet(BaseScreamsheet):
         pages: List[List[ScreamsheetComponent]] = [[]]
         page_weights: List[float] = [0.0]
         page_families: List[Dict[str, int]] = [{}]
+        open_left_comp: Optional[ScreamsheetComponent] = None
 
-        for comp in units:
-            spec = comp.layout_spec
+        queue: Deque[ScreamsheetComponent] = deque(units)
+
+        while queue:
             cur_idx = len(pages) - 1
+            has_full_only = any(
+                existing.layout_spec.full_page_only for existing in pages[cur_idx]
+            )
+
+            # If there is an open left column on the current page and the next unit is
+            # a 2-article news chunk, split off its first article to fill the open right
+            # column if a 1-article news column fits alongside open_left_comp.
+            if (
+                open_left_comp is not None
+                and isinstance(queue[0], _NewsPageUnitComponent)
+                and len(queue[0].data) >= 2
+            ):
+                probe_spec = ComponentLayoutSpec(
+                    weight=0.35,
+                    columns=1,
+                    component_family="news",
+                    max_on_front_page=2,
+                    max_per_page=2,
+                    renders_own_header=False,
+                    preferred_top_divider=True,
+                )
+                if self._can_fit_in_open_right_column(
+                    open_left_comp=open_left_comp,
+                    right_spec=probe_spec,
+                    page_index=cur_idx,
+                    current_weight=page_weights[cur_idx],
+                    family_counts=page_families[cur_idx],
+                    page_has_full_page_only=has_full_only,
+                ):
+                    first_news_unit: _NewsPageUnitComponent = queue.popleft()  # type: ignore[assignment]
+                    parent_news = first_news_unit.parent
+                    all_articles = list(first_news_unit.data)
+                    sched_items = list(first_news_unit.schedule_items)
+                    sched_title = first_news_unit.schedule_title
+                    first_title = first_news_unit.title
+
+                    while queue and isinstance(queue[0], _NewsPageUnitComponent) and queue[0].parent is parent_news:
+                        nxt_unit: _NewsPageUnitComponent = queue.popleft()  # type: ignore[assignment]
+                        all_articles.extend(nxt_unit.data)
+                        if nxt_unit.schedule_items:
+                            sched_items = list(nxt_unit.schedule_items)
+
+                    single_unit = _NewsPageUnitComponent(
+                        parent=parent_news,
+                        articles_chunk=[all_articles[0]],
+                        schedule_items=sched_items if len(all_articles) == 1 else None,
+                        schedule_title=sched_title,
+                        title=first_title,
+                    )
+                    remaining = all_articles[1:]
+                    rechunked: List[_NewsPageUnitComponent] = []
+                    for r_idx in range(0, len(remaining), 2):
+                        r_chunk = remaining[r_idx : r_idx + 2]
+                        is_last = r_idx + 2 >= len(remaining)
+                        cont_title = (
+                            f"{parent_news.title} (Cont.)" if parent_news.title else ""
+                        )
+                        rechunked.append(
+                            _NewsPageUnitComponent(
+                                parent=parent_news,
+                                articles_chunk=r_chunk,
+                                schedule_items=sched_items if is_last else None,
+                                schedule_title=sched_title,
+                                title=cont_title,
+                            )
+                        )
+                    for rc in reversed(rechunked):
+                        queue.appendleft(rc)
+                    queue.appendleft(single_unit)
+
+            comp = queue.popleft()
+            spec = comp.layout_spec
+
+            # Try pairing into the open right column on the current page
+            if open_left_comp is not None and spec.columns == 1:
+                if self._can_fit_in_open_right_column(
+                    open_left_comp=open_left_comp,
+                    right_spec=spec,
+                    page_index=cur_idx,
+                    current_weight=page_weights[cur_idx],
+                    family_counts=page_families[cur_idx],
+                    page_has_full_page_only=has_full_only,
+                ):
+                    left_w = open_left_comp.layout_spec.weight
+                    page_weights[cur_idx] = (
+                        page_weights[cur_idx] - left_w + max(left_w, spec.weight)
+                    )
+                    pages[cur_idx].append(comp)
+                    fam = spec.component_family or "generic"
+                    page_families[cur_idx][fam] = page_families[cur_idx].get(fam, 0) + 1
+                    open_left_comp = None
+                    continue
+
+            # Otherwise, close any open single-column row and start a new row
+            open_left_comp = None
 
             while not self._can_fit_on_page(
                 spec=spec,
@@ -154,10 +293,6 @@ class CustomScreamsheet(BaseScreamsheet):
                     existing.layout_spec.full_page_only for existing in pages[cur_idx]
                 ),
             ):
-                # If the current page is empty and only failed because of a front-page
-                # restriction (e.g., max_on_front_page == 0), advance to the next page;
-                # if we're already on page >= 1 and the page is empty, force-place it
-                # so we never loop infinitely.
                 if len(pages[cur_idx]) == 0 and cur_idx >= 1:
                     break
                 pages.append([])
@@ -169,11 +304,131 @@ class CustomScreamsheet(BaseScreamsheet):
             page_weights[cur_idx] += spec.weight
             fam = spec.component_family or "generic"
             page_families[cur_idx][fam] = page_families[cur_idx].get(fam, 0) + 1
+            open_left_comp = comp if spec.columns == 1 else None
 
         # Remove any empty leading/trailing page buckets if created
         non_empty = [p for p in pages if p]
         self.packed_pages = non_empty
         return non_empty
+
+    def _render_single_column_cell(self, comp: ScreamsheetComponent) -> List[Any]:
+        """Render a single-column component (max_width=265) along with its header for a 2-column table cell."""
+        import inspect
+
+        cell_flowables: List[Any] = []
+        sig = inspect.signature(comp.render)
+        if "styles" in sig.parameters:
+            comp_elements = comp.render(styles=self.styles, max_width=265)
+        else:
+            comp_elements = comp.render()
+        if not comp_elements:
+            return [Paragraph("", self.styles["Normal"])]
+
+        if comp.title and not comp.layout_spec.renders_own_header:
+            cell_flowables.append(Paragraph(f"<b>{comp.title}</b>", self.component_header_style))
+        cell_flowables.extend(comp_elements)
+        return cell_flowables
+
+    def _build_two_column_row_table(
+        self,
+        left_flowables: List[Any],
+        right_flowables: List[Any],
+        show_divider: bool = True,
+    ) -> Table:
+        """Build a 2-column side-by-side ReportLab Table for single-column components."""
+        col_w = 265.0
+        gutter = 10.0
+        style_cmds: List[Any] = [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (0, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, -1), gutter),
+            ("LEFTPADDING", (1, 0), (1, -1), gutter),
+            ("RIGHTPADDING", (1, 0), (1, -1), 0),
+        ]
+        if show_divider:
+            style_cmds.append(("LINEAFTER", (0, 0), (0, -1), 0.5, colors.HexColor("#CCCCCC")))
+
+        table = Table(
+            [[left_flowables, right_flowables]],
+            colWidths=[col_w, col_w],
+            spaceBefore=0,
+            spaceAfter=0,
+        )
+        table.setStyle(TableStyle(style_cmds))
+        return table
+
+    def _render_page_components(self, comp_list: List[ScreamsheetComponent]) -> List[Any]:
+        """Render a page's components, pairing adjacent single-column components into 2-column rows."""
+        page_flowables: List[Any] = []
+        idx = 0
+        row_idx = 0
+
+        while idx < len(comp_list):
+            comp = comp_list[idx]
+            is_first_row = row_idx == 0
+
+            if comp.layout_spec.columns == 1:
+                if idx + 1 < len(comp_list) and comp_list[idx + 1].layout_spec.columns == 1:
+                    right_comp = comp_list[idx + 1]
+                    left_cell = self._render_single_column_cell(comp)
+                    right_cell = self._render_single_column_cell(right_comp)
+
+                    if not is_first_row:
+                        page_flowables.append(Spacer(1, 10))
+                        if (
+                            comp.layout_spec.preferred_top_divider
+                            or right_comp.layout_spec.preferred_top_divider
+                        ):
+                            page_flowables.append(
+                                HRFlowable(
+                                    width="100%",
+                                    thickness=0.6,
+                                    color=colors.HexColor("#cccccc"),
+                                    spaceBefore=2,
+                                    spaceAfter=6,
+                                )
+                            )
+                    page_flowables.append(
+                        self._build_two_column_row_table(left_cell, right_cell, show_divider=True)
+                    )
+                    idx += 2
+                    row_idx += 1
+                    continue
+
+                # Unpaired single-column component
+                if comp.layout_spec.expand_when_unpaired:
+                    page_flowables.extend(
+                        self._render_component_with_chrome(comp, is_first_on_page=is_first_row)
+                    )
+                else:
+                    left_cell = self._render_single_column_cell(comp)
+                    right_cell = [Paragraph("", self.styles["Normal"])]
+                    if not is_first_row:
+                        page_flowables.append(Spacer(1, 10))
+                        if comp.layout_spec.preferred_top_divider:
+                            page_flowables.append(
+                                HRFlowable(
+                                    width="100%",
+                                    thickness=0.6,
+                                    color=colors.HexColor("#cccccc"),
+                                    spaceBefore=2,
+                                    spaceAfter=6,
+                                )
+                            )
+                    page_flowables.append(
+                        self._build_two_column_row_table(left_cell, right_cell, show_divider=True)
+                    )
+                idx += 1
+                row_idx += 1
+                continue
+
+            page_flowables.extend(
+                self._render_component_with_chrome(comp, is_first_on_page=is_first_row)
+            )
+            idx += 1
+            row_idx += 1
+
+        return page_flowables
 
     def _render_component_with_chrome(
         self,
@@ -238,12 +493,7 @@ class CustomScreamsheet(BaseScreamsheet):
                 page_flowables: List[Any] = []
                 if page_idx == 0:
                     page_flowables.extend(masthead)
-                for comp_idx, comp in enumerate(comp_list):
-                    page_flowables.extend(
-                        self._render_component_with_chrome(
-                            comp, is_first_on_page=(comp_idx == 0)
-                        )
-                    )
+                page_flowables.extend(self._render_page_components(comp_list))
                 rendered_pages.append(page_flowables)
 
         pdf_path = self._build_multi_page_pdf(rendered_pages)

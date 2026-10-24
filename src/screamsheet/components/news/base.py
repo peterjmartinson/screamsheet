@@ -48,12 +48,14 @@ class _NewsPageUnitComponent(ScreamsheetComponent):
         schedule_title: str = "Today's Broadcasts",
         title: str = "",
     ) -> None:
+        is_single_col = len(articles_chunk) == 1 and not schedule_items
         weight = 0.42 if len(articles_chunk) >= 2 else 0.35
         spec = ComponentLayoutSpec(
             weight=weight,
+            columns=1 if is_single_col else 2,
             component_family="news",
-            max_on_front_page=1,
-            max_per_page=1,
+            max_on_front_page=2 if is_single_col else 1,
+            max_per_page=2 if is_single_col else 1,
             renders_own_header=False,
             preferred_top_divider=True,
         )
@@ -74,6 +76,12 @@ class _NewsPageUnitComponent(ScreamsheetComponent):
         styles: Optional[Any] = None,
         max_width: Optional[float] = None,
     ) -> List[Any]:
+        if max_width is not None and max_width <= 280 and self.layout_spec.columns == 1:
+            return self.parent._render_articles_single_column(
+                self.data,
+                schedule_items=self.schedule_items,
+                schedule_title=self.schedule_title,
+            )
         return self.parent._render_articles_two_column(
             self.data,
             schedule_items=self.schedule_items,
@@ -363,6 +371,48 @@ class NewsStoryComponent(ScreamsheetComponent):
             )
         return units
 
+    def _build_single_article_flowables(self, article: Dict[str, Any]) -> List[Any]:
+        """Build flowables for a single news article."""
+        summary_paragraphs = [p for p in article["summary"].split("\n\n") if p.strip()]
+        article_elements: List[Any] = [
+            Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
+        ]
+
+        byline_parts = []
+        if article.get("source"):
+            byline_parts.append(article["source"])
+        if article.get("pub_date"):
+            byline_parts.append(article["pub_date"])
+        if byline_parts:
+            date_style = ParagraphStyle(
+                name="ArticleDate",
+                parent=self.styles["Normal"],
+                fontName="Helvetica-Oblique",
+                fontSize=9,
+                textColor="#666666",
+                spaceAfter=6,
+            )
+            article_elements.append(Paragraph(" — ".join(byline_parts), date_style))
+
+        for paragraph in summary_paragraphs:
+            article_elements.append(Paragraph(paragraph, self.article_text_style))
+            article_elements.append(Spacer(1, 6))
+
+        article_elements.append(Spacer(1, 12))
+        return article_elements
+
+    def _render_articles_single_column(
+        self,
+        articles_to_render: List[Dict[str, Any]],
+        schedule_items: Optional[List[str]] = None,
+        schedule_title: str = "Today's Broadcasts",
+    ) -> List[Any]:
+        """Render articles into a single-column flowable list (for pairing with another column)."""
+        flowables: List[Any] = []
+        for article in articles_to_render:
+            flowables.extend(self._build_single_article_flowables(article))
+        return flowables
+
     def _render_articles_two_column(
         self,
         articles_to_render: List[Dict[str, Any]],
@@ -378,34 +428,7 @@ class NewsStoryComponent(ScreamsheetComponent):
         right_column = []
 
         for i, article in enumerate(articles_to_render):
-            summary_paragraphs = [p for p in article["summary"].split("\n\n") if p.strip()]
-
-            article_elements = [
-                Paragraph(f"<b>{article['title']}</b>", self.article_heading_style),
-            ]
-
-            byline_parts = []
-            if article.get("source"):
-                byline_parts.append(article["source"])
-            if article.get("pub_date"):
-                byline_parts.append(article["pub_date"])
-            if byline_parts:
-                date_style = ParagraphStyle(
-                    name="ArticleDate",
-                    parent=self.styles["Normal"],
-                    fontName="Helvetica-Oblique",
-                    fontSize=9,
-                    textColor="#666666",
-                    spaceAfter=6,
-                )
-                article_elements.append(Paragraph(" — ".join(byline_parts), date_style))
-
-            for paragraph in summary_paragraphs:
-                article_elements.append(Paragraph(paragraph, self.article_text_style))
-                article_elements.append(Spacer(1, 6))
-
-            article_elements.append(Spacer(1, 12))
-
+            article_elements = self._build_single_article_flowables(article)
             if i % 2 == 0:
                 left_column.extend(article_elements)
             else:

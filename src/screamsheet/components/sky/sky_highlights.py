@@ -16,15 +16,19 @@ from ..registry import ComponentRegistry
 
 
 @ComponentRegistry.register("sky_highlights")
+@ComponentRegistry.register("sky_summary")
+@ComponentRegistry.register("sky_tonight_summary")
 class SkyHighlightsComponent(ScreamsheetComponent):
     """Renders a bulleted sky-highlights list with an optional LLM finale."""
 
     component_type = "sky_highlights"
     layout_spec = ComponentLayoutSpec(
         weight=0.25,
+        columns=1,
+        expand_when_unpaired=True,
         component_family="sky_highlights",
-        max_on_front_page=1,
-        max_per_page=1,
+        max_on_front_page=2,
+        max_per_page=2,
     )
 
     def __init__(
@@ -59,6 +63,14 @@ class SkyHighlightsComponent(ScreamsheetComponent):
             leftIndent=12,
             spaceAfter=6,
         )
+        self._col_bullet_style = ParagraphStyle(
+            "SkyColumnBullet",
+            parent=base["Normal"],
+            fontSize=10.5,
+            leading=14.0,
+            leftIndent=0,
+            spaceAfter=6,
+        )
         self._heading_style = base["Heading2"]
 
     def create_default_provider(self) -> Any:
@@ -78,6 +90,11 @@ class SkyHighlightsComponent(ScreamsheetComponent):
             self.fetch_data()
 
         elements: List[Any] = []
+        active_style = (
+            self._col_bullet_style
+            if (max_width is not None and max_width <= 280)
+            else self._bullet_style
+        )
 
         llm_output = self._get_llm_bullet()
         if llm_output:
@@ -87,11 +104,11 @@ class SkyHighlightsComponent(ScreamsheetComponent):
                     continue
                 text = line.lstrip("•").strip()
                 if text:
-                    elements.append(Paragraph(text, self._bullet_style))
+                    elements.append(Paragraph(text, active_style))
         else:
             bullets: List[str] = cast(List[str], self.data) if isinstance(self.data, list) else []
             for bullet in bullets:
-                elements.append(Paragraph(bullet, self._bullet_style))
+                elements.append(Paragraph(bullet, active_style))
 
         return elements
 

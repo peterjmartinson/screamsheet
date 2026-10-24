@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
@@ -32,6 +32,8 @@ class ComponentLayoutSpec:
     """
 
     weight: float = 0.45
+    columns: int = 2
+    expand_when_unpaired: bool = False
     component_family: str = "generic"
     max_on_front_page: Optional[int] = None
     max_per_page: Optional[int] = None
@@ -42,6 +44,8 @@ class ComponentLayoutSpec:
     def __post_init__(self) -> None:
         if self.weight <= 0:
             raise ValueError(f"ComponentLayoutSpec.weight must be > 0, got {self.weight}")
+        if self.columns not in (1, 2):
+            raise ValueError(f"ComponentLayoutSpec.columns must be 1 or 2, got {self.columns}")
         if self.max_on_front_page is not None and self.max_on_front_page < 0:
             raise ValueError(
                 f"ComponentLayoutSpec.max_on_front_page must be >= 0, got {self.max_on_front_page}"
@@ -79,7 +83,10 @@ class ScreamsheetComponent(Section, ABC):
         cls_spec = getattr(self.__class__, "layout_spec", None)
         if cls_spec is None or cls_spec == ScreamsheetComponent.DEFAULT_LAYOUT_SPEC:
             cls_spec = getattr(self.__class__, "DEFAULT_LAYOUT_SPEC", ScreamsheetComponent.DEFAULT_LAYOUT_SPEC)
-        self.layout_spec: ComponentLayoutSpec = layout_spec or cls_spec
+        resolved_spec: ComponentLayoutSpec = layout_spec or cls_spec
+        if "columns" in kwargs and kwargs["columns"] in (1, 2):
+            resolved_spec = replace(resolved_spec, columns=int(kwargs.pop("columns")))
+        self.layout_spec: ComponentLayoutSpec = resolved_spec
         self.date: datetime = date if date is not None else (datetime.now() - timedelta(days=1))
         self.provider: Optional[Any] = (
             provider

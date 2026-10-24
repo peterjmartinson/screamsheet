@@ -15,7 +15,10 @@ from screamsheet.components import (
     MLBStandingsComponent,
     NBAStandingsComponent,
     NHLStandingsComponent,
+    SkyHighlightsComponent,
+    SkyHoroscopeComponent,
     WeatherComponent,
+    ZodiacWheelComponent,
 )
 
 
@@ -196,3 +199,120 @@ def test_full_page_box_score_isolates_on_its_own_page(
 
     sheet.generate()
     assert _count_pdf_pages(out_pdf) == 3
+
+
+def _mock_sky_provider() -> MagicMock:
+    provider = MagicMock()
+    provider.get_sky_data.return_value = {
+        "planets": [
+            {"name": "Sun", "zodiac": "Taurus", "ecliptic_lon": 31.0, "two_letter": "Su"},
+            {"name": "Moon", "zodiac": "Cancer", "ecliptic_lon": 92.0, "two_letter": "Mo"},
+        ],
+        "moon_phase": "Waxing Crescent",
+        "highlights": [
+            "The Moon is Waxing Crescent.",
+            "Venus shines brightly in the western twilight.",
+        ],
+        "visible_constellations": ["Leo", "Orion"],
+    }
+    return provider
+
+
+def test_single_column_horoscope_and_sky_highlights_pair_side_by_side(tmp_path, monkeypatch):
+    """Ordering a 1-person horoscope followed by sky_highlights pairs them in 2 columns on the same page."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GROK_API_KEY", raising=False)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+
+    sky_p = _mock_sky_provider()
+    horo_peter = SkyHoroscopeComponent(
+        provider=sky_p,
+        date=datetime(2026, 10, 21),
+        name="Peter",
+        birth_date="1978-02-26",
+        birth_time="01:20",
+        birth_location="Wauwatosa, WI",
+        astro_provider=None,
+    )
+    highlights = SkyHighlightsComponent(
+        provider=sky_p,
+        date=datetime(2026, 10, 21),
+    )
+
+    out_pdf = tmp_path / "horo_and_highlights.pdf"
+    sheet = CustomScreamsheet(
+        output_filename=str(out_pdf),
+        components=[horo_peter, highlights],
+        screamsheet_title="Sky & Horoscope",
+        date=datetime(2026, 10, 21),
+    )
+
+    pages = sheet.pack_components_into_pages()
+    assert len(pages) == 1
+    assert pages[0] == [horo_peter, highlights]
+
+    sheet.generate()
+    assert _count_pdf_pages(out_pdf) == 1
+
+
+def test_two_independent_horoscopes_and_horoscope_plus_news_flow_into_columns(tmp_path, monkeypatch):
+    """Two ordered horoscopes fill Page 1 (Left & Right); a 3rd horoscope + 3-article news splits Article 1 into Page 2 Right and Articles 2-3 onto Page 3."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("GROK_API_KEY", raising=False)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+
+    sky_p = _mock_sky_provider()
+    wheel = ZodiacWheelComponent(provider=sky_p, date=datetime(2026, 10, 21))
+    horo_1 = SkyHoroscopeComponent(
+        provider=sky_p,
+        date=datetime(2026, 10, 21),
+        name="Peter",
+        birth_date="1978-02-26",
+        birth_time="01:20",
+        birth_location="Wauwatosa, WI",
+        astro_provider=None,
+    )
+    horo_2 = SkyHoroscopeComponent(
+        provider=sky_p,
+        date=datetime(2026, 10, 21),
+        name="Anna",
+        birth_date="1985-05-03",
+        birth_time="13:26",
+        birth_location="New York, NY",
+        astro_provider=None,
+    )
+    horo_3 = SkyHoroscopeComponent(
+        provider=sky_p,
+        date=datetime(2026, 10, 21),
+        name="Isaac",
+        birth_date="2012-09-10",
+        birth_time="08:00",
+        birth_location="Bryn Mawr, PA",
+        astro_provider=None,
+    )
+    news = _mock_news_component(num_articles=4, max_articles=3)
+
+    out_pdf = tmp_path / "wheel_horos_news.pdf"
+    sheet = CustomScreamsheet(
+        output_filename=str(out_pdf),
+        components=[wheel, horo_1, horo_2, horo_3, news],
+        screamsheet_title="Sky & News Mashup",
+        date=datetime(2026, 10, 21),
+    )
+
+    pages = sheet.pack_components_into_pages()
+    assert len(pages) == 4
+    # Page 1: Zodiac Wheel
+    assert pages[0] == [wheel]
+    # Page 2: Peter (Left) + Anna (Right)
+    assert pages[1] == [horo_1, horo_2]
+    # Page 3: Isaac (Left) + News Article 1 (Right)
+    assert pages[2][0] is horo_3
+    assert [a["title"] for a in pages[2][1].data] == ["Article Headline 1"]
+    # Page 4: News Articles 2 & 3 (Left & Right)
+    assert [a["title"] for a in pages[3][0].data] == ["Article Headline 2", "Article Headline 3"]
+
+    sheet.generate()
+    assert _count_pdf_pages(out_pdf) == 4

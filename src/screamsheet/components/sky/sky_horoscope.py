@@ -79,16 +79,18 @@ def _enlarge_astro_glyphs(text: str, size: int = 11) -> str:
 
 
 @ComponentRegistry.register("sky_horoscope")
+@ComponentRegistry.register("horoscope")
 class SkyHoroscopeComponent(ScreamsheetComponent):
-    """Renders two horoscope readings side-by-side for configured people."""
+    """Renders horoscope reading(s) in a single-column slot or a 2-column table."""
 
     component_type = "sky_horoscope"
     layout_spec = ComponentLayoutSpec(
-        weight=1.0,
-        full_page_only=True,
+        weight=0.75,
+        columns=1,
+        full_page_only=False,
         component_family="sky_horoscope",
-        max_on_front_page=1,
-        max_per_page=1,
+        max_on_front_page=2,
+        max_per_page=2,
         renders_own_header=True,
     )
 
@@ -99,10 +101,20 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
         date: Optional[datetime] = None,
         location_name: str = "Bryn Mawr, PA",
         people: Optional[List[PersonConfig]] = None,
+        person: Optional[Any] = None,
+        name: Optional[str] = None,
+        birth_date: str = "",
+        birth_time: str = "",
+        birth_location: str = "",
+        sun_sign: str = "",
+        moon_sign: str = "",
+        ascendant: str = "",
+        extra_instructions: Any = None,
         astro_provider: Optional[AstroDataProvider] = None,
         horoscope_style: str = "kepler",
         lat: float = 40.02,
         lon: float = -75.34,
+        _use_default_astro: bool = True,
         **kwargs: Any,
     ) -> None:
         self.lat = lat
@@ -118,7 +130,23 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
             horoscope_style=horoscope_style,
             **kwargs,
         )
-        raw_people = people or []
+        raw_people = list(people or [])
+        if person is not None:
+            raw_people.append(person)
+        if name:
+            raw_people.append(
+                PersonConfig(
+                    name=str(name),
+                    birth_date=str(birth_date),
+                    birth_time=str(birth_time),
+                    birth_location=str(birth_location),
+                    sun_sign=str(sun_sign),
+                    moon_sign=str(moon_sign),
+                    ascendant=str(ascendant),
+                    horoscope_style=horoscope_style,
+                    extra_instructions=extra_instructions,
+                )
+            )
         parsed_people: List[Any] = []
         for p in raw_people:
             if isinstance(p, dict):
@@ -126,7 +154,11 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
             else:
                 parsed_people.append(p)
         self.people: List[Any] = parsed_people
-        self.astro_provider = astro_provider if astro_provider is not None else AstroDataProvider()
+        self.astro_provider = (
+            astro_provider
+            if astro_provider is not None
+            else (AstroDataProvider() if _use_default_astro else None)
+        )
         self.horoscope_style = horoscope_style
         self.astro_data: Optional[dict] = None
         self.natal_data: Dict[str, List[Dict[str, Any]]] = {}
@@ -173,6 +205,30 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
     def has_content(self) -> bool:
         return len(self.people) > 0
 
+    def expand_page_units(self) -> List[ScreamsheetComponent]:
+        """Expand into one single-column horoscope unit per configured person."""
+        if not self.has_content():
+            return []
+        if len(self.people) <= 1:
+            return [self]
+        units: List[ScreamsheetComponent] = []
+        for p in self.people:
+            unit = SkyHoroscopeComponent(
+                title=self.title,
+                provider=self.provider,
+                date=self.date,
+                location_name=self.location_name,
+                people=[p],
+                astro_provider=self.astro_provider,
+                horoscope_style=self.horoscope_style,
+                lat=self.lat,
+                lon=self.lon,
+                layout_spec=self.layout_spec,
+                _use_default_astro=(self.astro_provider is not None),
+            )
+            units.append(unit)
+        return units
+
     def fetch_data(self) -> None:
         self.data = self.provider.get_sky_data(self.date)
         self.natal_data = {}
@@ -184,6 +240,58 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
                         person.birth_date, person.birth_time
                     )
 
+    def _build_person_column_flowables(self, person: Any) -> List[Any]:
+        """Build flowables for a single person's horoscope reading."""
+        reading = self._get_horoscope(person)
+        col: List[Any] = [
+            Paragraph(person.name, self._name_style),
+        ]
+        paragraphs = [p.strip() for p in reading.split("\n") if p.strip()]
+        for p_text in paragraphs:
+            if p_text.startswith("•") or p_text.startswith("-"):
+                p_clean = p_text.lstrip("•- ").strip()
+                p_enlarged = _enlarge_astro_glyphs(p_clean, size=12)
+                line_html = f"&bull; {p_enlarged}"
+
+                col.append(Paragraph(line_html, self._aspect_style))
+                col.append(Spacer(1, 2))
+            else:
+                lower_p = p_text.lower()
+                if lower_p.startswith("where to watch your step:"):
+                    prefix_len = len("where to watch your step:")
+                    lead = p_text[:prefix_len]
+                    rest = p_text[prefix_len:]
+                    p_html = f"<b>{lead}</b>{rest}"
+                elif lower_p.startswith("your move:"):
+                    prefix_len = len("your move:")
+                    lead = p_text[:prefix_len]
+                    rest = p_text[prefix_len:]
+                    p_html = f"<b>{lead}</b>{rest}"
+                elif lower_p.startswith("key influences & aspects:") or lower_p.startswith(
+                    "key influences and aspects:"
+                ):
+                    p_html = f"<b>{p_text}</b>"
+                else:
+                    p_html = p_text
+
+                col.append(Paragraph(p_html, self._body_style))
+                col.append(Spacer(1, 4))
+        return col
+
+    def _build_legend_flowables(self) -> List[Any]:
+        legend_text = (
+            "<b>Aspects:</b> &nbsp; "
+            "<font size='10'>&#x260C;</font> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x2217;</font> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25A1;</font> Square (90&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x25B3;</font> Trine (120&deg;) &nbsp;&bull;&nbsp; "
+            "<font size='10'>&#x260D;</font> Opposition (180&deg;)"
+        )
+        return [
+            HRFlowable(width="100%", thickness=0.4, color=HexColor("#DDDDDD"), spaceAfter=3),
+            Paragraph(legend_text, self._legend_style),
+        ]
+
     def render(
         self,
         styles: Optional[Any] = None,
@@ -192,48 +300,27 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
         if self.data is None:
             self.fetch_data()
 
-        elements: List[Any] = []
+        if max_width is not None and max_width <= 280 and self.layout_spec.columns == 1:
+            if not self.people:
+                return []
+            elements: List[Any] = []
+            if self.title:
+                header_text = "Horoscope" if (self.title == "Horoscopes" and len(self.people) == 1) else self.title
+                elements.append(Paragraph(header_text, self._heading_style))
+                elements.append(Spacer(1, 4))
+            elements.extend(self._build_person_column_flowables(self.people[0]))
+            elements.append(Spacer(1, 4))
+            elements.extend(self._build_legend_flowables())
+            return elements
+
+        elements = []
         elements.append(Paragraph(self.title, self._heading_style))
         elements.append(Spacer(1, 4))
 
-        col_contents: List[List[Any]] = []
-        for person in self.people[:2]:
-            reading = self._get_horoscope(person)
-            col: List[Any] = [
-                Paragraph(person.name, self._name_style),
-            ]
-            paragraphs = [p.strip() for p in reading.split("\n") if p.strip()]
-            for p_text in paragraphs:
-                if p_text.startswith("•") or p_text.startswith("-"):
-                    p_clean = p_text.lstrip("•- ").strip()
-                    p_enlarged = _enlarge_astro_glyphs(p_clean, size=12)
-                    line_html = f"&bull; {p_enlarged}"
-
-                    col.append(Paragraph(line_html, self._aspect_style))
-                    col.append(Spacer(1, 2))
-                else:
-                    lower_p = p_text.lower()
-                    if lower_p.startswith("where to watch your step:"):
-                        prefix_len = len("where to watch your step:")
-                        lead = p_text[:prefix_len]
-                        rest = p_text[prefix_len:]
-                        p_html = f"<b>{lead}</b>{rest}"
-                    elif lower_p.startswith("your move:"):
-                        prefix_len = len("your move:")
-                        lead = p_text[:prefix_len]
-                        rest = p_text[prefix_len:]
-                        p_html = f"<b>{lead}</b>{rest}"
-                    elif lower_p.startswith("key influences & aspects:") or lower_p.startswith(
-                        "key influences and aspects:"
-                    ):
-                        p_html = f"<b>{p_text}</b>"
-                    else:
-                        p_html = p_text
-
-                    col.append(Paragraph(p_html, self._body_style))
-                    col.append(Spacer(1, 4))
-
-            col_contents.append(col)
+        col_contents: List[List[Any]] = [
+            self._build_person_column_flowables(person)
+            for person in self.people[:2]
+        ]
 
         while len(col_contents) < 2:
             col_contents.append([Paragraph("", self._body_style)])
@@ -260,17 +347,7 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
         )
         elements.append(table)
         elements.append(Spacer(1, 6))
-
-        legend_text = (
-            "<b>Aspects:</b> &nbsp; "
-            "<font size='10'>&#x260C;</font> Conjunction (0&deg;) &nbsp;&bull;&nbsp; "
-            "<font size='10'>&#x2217;</font> Sextile (60&deg;) &nbsp;&bull;&nbsp; "
-            "<font size='10'>&#x25A1;</font> Square (90&deg;) &nbsp;&bull;&nbsp; "
-            "<font size='10'>&#x25B3;</font> Trine (120&deg;) &nbsp;&bull;&nbsp; "
-            "<font size='10'>&#x260D;</font> Opposition (180&deg;)"
-        )
-        elements.append(HRFlowable(width="100%", thickness=0.4, color=HexColor("#DDDDDD"), spaceAfter=3))
-        elements.append(Paragraph(legend_text, self._legend_style))
+        elements.extend(self._build_legend_flowables())
         return elements
 
     def render_markdown(self) -> str:

@@ -179,23 +179,38 @@ Uses the subscriber's top-level `location:` automatically unless overridden on t
 | `type` | Default `title` | Supported Options | Description |
 | :--- | :--- | :--- | :--- |
 | `weather` | `"Weather Forecast"` | `location`, `show_description: true`, `title` | 5-day weather forecast table with icons, highs/lows, and conditions (`show_description: false` for compact banner). |
-| `zodiac_wheel` | `""` | `location`, `title` | Vector ecliptic zodiac wheel with planet positions and symbol glossary. |
-| `sky_highlights` | `"Sky Highlights"` | `location`, `title` | Bulleted naked-eye sky highlights + LLM astronomical remark. |
-| `sky_horoscope` | `"Horoscopes"` | `people`, `horoscope_style` (`"kepler"` or `"playbook"`), `location`, `title` | Full-page two-column natal/transit horoscope readings for up to 2 `people`. |
+| `zodiac_wheel` | `""` | `location`, `title` | Full-width vector ecliptic zodiac wheel with planet positions and 9-planet symbol glossary. |
+| `sky_highlights` *(or `sky_summary`)* | `"Sky Highlights"` | `location`, `title`, `columns` | Independent naked-eye sky observing summary. Pairs into the next available column (`columns: 1`) when placed next to a horoscope or news story, or spans full width beneath `zodiac_wheel`. |
+| `sky_horoscope` *(or `horoscope`)* | `"Horoscope"` | `name`, `birth_date`, `birth_time`, `birth_location`, `horoscope_style` (`"kepler"` or `"playbook"`), `extra_instructions`, `people`, `location`, `title` | Independent 1-column natal/transit horoscope reading. Each ordered horoscope fills the next available column (Left → Right), so it can pair with a second `sky_horoscope`, `sky_highlights`, or a news article. |
 
-Example `sky_horoscope` component in a custom sheet:
+#### Single-Column Flowing for Sky Tonight, Horoscopes & News
+`sky_horoscope`, `sky_highlights`, and news stories automatically flow into the next available half-page column (`Left Column` → `Right Column`):
+- **Horoscope + Sky Tonight Summary (2 columns on the same page)**:
 ```yaml
 - type: sky_horoscope
-  horoscope_style: kepler
-  people:
-    - name: "Peter"
-      birth_date: "1978-02-26"
-      birth_time: "01:20"
-      birth_location: "Wauwatosa, WI"
-      sun_sign: "Pisces"
-      moon_sign: "Libra"
-      ascendant: "Sagittarius"
+  name: "Peter"
+  birth_date: "1978-02-26"
+  birth_time: "01:20"
+  birth_location: "Wauwatosa, WI"
+  horoscope_style: "playbook"
+- type: sky_highlights
 ```
+- **Two Separate Horoscopes (fills Left & Right columns)**:
+```yaml
+- type: sky_horoscope
+  name: "Peter"
+  birth_date: "1978-02-26"
+  birth_time: "01:20"
+  birth_location: "Wauwatosa, WI"
+  horoscope_style: "playbook"
+- type: sky_horoscope
+  name: "Anna"
+  birth_date: "1985-05-03"
+  birth_time: "13:26"
+  birth_location: "New York, NY"
+  horoscope_style: "playbook"
+```
+- **Horoscope + News**: If you order one `sky_horoscope` followed by a news component (e.g., `presidential_news` with `max_articles: 3`), your horoscope fills the Left Column, Story 1 fills the Right Column beside it, and Stories 2 & 3 flow onto the next page's Left & Right columns.
 
 ---
 

@@ -66,17 +66,23 @@ When defining a custom sheet block under `sheets:`, the following top-level keys
    - **Page 1 (Front Page)** reserves space at the top for the masthead (`screamsheet_title`, optional `subtitle`, and date).
    - **Standings Limit**: Page 1 allows **at most 1** standings table (`max_on_front_page = 1`). Compact components (`weather`, `*_game_scores`, `nfl_tv_schedule`, or the first 2 articles of a news component) can share Page 1 with that single standings table if vertical space permits.
    - **Page 2+ (Back Page and beyond)** can hold **up to 2** standings tables per page (`max_per_page = 2`).
-2. **News Article 2-Column Overflow & Deduplication**:
+2. **Single-Column ("Next Available Column") Flowing**:
+   - Components with `columns: 1`—including `sky_horoscope` (alias: `horoscope`), `sky_highlights` (alias: `sky_summary`), and 1-article news units—occupy a single half-page column (`265pt` wide) and automatically fill the next available column slot (**Left Column** → **Right Column**) on the current page:
+     - Ordering two `sky_horoscope` components in a row places Person 1 in the Left Column and Person 2 in the Right Column.
+     - Ordering one `sky_horoscope` followed by `sky_highlights` places the horoscope in the Left Column and the Sky Tonight summary in the Right Column.
+     - Ordering one `sky_horoscope` followed by a multi-article news component (e.g., `presidential_news` with `max_articles: 3`) automatically places the horoscope in the Left Column, splits **Article 1** into the open Right Column beside it, and flows **Articles 2 & 3** onto the next page's Left & Right columns.
+     - When `sky_highlights` is unpaired on a row (for example, placed directly beneath `zodiac_wheel`), it automatically expands to span the full width of the page.
+3. **News Article 2-Column Overflow & Deduplication**:
    - News components default to **`max_articles: 4`** if not specified.
-   - Articles flow across 2 columns per page:
+   - When starting on a fresh row, articles flow across 2 columns per page:
      - **Article 1** → Current page, left half
      - **Article 2** → Current page, right half
      - **Article 3** → Next page, left half
      - **Article 4** → Next page, right half (and so on for larger `max_articles`).
    - **Story Deduplication**: Every custom screamsheet tracks all stories across the entire sheet (`seen_story_keys` by URL/ID and normalized headline). If you place `mlb_trade_rumors_news` followed by `mlb_news`, no story will ever be duplicated across components or pages.
-3. **Full-Page Components**:
-   - Box scores (`*_box_score`), `sky_horoscope`, `briefing_back`, and `home_run_derby` require an entire page to themselves. They automatically start on a new page if the current page is non-empty, and any component after them starts on the following page.
-4. **Empty Component Suppression**:
+4. **Full-Page Components**:
+   - Box scores (`*_box_score`), `briefing_back`, and `home_run_derby` require an entire page to themselves (`full_page_only = true`). They automatically start on a new page if the current page is non-empty, and any component after them starts on the following page.
+5. **Empty Component Suppression**:
    - If a component has no data for the day (for example, `mlb_game_scores` on an off-day or `nhl_box_score` when none of the specified `teams` played yesterday), it is cleanly omitted without leaving blank pages.
 
 ---
@@ -88,6 +94,7 @@ Every item in `components:` accepts:
 ```yaml
 - type: <component_type>      # Required: registered component key (see Section 5)
   title: "Custom Heading"     # Optional: overrides the component's default section header
+  columns: 1                  # Optional: 1 (single-column half-page slot) or 2 (full-width)
   teams: [...]                # Optional: list of team names, nicknames, abbreviations, or {id, name} dicts
   max_articles: 4             # Optional (News components): number of articles to include (default: 4)
   mad_fan: false              # Optional (Box Score components): enraged hometown-fan recap on a loss
@@ -338,4 +345,22 @@ Combines `mlb_trade_rumors_news` and `mlb_news` with automatic cross-component s
       - type: nfl_news
         teams: ["Philadelphia Eagles", "Green Bay Packers"]
         max_articles: 4
+```
+
+### Recipe 4: Custom Sky Tonight, Horoscope & News Mashup
+Page 1 renders the full-width `zodiac_wheel`; Page 2 pairs your personal `sky_horoscope` in the Left Column with `sky_highlights` (or Article 1 of `presidential_news`) in the Right Column.
+```yaml
+  sky_and_news:
+    screamsheet_title: "Tonight's Sky & Digest"
+    components:
+      - type: zodiac_wheel
+      - type: sky_horoscope
+        name: "Peter"
+        birth_date: "1978-02-26"
+        birth_time: "01:20"
+        birth_location: "Wauwatosa, WI"
+        horoscope_style: "playbook"
+      - type: sky_highlights
+      - type: presidential_news
+        max_articles: 2
 ```

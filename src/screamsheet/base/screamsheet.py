@@ -119,6 +119,60 @@ class BaseScreamsheet(ABC):
         logger.info("PDF written to %s", self.output_filename)
         return self.output_filename
 
+    def _build_multi_page_pdf(
+        self,
+        pages: List[List[Any]],
+    ) -> str:
+        """Build an N-page PDF using BaseDocTemplate + per-page KeepInFrame(mode='shrink').
+
+        Args:
+            pages: List of page flowable lists (one list of flowables per page).
+
+        Returns:
+            Path to the written PDF file.
+        """
+        non_empty_pages = [p for p in pages if p]
+        if not non_empty_pages:
+            non_empty_pages = [[]]
+
+        margin = 36
+        page_width, page_height = letter
+        frame_w = page_width - 2 * margin
+        frame_h = page_height - 2 * margin
+
+        Path(self.output_filename).parent.mkdir(parents=True, exist_ok=True)
+        doc = BaseDocTemplate(
+            self.output_filename,
+            pagesize=letter,
+            leftMargin=margin, rightMargin=margin,
+            topMargin=margin, bottomMargin=margin,
+        )
+
+        templates = []
+        story: List[Any] = []
+        for idx, page_flowables in enumerate(non_empty_pages):
+            tpl_id = f"Page_{idx + 1}"
+            frame = Frame(margin, margin, frame_w, frame_h, id=f"frame_{idx + 1}")
+            templates.append(
+                PageTemplate(id=tpl_id, frames=[frame], onPage=self._draw_branding_footer)
+            )
+            if idx > 0:
+                story.append(NextPageTemplate(tpl_id))
+                story.append(PageBreak())
+            story.append(
+                KeepInFrame(
+                    maxWidth=0,
+                    maxHeight=frame_h,
+                    content=page_flowables,
+                    mode="shrink",
+                )
+            )
+
+        doc.addPageTemplates(templates)
+        doc.build(story)
+        logger.info("Multi-page PDF (%d pages) written to %s", len(non_empty_pages), self.output_filename)
+        return self.output_filename
+
     def _setup_styles(self):
         """Setup common paragraph styles used across screamsheets."""
         self.title_style = ParagraphStyle(

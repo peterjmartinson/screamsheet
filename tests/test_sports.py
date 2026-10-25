@@ -7,6 +7,11 @@ import pytest
 from screamsheet.sports.base_sports import SportsScreamsheet
 from screamsheet.sports.mlb import MLBScreamsheet
 from screamsheet.sports.nhl import NHLScreamsheet
+from screamsheet.components.standings import (
+    MLBStandingsComponent,
+    NHLStandingsComponent,
+    StandingsComponent,
+)
 from screamsheet.renderers.game_scores import GameScoresSection
 from screamsheet.renderers.standings import StandingsSection
 from screamsheet.renderers.box_score import BoxScoreSection
@@ -30,28 +35,25 @@ class TestSportsScreamseetBuildSections:
     def test_always_includes_game_scores_section(self):
         s = MLBScreamsheet("out.pdf")
         sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert GameScoresSection in types
+        assert any(isinstance(sec, GameScoresSection) for sec in sections)
 
     def test_always_includes_standings_section(self):
         s = MLBScreamsheet("out.pdf")
         sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert StandingsSection in types
+        assert any(isinstance(sec, (StandingsSection, StandingsComponent)) for sec in sections)
+        assert any(isinstance(sec, MLBStandingsComponent) for sec in sections)
 
     def test_no_box_score_when_no_team_and_no_games_on_date(self):
         s = MLBScreamsheet("out.pdf")
         with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
             sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection not in types
+        assert not any(isinstance(sec, BoxScoreSection) for sec in sections)
 
     def test_box_score_added_when_team_set(self):
         s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies")
         with patch.object(s.provider, "has_game", return_value=True):
             sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection in types
+        assert any(isinstance(sec, BoxScoreSection) for sec in sections)
 
     def test_section_count_without_team_and_no_games_on_date(self):
         s = MLBScreamsheet("out.pdf")
@@ -222,8 +224,7 @@ class TestFavoriteTeamsBuildSections:
         )
         with patch.object(s.provider, "has_game", return_value=True):
             sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection in types
+        assert any(isinstance(sec, BoxScoreSection) for sec in sections)
 
     def test_box_score_uses_resolved_team_id(self):
         s = NHLScreamsheet(
@@ -243,8 +244,7 @@ class TestFavoriteTeamsBuildSections:
         with patch.object(s.provider, "has_game", return_value=False):
             with patch.object(s.provider, "get_all_teams_for_date", return_value=[]):
                 sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection not in types
+        assert not any(isinstance(sec, BoxScoreSection) for sec in sections)
 
     def test_box_score_added_when_fallback_team_found(self):
         s = NHLScreamsheet(
@@ -255,8 +255,7 @@ class TestFavoriteTeamsBuildSections:
             with patch.object(s.provider, "get_all_teams_for_date",
                               return_value=[(10, "Toronto Maple Leafs")]):
                 sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection in types
+        assert any(isinstance(sec, BoxScoreSection) for sec in sections)
 
 
 class TestBackwardCompatSingleTeam:
@@ -265,8 +264,7 @@ class TestBackwardCompatSingleTeam:
         s = MLBScreamsheet("out.pdf", team_id=143, team_name="Philadelphia Phillies")
         with patch.object(s.provider, "has_game", return_value=True):
             sections = s.build_sections()
-        types = [type(sec) for sec in sections]
-        assert BoxScoreSection in types
+        assert any(isinstance(sec, BoxScoreSection) for sec in sections)
 
     def test_team_id_stored_on_sheet(self):
         s = NHLScreamsheet("out.pdf", team_id=4, team_name="Philadelphia Flyers")

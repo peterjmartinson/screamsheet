@@ -4,7 +4,8 @@ from datetime import datetime
 
 from .base_news import NewsScreamsheet
 from ..base import Section
-from ..renderers import WeatherSection, NewsArticlesSection
+from ..components.news import MLBTradeRumorsComponent
+from ..components.weather import WeatherComponent
 from ..providers.mlb_trade_rumors_provider import MLBTradeRumorsProvider
 
 
@@ -22,19 +23,6 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None
     ):
-        """
-        Initialize MLB Trade Rumors screamsheet.
-        
-        Args:
-            output_filename: Path to save the PDF
-            favorite_teams: List of favorite team names for prioritization
-            max_articles: Maximum number of articles to include
-            include_weather: Whether to include weather report
-            weather_lat: Latitude for weather location
-            weather_lon: Longitude for weather location
-            weather_location_name: Display name for weather location
-            date: Target date (defaults to today)
-        """
         super().__init__(
             news_source="MLB Trade Rumors",
             output_filename=output_filename,
@@ -55,10 +43,9 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         """Build all sections for the MLB Trade Rumors screamsheet."""
         sections: List[Section] = []
         
-        # 1. Weather Section (if enabled)
         if self.include_weather:
             sections.append(
-                WeatherSection(
+                WeatherComponent(
                     title="Weather Report",
                     date=self.date,
                     lat=self.weather_lat,
@@ -67,9 +54,8 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
                 )
             )
         
-        # 2. Front Page News Articles (first 2 articles)
         sections.append(
-            NewsArticlesSection(
+            MLBTradeRumorsComponent(
                 title="Latest News",
                 provider=self.provider,
                 max_articles=2,
@@ -77,8 +63,7 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
             )
         )
         
-        # 3. Back Page News Articles (next 2 articles)
-        back_section = NewsArticlesSection(
+        back_section = MLBTradeRumorsComponent(
             title="More News",
             provider=self.provider,
             max_articles=2,

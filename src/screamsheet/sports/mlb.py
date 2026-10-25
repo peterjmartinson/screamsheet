@@ -3,6 +3,9 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from .base_sports import SportsScreamsheet
+from ..components.box_score import MLBBoxScoreComponent
+from ..components.game_scores import MLBGameScoresComponent
+from ..components.standings import MLBStandingsComponent
 from ..providers.mlb_provider import MLBDataProvider
 
 
@@ -46,3 +49,35 @@ class MLBScreamsheet(SportsScreamsheet):
     def create_provider(self) -> MLBDataProvider:
         """Create MLB data provider."""
         return MLBDataProvider()
+
+    def create_game_scores_component(self) -> MLBGameScoresComponent:
+        """Create MLB game scores component."""
+        return MLBGameScoresComponent(
+            title="MLB Game Scores",
+            provider=self.provider,
+            date=self.date,
+        )
+
+    def create_standings_component(self) -> MLBStandingsComponent:
+        """Create MLB standings component."""
+        return MLBStandingsComponent(
+            title="MLB Standings",
+            provider=self.provider,
+            date=self.date,
+        )
+
+    def create_box_score_component(
+        self,
+        team_id: int,
+        team_name: str,
+        is_primary_favorite: bool = False,
+    ) -> MLBBoxScoreComponent:
+        """Create MLB box score component."""
+        return MLBBoxScoreComponent(
+            title=f"{team_name} Box Score",
+            provider=self.provider,
+            team_id=team_id,
+            date=self.date,
+            is_primary_favorite=is_primary_favorite,
+            mad_fan=self.mad_fan,
+        )

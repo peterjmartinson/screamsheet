@@ -8,7 +8,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 logger = logging.getLogger(__name__)
 _LOG_FMT = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
@@ -26,7 +26,7 @@ if not logging.root.handlers:
 # PoliticalRSSProvider
 # ---------------------------------------------------------------------------
 
-class PoliticalRSSProvider(DataProvider):
+class PoliticalRSSProvider(NewsDataProvider):
     """
     Fetches and normalizes news entries from 7 RSS feeds covering political
     and world news.
@@ -59,18 +59,6 @@ class PoliticalRSSProvider(DataProvider):
 
     def __init__(self, **config):
         super().__init__(**config)
-
-    # ------------------------------------------------------------------
-    # DataProvider stubs
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        """Not applicable for news provider."""
-        return []
-
-    def get_standings(self) -> None:
-        """Not applicable for news provider."""
-        return None
 
     # ------------------------------------------------------------------
     # Public API
@@ -150,7 +138,7 @@ class PoliticalRSSProvider(DataProvider):
 # WhiteHouseProvider
 # ---------------------------------------------------------------------------
 
-class WhiteHouseProvider(DataProvider):
+class WhiteHouseProvider(NewsDataProvider):
     """
     Scrapes press briefings and statements from https://www.whitehouse.gov/briefing-room/.
 
@@ -213,18 +201,6 @@ class WhiteHouseProvider(DataProvider):
     def __init__(self, scrape_body: bool = True, **config):
         super().__init__(**config)
         self.scrape_body = scrape_body
-
-    # ------------------------------------------------------------------
-    # DataProvider stubs
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        """Not applicable for news provider."""
-        return []
-
-    def get_standings(self) -> None:
-        """Not applicable for news provider."""
-        return None
 
     # ------------------------------------------------------------------
     # Public API
@@ -383,7 +359,7 @@ class WhiteHouseProvider(DataProvider):
 # PoliticalNewsProvider — adapter for NewsArticlesSection
 # ---------------------------------------------------------------------------
 
-class PoliticalNewsProvider(DataProvider):
+class PoliticalNewsProvider(NewsDataProvider):
     """
     Adapter that wires ``PoliticalRSSProvider`` + ``WhiteHouseProvider`` +
     ``PoliticalNewsProcessor`` into the shape expected by
@@ -400,16 +376,6 @@ class PoliticalNewsProvider(DataProvider):
         super().__init__(**config)
         self.max_articles = max_articles
         self._cache: Optional[List[Dict]] = None
-
-    # ------------------------------------------------------------------
-    # DataProvider stubs
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        return []
-
-    def get_standings(self) -> None:
-        return None
 
     # ------------------------------------------------------------------
     # Public API

@@ -5,26 +5,13 @@ from typing import List, Optional
 
 from .base_news import NewsScreamsheet
 from ..base import Section
+from ..components.news import FrenchMLBArticlesComponent, FrenchMLBLexiconComponent
 from ..providers.french_mlb_content_provider import FrenchMLBContentProvider
 from ..providers.french_mlb_scraper_provider import FrenchMLBScraperProvider
-from ..renderers.french_articles import FrenchArticlesSection
-from ..renderers.french_lexicon import FrenchLexiconSection
 
 
 class FrenchMLBNewsScreamsheet(NewsScreamsheet):
-    """
-    Two-page screamsheet for French-language MLB news.
-
-    **Front page**: a two-column layout showing the same story rewritten
-    at CEFR A2 (left) and CEFR B2/C1 (right), powered by Grok.
-
-    **Back page**: "Le Lexique Essentiel" vocabulary table and
-    "Les Tournures de Phrase" idioms block.
-
-    Articles are scraped from RDS.ca and TVA Sports and filtered by
-    ``favorite_teams`` in priority order, falling back to random picks
-    when no team match is found.
-    """
+    """Two-page screamsheet for French-language MLB news."""
 
     def __init__(
         self,
@@ -53,7 +40,7 @@ class FrenchMLBNewsScreamsheet(NewsScreamsheet):
         content_provider = FrenchMLBContentProvider(grok_api_key=self._grok_api_key)
         content = content_provider.generate(articles)
 
-        front = FrenchArticlesSection(title="MLB en Fran\u00e7ais", content=content)
-        back = FrenchLexiconSection(title="Le Lexique", content=content)
+        front = FrenchMLBArticlesComponent(title="MLB en Fran\u00e7ais", content=content)
+        back = FrenchMLBLexiconComponent(title="Le Lexique", content=content)
 
         return [front, back]

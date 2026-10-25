@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional, List, Dict, Tuple
 
-from ..base import DataProvider
+from ..base import SportsDataProvider
 
 
-class NHLDataProvider(DataProvider):
+class NHLDataProvider(SportsDataProvider):
     """
     Data provider for NHL using the NHL API.
     

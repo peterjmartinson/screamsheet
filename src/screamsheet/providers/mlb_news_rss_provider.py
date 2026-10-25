@@ -5,10 +5,10 @@ from bs4 import BeautifulSoup
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from ..base import DataProvider
+from ..base import NewsDataProvider
 
 
-class MLBNewsRssProvider(DataProvider):
+class MLBNewsRssProvider(NewsDataProvider):
     """
     Data provider for MLB.com news via team-specific RSS feeds.
 
@@ -159,18 +159,6 @@ class MLBNewsRssProvider(DataProvider):
         super().__init__(**config)
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
-
-    # ------------------------------------------------------------------
-    # DataProvider interface stubs (not applicable for a news provider)
-    # ------------------------------------------------------------------
-
-    def get_game_scores(self, date: datetime) -> list:
-        """Not applicable for a news provider."""
-        return []
-
-    def get_standings(self) -> None:
-        """Not applicable for a news provider."""
-        return None
 
     # ------------------------------------------------------------------
     # News-specific interface

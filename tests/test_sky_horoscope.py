@@ -328,3 +328,25 @@ def test_extra_instructions_passed_to_horoscope_summarizer(monkeypatch) -> None:
         call_kwargs = mock_instance.generate_summary.call_args.kwargs
         assert call_kwargs["data"]["extra_instructions"] == "Compliment her new haircut."
 
+
+def test_has_content_true_with_person_options_from_order() -> None:
+    """SkyHoroscopeSection must accept PersonOptions (used by runner/screamsheet-subscribers)."""
+    from screamsheet.order import PersonOptions
+
+    person_opt = PersonOptions(
+        name="Peter",
+        birth_date="1978-02-26",
+        birth_time="01:20",
+        birth_location="Wauwatosa, WI",
+    )
+    section = SkyHoroscopeSection(
+        title="Horoscopes",
+        provider=_make_provider(),
+        date=datetime(2026, 4, 21),
+        location_name="Bryn Mawr, PA",
+        people=[person_opt],  # type: ignore[list-item]
+    )
+    assert section.has_content() is True
+    assert len(section.people) == 1
+    assert section.people[0].name == "Peter"
+

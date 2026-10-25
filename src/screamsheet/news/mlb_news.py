@@ -4,17 +4,13 @@ from datetime import datetime
 
 from .base_news import NewsScreamsheet
 from ..base import Section
-from ..renderers import WeatherSection, NewsArticlesSection
+from ..components.news import MLBNewsComponent
+from ..components.weather import WeatherComponent
 from ..providers.mlb_news_rss_provider import MLBNewsRssProvider
 
 
 class MLBNewsScreamsheet(NewsScreamsheet):
-    """Screamsheet for MLB.com news via team-specific RSS feeds.
-
-    Fetches four articles, prioritising favourite teams in order before
-    falling back to the general MLB news feed.  Team priority is
-    configurable via ``favorite_teams`` at construction time.
-    """
+    """Screamsheet for MLB.com news via team-specific RSS feeds."""
 
     def __init__(
         self,
@@ -51,7 +47,7 @@ class MLBNewsScreamsheet(NewsScreamsheet):
         sections: List[Section] = []
 
         if self.include_weather:
-            sections.append(WeatherSection(
+            sections.append(WeatherComponent(
                 title="Weather Report",
                 date=self.date,
                 lat=self.weather_lat,
@@ -60,7 +56,7 @@ class MLBNewsScreamsheet(NewsScreamsheet):
             ))
 
         sections.append(
-            NewsArticlesSection(
+            MLBNewsComponent(
                 title="Latest News",
                 provider=self.provider,
                 max_articles=2,
@@ -68,7 +64,7 @@ class MLBNewsScreamsheet(NewsScreamsheet):
             )
         )
 
-        back_section = NewsArticlesSection(
+        back_section = MLBNewsComponent(
             title="More News",
             provider=self.provider,
             max_articles=2,

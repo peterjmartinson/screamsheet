@@ -4,16 +4,25 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from ..base import BaseScreamsheet, Section
+from ..components.briefing import (
+    AgendaComponent,
+    BriefingBackComponent,
+    EmailNewsComponent,
+    ImportantEmailsComponent,
+    XKCDComponent,
+)
+from ..components.weather import WeatherComponent
 from ..providers.agenda_provider import AgendaProvider
 from ..providers.gmail_provider import GmailNewsProvider
 from ..providers.xkcd_provider import XKCDProvider
-from ..renderers.agenda import TwoColumnAgendaSection
-from ..renderers.briefing_back import TwoColumnBriefingBackSection
-from ..renderers.email_news import EmailNewsSection
-from ..renderers.important_emails import ImportantEmailsSection
-from ..renderers.weather import WeatherSection
-from ..renderers.xkcd import XKCDSection
 from .constants import DEFAULT_AGENDA_ENDPOINT
+
+TwoColumnAgendaSection = AgendaComponent
+TwoColumnBriefingBackSection = BriefingBackComponent
+EmailNewsSection = EmailNewsComponent
+ImportantEmailsSection = ImportantEmailsComponent
+WeatherSection = WeatherComponent
+XKCDSection = XKCDComponent
 
 logger = logging.getLogger(__name__)
 

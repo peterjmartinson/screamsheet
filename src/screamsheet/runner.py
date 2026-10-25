@@ -13,9 +13,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+from .components import ComponentRegistry
 from .factory import ScreamsheetFactory
 from .order import (
     BriefingOrderOptions,
+    ComponentSpec,
+    CustomSheetOrderOptions,
     FrenchMLBNewsOrderOptions,
     HomeRunDerbyOrderOptions,
     MLBNewsOrderOptions,
@@ -29,13 +32,15 @@ from .order import (
     ScreamsheetOrder,
     ScreamsheetResult,
     SkyOrderOptions,
+    TeamEntry,
+    WeatherLocationOptions,
     WorldCupOrderOptions,
 )
 
 logger = logging.getLogger(__name__)
 
-# Fields on ScreamsheetOrder that control execution but are not sheet keys.
-_SKIP_FIELDS: frozenset[str] = frozenset({"output"})
+# Fields on ScreamsheetOrder that control execution or are handled outside _REGISTRY.
+_SKIP_FIELDS: frozenset[str] = frozenset({"output", "custom_sheets"})
 
 
 def _output_path(output_dir: str, basename: str) -> str:
@@ -267,6 +272,149 @@ def _run_briefing(
     return sheet.generate()
 
 
+_NEWS_COMPONENT_TYPES: frozenset[str] = frozenset(
+    {
+        "mlb_news",
+        "nhl_news",
+        "nfl_news",
+        "mlb_trade_rumors",
+        "mlb_trade_rumors_news",
+        "french_mlb_articles",
+        "french_mlb_lexicon",
+        "presidential_news",
+    }
+)
+
+
+def _resolve_sport_team_tuples(sport: str, raw_teams: list[Any]) -> list[tuple[int, str]]:
+    """Resolve a heterogeneous list of team entries/names into (team_id, team_name) tuples."""
+    resolved: list[tuple[int, str]] = []
+    for idx, item in enumerate(raw_teams, start=1):
+        if isinstance(item, TeamEntry):
+            resolved.append((item.id, item.name))
+        elif isinstance(item, tuple) and len(item) == 2:
+            resolved.append((int(item[0]), str(item[1])))
+        elif isinstance(item, dict) and "id" in item and "name" in item:
+            resolved.append((int(item["id"]), str(item["name"])))
+        else:
+            name_str = item.get("name") if isinstance(item, dict) else str(item)
+            if not name_str:
+                continue
+            match = None
+            if sport in ("mlb", "nhl", "nba", "nfl"):
+                try:
+                    from .db import sport_resolve_team
+
+                    match = sport_resolve_team(sport, name_str)  # type: ignore[arg-type]
+                except Exception:
+                    match = None
+            if match:
+                resolved.append((int(match["team_id"]), str(match["full_name"])))
+            else:
+                resolved.append((idx, str(name_str)))
+    return resolved
+
+
+def _resolve_news_team_names(raw_teams: list[Any]) -> list[str]:
+    """Extract team display names for news filtering."""
+    names: list[str] = []
+    for item in raw_teams:
+        if isinstance(item, TeamEntry):
+            names.append(item.name)
+        elif isinstance(item, tuple) and len(item) == 2:
+            names.append(str(item[1]))
+        elif isinstance(item, dict) and "name" in item:
+            names.append(str(item["name"]))
+        elif isinstance(item, str) and item.strip():
+            names.append(item.strip())
+    return names
+
+
+def _build_component_from_spec(
+    spec: ComponentSpec,
+    today: datetime,
+    sheet_weather: WeatherLocationOptions | None = None,
+) -> Any:
+    """Instantiate a registered ScreamsheetComponent from a ComponentSpec."""
+    comp_type = spec.type.strip().lower()
+    kwargs: dict[str, Any] = dict(spec.options or {})
+
+    if spec.title is not None:
+        kwargs["title"] = spec.title
+
+    sport = ""
+    for prefix in ("mlb", "nhl", "nba", "nfl", "worldcup"):
+        if comp_type.startswith(f"{prefix}_"):
+            sport = prefix
+            break
+
+    if comp_type in _NEWS_COMPONENT_TYPES:
+        kwargs.setdefault("date", today)
+        if comp_type != "french_mlb_lexicon":
+            kwargs.setdefault("max_articles", spec.max_articles)
+        team_names = _resolve_news_team_names(spec.teams)
+        if team_names:
+            kwargs.setdefault("favorite_teams", team_names)
+    elif comp_type == "weather" or comp_type in (
+        "zodiac_wheel",
+        "sky_highlights",
+        "sky_summary",
+        "sky_tonight_summary",
+        "sky_horoscope",
+        "horoscope",
+    ):
+        kwargs.setdefault("date", today)
+        w = spec.weather or sheet_weather
+        if w is not None:
+            kwargs.setdefault("lat", w.lat)
+            kwargs.setdefault("lon", w.lon)
+            kwargs.setdefault("location_name", w.location_name)
+    elif sport:
+        if "game_scores" in comp_type or "box_score" in comp_type:
+            kwargs.setdefault("date", today - timedelta(days=1))
+        else:
+            kwargs.setdefault("date", today)
+        if "box_score" in comp_type:
+            kwargs.setdefault("mad_fan", spec.mad_fan)
+        if spec.teams:
+            kwargs.setdefault(
+                "favorite_teams",
+                _resolve_sport_team_tuples(sport, spec.teams),
+            )
+    else:
+        kwargs.setdefault("date", today)
+        if comp_type == "briefing_back":
+            kwargs.setdefault("include_email_news", True)
+
+    return ComponentRegistry.create(comp_type, **kwargs)
+
+
+def _run_custom_sheet(
+    options: CustomSheetOrderOptions,
+    today: datetime,
+    today_str: str,
+    output_dir: str,
+) -> str:
+    """Build and generate a CustomScreamsheet from CustomSheetOrderOptions."""
+    safe_key = "".join(
+        ch if (ch.isalnum() or ch in ("_", "-")) else "_"
+        for ch in (options.sheet_key or "custom")
+    ).strip("_") or "custom"
+    components = [
+        _build_component_from_spec(spec, today=today, sheet_weather=options.weather)
+        for spec in options.components
+    ]
+    sheet = ScreamsheetFactory.create_custom_screamsheet(
+        output_filename=_output_path(output_dir, f"{safe_key}_{today_str}.pdf"),
+        components=components,
+        screamsheet_title=options.screamsheet_title,
+        subtitle=options.subtitle,
+        date=today,
+        display_date=today,
+    )
+    return sheet.generate()
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps ScreamsheetOrder field names to their handler functions.
 # ---------------------------------------------------------------------------
@@ -339,6 +487,17 @@ def run_order(
         except Exception as exc:
             logger.error("Sheet '%s' failed: %s", f.name, exc)
             result.errors.append(f"{f.name}: {exc}")
+
+    for custom_opts in order.custom_sheets or []:
+        key = custom_opts.sheet_key or "custom"
+        try:
+            pdf_path = _run_custom_sheet(custom_opts, today, today_str, output_dir)
+            logger.info("Generated custom sheet '%s': %s", key, pdf_path)
+            result.sheets_generated.append(Path(pdf_path).name)
+            result.options_summary[key] = [spec.type for spec in custom_opts.components]
+        except Exception as exc:
+            logger.error("Custom sheet '%s' failed: %s", key, exc)
+            result.errors.append(f"{key}: {exc}")
 
     return result
 

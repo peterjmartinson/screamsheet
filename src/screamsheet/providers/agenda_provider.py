@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import requests
 
-from ..briefing.constants import DEFAULT_AGENDA_ENDPOINT
+DEFAULT_AGENDA_ENDPOINT = "https://random-task-rouge.vercel.app/api/agenda"
 
 logger = logging.getLogger(__name__)
 

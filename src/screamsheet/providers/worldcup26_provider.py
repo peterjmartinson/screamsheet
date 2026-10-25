@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-from ..base.data_provider import DataProvider
+from ..base.data_provider import SportsDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def _parse_set_literal_names(raw_str: str) -> List[str]:
     return [p.strip().strip('"').strip("'") for p in parts if p.strip()]
 
 
-class WorldCup26Provider(DataProvider):
+class WorldCup26Provider(SportsDataProvider):
     BASE_URL = "https://worldcup26.ir"
     COMPLETED_STATUSES = {"FT", "AET", "PEN"}
 

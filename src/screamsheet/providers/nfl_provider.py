@@ -5,12 +5,12 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, List, Dict
 
-from ..base import DataProvider
+from ..base import SportsDataProvider
 
 logger = logging.getLogger(__name__)
 
 
-class NFLDataProvider(DataProvider):
+class NFLDataProvider(SportsDataProvider):
     """
     Data provider for NFL using the ESPN API.
     

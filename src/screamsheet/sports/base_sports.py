@@ -13,6 +13,9 @@ from reportlab.lib.pagesizes import letter
 logger = logging.getLogger(__name__)
 
 from ..base import BaseScreamsheet, Section, DataProvider
+from ..components.box_score import BoxScoreComponent
+from ..components.game_scores import GameScoresComponent
+from ..components.standings import StandingsComponent
 from ..renderers import (
     GameScoresSection,
     StandingsSection,
@@ -89,6 +92,38 @@ class SportsScreamsheet(BaseScreamsheet):
             DataProvider instance for fetching sport-specific data
         """
         pass
+
+    def create_game_scores_component(self) -> GameScoresComponent:
+        """Create the game scores component for this sport."""
+        return GameScoresComponent(
+            title=f"{self.sport_name} Game Scores",
+            provider=self.provider,
+            date=self.date,
+        )
+
+    def create_standings_component(self) -> StandingsComponent:
+        """Create the standings component for this sport."""
+        return StandingsSection(
+            title=f"{self.sport_name} Standings",
+            provider=self.provider,
+            date=self.date,
+        )
+
+    def create_box_score_component(
+        self,
+        team_id: int,
+        team_name: str,
+        is_primary_favorite: bool = False,
+    ) -> BoxScoreComponent:
+        """Create the box score component for this sport."""
+        return BoxScoreComponent(
+            title=f"{team_name} Box Score",
+            provider=self.provider,
+            team_id=team_id,
+            date=self.date,
+            is_primary_favorite=is_primary_favorite,
+            mad_fan=self.mad_fan,
+        )
     
     def get_title(self) -> str:
         """Get the main title for this screamsheet."""
@@ -138,50 +173,23 @@ class SportsScreamsheet(BaseScreamsheet):
         """Build all sections for the sports screamsheet."""
         sections = []
         
-        # 1. Game Scores Section (always included)
-        sections.append(
-            GameScoresSection(
-                title=f"{self.sport_name} Game Scores",
-                provider=self.provider,
-                date=self.date
-            )
-        )
+        # 1. Game Scores Component (always included)
+        sections.append(self.create_game_scores_component())
         
-        # 2. Standings Section (always included)
-        sections.append(
-            StandingsSection(
-                title=f"{self.sport_name} Standings",
-                provider=self.provider
-            )
-        )
+        # 2. Standings Component (always included)
+        sections.append(self.create_standings_component())
         
-        # 3. Box Score Section — feature the first team in the priority list that played
+        # 3. Box Score Component — feature the first team in the priority list that played
         featured = self._resolve_featured_team()
         if featured:
             featured_id, featured_name = featured
             is_primary = bool(self.favorite_teams) and featured == self.favorite_teams[0]
             sections.append(
-                BoxScoreSection(
-                    title=f"{featured_name} Box Score",
-                    provider=self.provider,
+                self.create_box_score_component(
                     team_id=featured_id,
-                    date=self.date,
+                    team_name=featured_name,
                     is_primary_favorite=is_primary,
-                    mad_fan=self.mad_fan,
                 )
             )
         
-        # # 4. Game Summary Section (only if team is specified)
-        # if featured:
-        #     featured_id, featured_name = featured
-        #     sections.append(
-        #         GameSummarySection(
-        #             title=f"{featured_name} Game Summary",
-        #             provider=self.provider,
-        #             team_id=featured_id,
-        #             date=self.date
-        #         )
-        #     )
-        
         return sections
-

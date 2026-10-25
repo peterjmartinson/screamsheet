@@ -1,0 +1,802 @@
+"""Two-column Agenda component for the Morning Briefing screamsheet."""
+from __future__ import annotations
+
+import logging
+import re
+import zoneinfo
+from datetime import date as dt_date, datetime, time as dt_time, timedelta
+from typing import Any, Dict, List, Optional, Union
+
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
+
+from ...providers.agenda_provider import AgendaProvider, DEFAULT_AGENDA_ENDPOINT
+from ..base import ComponentLayoutSpec, ScreamsheetComponent
+from ..registry import ComponentRegistry
+
+logger = logging.getLogger(__name__)
+EASTERN_TZ = zoneinfo.ZoneInfo("America/New_York")
+UTC_TZ = zoneinfo.ZoneInfo("UTC")
+
+
+def parse_eastern_start_time(
+    time_str: str,
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> dt_time:
+    """Extract the event start time in Eastern timezone for within-day sorting."""
+    if not time_str or time_str.strip().lower() == "all day":
+        return dt_time(0, 0)
+
+    m = re.match(
+        r"(\d{1,2}):(\d{2})\s*(AM|PM)",
+        time_str,
+        re.IGNORECASE,
+    )
+    if not m:
+        return dt_time(0, 0)
+
+    h1, m1, p1 = m.groups()
+    h1, m1 = int(h1), int(m1)
+    if p1.upper() == "PM" and h1 != 12:
+        h1 += 12
+    if p1.upper() == "AM" and h1 == 12:
+        h1 = 0
+
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    dt_utc = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
+    dt_est = dt_utc.astimezone(EASTERN_TZ)
+    return dt_est.time()
+
+
+def sort_agenda_events(
+    events: List[Dict[str, Any]],
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> List[Dict[str, Any]]:
+    """Sort events by start time in Eastern Time, then alphabetically by title."""
+    return sorted(
+        events,
+        key=lambda ev: (
+            parse_eastern_start_time(ev.get("time", ""), ref_date=ref_date),
+            (ev.get("title") or "").strip().lower(),
+        ),
+    )
+
+
+def convert_time_to_eastern_and_duration(
+    time_str: str,
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> str:
+    """Convert a UTC time range string from the API into Eastern timezone with duration."""
+    if not time_str or time_str.strip().lower() == "all day":
+        return "All Day"
+
+    m = re.match(
+        r"(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)",
+        time_str,
+        re.IGNORECASE,
+    )
+    if not m:
+        return time_str
+
+    h1, m1, p1, h2, m2, p2 = m.groups()
+    h1, m1, h2, m2 = int(h1), int(m1), int(h2), int(m2)
+    if p1.upper() == "PM" and h1 != 12:
+        h1 += 12
+    if p1.upper() == "AM" and h1 == 12:
+        h1 = 0
+    if p2.upper() == "PM" and h2 != 12:
+        h2 += 12
+    if p2.upper() == "AM" and h2 == 12:
+        h2 = 0
+
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    dt_utc1 = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
+    dt_utc2 = datetime(year, month, day, h2, m2, tzinfo=UTC_TZ)
+
+    dt_est1 = dt_utc1.astimezone(EASTERN_TZ)
+
+    duration_mins = int((dt_utc2 - dt_utc1).total_seconds() / 60)
+    if duration_mins < 0:
+        duration_mins += 24 * 60
+
+    if duration_mins == 0:
+        dur_str = ""
+    elif duration_mins % 60 == 0:
+        hrs = duration_mins // 60
+        dur_str = f" ({hrs} hr)" if hrs == 1 else f" ({hrs} hrs)"
+    else:
+        if duration_mins < 60:
+            dur_str = f" ({duration_mins} min)"
+        else:
+            hrs = duration_mins // 60
+            mins = duration_mins % 60
+            dur_str = f" ({hrs} hr {mins} min)"
+
+    est_hour = dt_est1.strftime("%I").lstrip("0")
+    start_fmt = f"{est_hour}:{dt_est1.strftime('%M %p')}"
+    return f"{start_fmt}{dur_str}"
+
+
+def convert_accessory_to_eastern(
+    accessory: Optional[str],
+    ref_date: Optional[Union[datetime, dt_date]] = None,
+) -> str:
+    """Convert UTC departure/leave-by timestamps inside the accessory string into Eastern timezone."""
+    if not accessory:
+        return ""
+
+    if ref_date is not None:
+        year, month, day = ref_date.year, ref_date.month, ref_date.day
+    else:
+        now = datetime.now()
+        year, month, day = now.year, now.month, now.day
+
+    def _replace_leave_by(match: re.Match) -> str:
+        prefix = match.group(1)
+        h, m, p = int(match.group(2)), int(match.group(3)), match.group(4).upper()
+        if p == "PM" and h != 12:
+            h += 12
+        elif p == "AM" and h == 12:
+            h = 0
+        dt_utc = datetime(year, month, day, h, m, tzinfo=UTC_TZ)
+        dt_est = dt_utc.astimezone(EASTERN_TZ)
+        est_hour = dt_est.strftime("%I").lstrip("0")
+        est_time = f"{est_hour}:{dt_est.strftime('%M %p')}"
+        return f"{prefix}{est_time}"
+
+    return re.sub(
+        r"\b(Leave by\s+)(\d{1,2}):(\d{2})\s*(AM|PM)\b",
+        _replace_leave_by,
+        accessory,
+        flags=re.IGNORECASE,
+    )
+
+
+def parse_due_date(due: Any) -> Optional[dt_date]:
+    if not due:
+        return None
+    if isinstance(due, datetime):
+        return due.date()
+    if isinstance(due, dt_date):
+        return due
+    due_str = str(due).strip()
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})", due_str)
+    if m:
+        try:
+            return datetime.strptime(m.group(1), "%Y-%m-%d").date()
+        except Exception:
+            return None
+    return None
+
+
+def extract_task_label(task: Dict[str, Any]) -> str:
+    raw = task.get("labels") or task.get("label") or task.get("tags") or task.get("subject")
+    if not raw:
+        return ""
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, (list, tuple)):
+        extracted = []
+        for item in raw:
+            if isinstance(item, str):
+                s = item.strip()
+                if s:
+                    extracted.append(s)
+            elif isinstance(item, dict):
+                name = item.get("name") or item.get("label") or item.get("title") or ""
+                if str(name).strip():
+                    extracted.append(str(name).strip())
+        return ", ".join(extracted)
+    if isinstance(raw, dict):
+        name = raw.get("name") or raw.get("label") or raw.get("title") or ""
+        return str(name).strip()
+    return str(raw).strip()
+
+
+def format_due_date(due: Any) -> str:
+    if not due:
+        return ""
+    d = parse_due_date(due)
+    if d is not None:
+        return d.strftime("%b %d")
+    return ""
+
+
+DUE_CATEGORIES = [
+    ("past_due", "PAST"),
+    ("due_today", "TODAY"),
+    ("due_future", "FUTURE"),
+]
+
+
+def classify_task_due_status(task: Dict[str, Any], ref_date: dt_date) -> str:
+    due_d = parse_due_date(task.get("due"))
+    if due_d is None:
+        return "due_future"
+    if due_d < ref_date:
+        return "past_due"
+    if due_d == ref_date:
+        return "due_today"
+    return "due_future"
+
+
+def group_and_sort_tasks_by_due(
+    tasks: List[Dict[str, Any]],
+    ref_date: dt_date,
+) -> List[tuple[str, str, List[Dict[str, Any]]]]:
+    buckets: Dict[str, List[Dict[str, Any]]] = {
+        "past_due": [],
+        "due_today": [],
+        "due_future": [],
+    }
+    for task in tasks:
+        cat = classify_task_due_status(task, ref_date)
+        buckets[cat].append(task)
+
+    buckets["past_due"].sort(
+        key=lambda t: (
+            parse_due_date(t.get("due")) or dt_date.min,
+            (t.get("title") or "").strip().lower(),
+        )
+    )
+    buckets["due_today"].sort(key=lambda t: (t.get("title") or "").strip().lower())
+    buckets["due_future"].sort(
+        key=lambda t: (
+            parse_due_date(t.get("due")) or dt_date.max,
+            (t.get("title") or "").strip().lower(),
+        )
+    )
+
+    result = []
+    for cat_key, cat_label in DUE_CATEGORIES:
+        cat_tasks = buckets[cat_key]
+        if cat_tasks:
+            result.append((cat_key, cat_label, cat_tasks))
+    return result
+
+
+@ComponentRegistry.register("agenda")
+class AgendaComponent(ScreamsheetComponent):
+    """Renders a two-column agenda & tasks briefing component."""
+
+    component_type = "agenda"
+    layout_spec = ComponentLayoutSpec(
+        weight=0.45,
+        component_family="agenda",
+        max_on_front_page=1,
+        max_per_page=1,
+        renders_own_header=True,
+    )
+
+    def __init__(
+        self,
+        date: Optional[datetime] = None,
+        multi_day_data: Optional[List[Dict[str, Any]]] = None,
+        provider: Optional[AgendaProvider] = None,
+        title: str = "Agenda",
+        upcoming_days: int = 1,
+        payload: Optional[Dict[str, Any]] = None,
+        api_url: str = DEFAULT_AGENDA_ENDPOINT,
+        **kwargs: Any,
+    ) -> None:
+        self.payload = payload or {}
+        self.api_url = api_url
+        super().__init__(
+            title=title,
+            provider=provider,
+            date=date if date is not None else datetime.now(),
+            upcoming_days=upcoming_days,
+            **kwargs,
+        )
+        self.multi_day_data: List[Dict[str, Any]] = multi_day_data or []
+        self.upcoming_days = max(1, upcoming_days)
+        self._setup_styles()
+
+    def create_default_provider(self) -> Any:
+        return AgendaProvider(payload=self.payload, api_url=self.api_url)
+
+    def _setup_styles(self) -> None:
+        base = getSampleStyleSheet()
+        self._col_h1 = ParagraphStyle(
+            "ColH1",
+            parent=base["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=12,
+            leading=14,
+            spaceBefore=0,
+            spaceAfter=2,
+            textColor=colors.HexColor("#111111"),
+        )
+        self._sub_hdr = ParagraphStyle(
+            "ColSubHdr",
+            parent=base["Heading3"],
+            fontName="Helvetica-Bold",
+            fontSize=10.5,
+            leading=12.5,
+            spaceBefore=5,
+            spaceAfter=2,
+            textColor=colors.HexColor("#222222"),
+        )
+        self._day_hdr = ParagraphStyle(
+            "DayHdr",
+            parent=base["Heading3"],
+            fontName="Helvetica-Bold",
+            fontSize=10.5,
+            leading=12.5,
+            spaceBefore=4.5,
+            spaceAfter=1.5,
+            textColor=colors.HexColor("#222222"),
+        )
+        self._item_style = ParagraphStyle(
+            "ColItem",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=12,
+            textColor=colors.HexColor("#222222"),
+        )
+        self._accessory_style = ParagraphStyle(
+            "ColAccessory",
+            parent=base["Normal"],
+            fontName="Helvetica-Oblique",
+            fontSize=8.5,
+            leading=10.5,
+            textColor=colors.black,
+        )
+        self._empty_style = ParagraphStyle(
+            "ColEmpty",
+            parent=base["Normal"],
+            fontName="Helvetica-Oblique",
+            fontSize=9.5,
+            leading=11.5,
+            textColor=colors.HexColor("#777777"),
+        )
+        self._cat_hdr_styles = {
+            "past_due": ParagraphStyle(
+                "CatHdrPastDue",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.black,
+            ),
+            "due_today": ParagraphStyle(
+                "CatHdrDueToday",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.black,
+            ),
+            "due_future": ParagraphStyle(
+                "CatHdrDueFuture",
+                parent=base["Heading4"],
+                fontName="Helvetica-Bold",
+                fontSize=8.5,
+                leading=10.5,
+                spaceBefore=3.5,
+                spaceAfter=1.5,
+                textColor=colors.black,
+            ),
+        }
+        self._task_item_style = ParagraphStyle(
+            "ColTaskItem",
+            parent=self._item_style,
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=11.5,
+            leftIndent=6,
+            textColor=colors.HexColor("#222222"),
+        )
+
+    def fetch_data(self) -> None:
+        if not self.multi_day_data and self.provider:
+            num_days_to_fetch = 1 + self.upcoming_days
+            self.multi_day_data = self.provider.get_multi_day_agenda(self.date, num_days=num_days_to_fetch)
+
+    def has_content(self) -> bool:
+        return True
+
+    def _render_events_block(
+        self,
+        events: List[Dict[str, Any]],
+        ref_date: Optional[Union[datetime, dt_date]] = None,
+    ) -> List[Any]:
+        flowables: List[Any] = []
+        target_date = ref_date or self.date
+        if not events:
+            flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
+        else:
+            sorted_events = sort_agenda_events(events, ref_date=target_date)
+            for ev in sorted_events:
+                time_raw = ev.get("time", "")
+                converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=target_date)
+                title = ev.get("title", "")
+                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=target_date)
+
+                line_text = f"<b>{converted_time}</b> - {title}"
+                flowables.append(Paragraph(line_text, self._item_style))
+
+                if accessory:
+                    acc_clean = accessory.replace("\n", " &bull; ")
+                    flowables.append(Paragraph(f"<i>{acc_clean}</i>", self._accessory_style))
+                flowables.append(Spacer(1, 1.5))
+        return flowables
+
+    def _render_tasks_block(
+        self,
+        sections: List[Dict[str, Any]],
+        ref_date: Optional[Union[datetime, dt_date]] = None,
+    ) -> List[Any]:
+        flowables: List[Any] = []
+        if ref_date is not None:
+            target_date = ref_date.date() if isinstance(ref_date, datetime) else ref_date
+        elif isinstance(self.date, datetime):
+            target_date = self.date.date()
+        elif isinstance(self.date, dt_date):
+            target_date = self.date
+        else:
+            target_date = datetime.now().date()
+
+        for sec in sections:
+            tasks = sec.get("tasks", [])
+            if not tasks:
+                continue
+            sec_title = (sec.get("title") or "Tasks").strip()
+
+            grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+            for task in tasks:
+                assignee = (task.get("assignee") or "").strip()
+                if assignee not in grouped_tasks:
+                    grouped_tasks[assignee] = []
+                grouped_tasks[assignee].append(task)
+
+            for assignee, t_list in grouped_tasks.items():
+                if assignee:
+                    if sec_title.lower() == assignee.lower():
+                        hdr_title = sec_title
+                    else:
+                        hdr_title = f"{sec_title} &mdash; {assignee}"
+                else:
+                    hdr_title = sec_title
+
+                flowables.append(Paragraph(f"<b>{hdr_title}</b>", self._sub_hdr))
+                flowables.append(
+                    HRFlowable(width="100%", thickness=0.4, color=colors.HexColor("#888888"), spaceAfter=2)
+                )
+
+                cat_groups = group_and_sort_tasks_by_due(t_list, target_date)
+                for cat_key, cat_label, cat_tasks in cat_groups:
+                    cat_style = self._cat_hdr_styles.get(cat_key, self._cat_hdr_styles["due_future"])
+                    flowables.append(Paragraph(f"<b>{cat_label}</b>", cat_style))
+
+                    for task in cat_tasks:
+                        label = extract_task_label(task)
+                        t_title = (task.get("title") or task.get("name") or "").strip()
+                        due = format_due_date(task.get("due", ""))
+
+                        parts = []
+                        if label:
+                            parts.append(f"<b>{label}</b>")
+                        if t_title:
+                            parts.append(t_title)
+                        task_line = " ".join(parts)
+                        if due:
+                            task_line += f" ({due})"
+
+                        flowables.append(Paragraph(task_line, self._task_item_style))
+                        flowables.append(Spacer(1, 1))
+
+                flowables.append(Spacer(1, 3))
+        return flowables
+
+    def _build_left_column_flowables(
+        self,
+        today_data: Dict[str, Any],
+        tomorrow_data: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        flowables: List[Any] = []
+        flowables.append(Paragraph("<b>TODAY'S AGENDA</b>", self._col_h1))
+        flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+
+        today_date_str = today_data.get("date")
+        try:
+            today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+        except Exception:
+            today_dt = self.date
+
+        events = today_data.get("agenda", [])
+        flowables.extend(self._render_events_block(events, ref_date=today_dt))
+
+        if self.upcoming_days == 1:
+            flowables.append(Spacer(1, 6))
+            flowables.append(Paragraph("<b>TOMORROW'S AGENDA</b>", self._col_h1))
+            flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+            tomorrow_date_str = (tomorrow_data or {}).get("date")
+            try:
+                tomorrow_dt = (
+                    datetime.strptime(tomorrow_date_str, "%Y-%m-%d")
+                    if tomorrow_date_str
+                    else (today_dt + timedelta(days=1))
+                )
+            except Exception:
+                tomorrow_dt = today_dt + timedelta(days=1)
+            tomorrow_events = (tomorrow_data or {}).get("agenda", [])
+            flowables.extend(self._render_events_block(tomorrow_events, ref_date=tomorrow_dt))
+        else:
+            flowables.append(Spacer(1, 4))
+            sections = today_data.get("sections", [])
+            flowables.extend(self._render_tasks_block(sections, ref_date=today_dt))
+
+        return flowables
+
+    def _build_right_column_flowables(
+        self,
+        upcoming_days_data: List[Dict[str, Any]],
+        today_data: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        flowables: List[Any] = []
+
+        if self.upcoming_days == 1:
+            sections = (today_data or {}).get("sections", [])
+            if not sections or not any(s.get("tasks") for s in sections):
+                flowables.append(Paragraph("<i>No active tasks</i>", self._empty_style))
+            else:
+                today_date_str = (today_data or {}).get("date")
+                try:
+                    today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+                except Exception:
+                    today_dt = self.date
+                flowables.extend(self._render_tasks_block(sections, ref_date=today_dt))
+        else:
+            title = f"NEXT {len(upcoming_days_data)} DAYS" if len(upcoming_days_data) != 5 else "NEXT 5 DAYS"
+            flowables.append(Paragraph(f"<b>{title}</b>", self._col_h1))
+            flowables.append(HRFlowable(width="100%", thickness=0.75, color=colors.HexColor("#222222"), spaceAfter=3))
+
+            for day_dict in upcoming_days_data:
+                d_str = day_dict.get("date", "")
+                try:
+                    d_obj = datetime.strptime(d_str, "%Y-%m-%d")
+                    day_name = d_obj.strftime("%A")
+                    date_fmt = d_obj.strftime("%m/%d")
+                    heading_str = f"{day_name}, {date_fmt}"
+                except Exception:
+                    d_obj = self.date
+                    heading_str = d_str
+
+                flowables.append(Paragraph(f"<b>{heading_str}</b>", self._day_hdr))
+
+                events = day_dict.get("agenda", [])
+                if not events:
+                    flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
+                else:
+                    sorted_events = sort_agenda_events(events, ref_date=d_obj)
+                    for ev in sorted_events:
+                        time_raw = ev.get("time", "")
+                        converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
+                        title = ev.get("title", "")
+                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
+
+                        if accessory:
+                            acc_short = accessory.split("\n")[0]
+                            acc_part = f" <i>({acc_short})</i>"
+                        else:
+                            acc_part = ""
+
+                        line_text = f"<b>{converted_time}</b> - {title}{acc_part}"
+                        flowables.append(Paragraph(line_text, self._item_style))
+                        flowables.append(Spacer(1, 1))
+
+                flowables.append(Spacer(1, 3))
+
+        return flowables
+
+    def render(
+        self,
+        styles: Optional[Any] = None,
+        max_width: Optional[float] = None,
+    ) -> List[Any]:
+        if not self.multi_day_data and self.provider:
+            self.fetch_data()
+
+        today_data = self.multi_day_data[0] if self.multi_day_data else {}
+        tomorrow_data = self.multi_day_data[1] if len(self.multi_day_data) > 1 else {}
+        upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []
+
+        left_flowables = self._build_left_column_flowables(today_data, tomorrow_data=tomorrow_data)
+        right_flowables = self._build_right_column_flowables(upcoming_data, today_data=today_data)
+
+        col_table = Table([[left_flowables, "", right_flowables]], colWidths=[260, 20, 260])
+        col_table.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        return [col_table]
+
+    def render_markdown(self) -> str:
+        if not self.multi_day_data and self.provider:
+            self.fetch_data()
+
+        today_data = self.multi_day_data[0] if self.multi_day_data else {}
+        today_date_str = today_data.get("date")
+        try:
+            today_dt = datetime.strptime(today_date_str, "%Y-%m-%d") if today_date_str else self.date
+        except Exception:
+            today_dt = self.date
+
+        lines = []
+        lines.append("## TODAY'S AGENDA\n")
+        events = today_data.get("agenda", [])
+        if not events:
+            lines.append("_No scheduled events_\n")
+        else:
+            sorted_events = sort_agenda_events(events, ref_date=today_dt)
+            for ev in sorted_events:
+                time_raw = ev.get("time", "")
+                c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=today_dt)
+                title = ev.get("title", "")
+                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=today_dt)
+                lines.append(f"{c_time} - {title}")
+                if accessory:
+                    acc_clean = accessory.replace("\n", " • ")
+                    lines.append(f"_{acc_clean}_")
+            lines.append("")
+
+        if self.upcoming_days == 1:
+            tomorrow_data = self.multi_day_data[1] if len(self.multi_day_data) > 1 else {}
+            tomorrow_date_str = tomorrow_data.get("date")
+            try:
+                tomorrow_dt = (
+                    datetime.strptime(tomorrow_date_str, "%Y-%m-%d")
+                    if tomorrow_date_str
+                    else (today_dt + timedelta(days=1))
+                )
+            except Exception:
+                tomorrow_dt = today_dt + timedelta(days=1)
+
+            lines.append("## TOMORROW'S AGENDA\n")
+            t_evs = tomorrow_data.get("agenda", [])
+            if not t_evs:
+                lines.append("_No scheduled events_\n")
+            else:
+                sorted_tomorrow = sort_agenda_events(t_evs, ref_date=tomorrow_dt)
+                for ev in sorted_tomorrow:
+                    time_raw = ev.get("time", "")
+                    c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=tomorrow_dt)
+                    title = ev.get("title", "")
+                    accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=tomorrow_dt)
+                    lines.append(f"{c_time} - {title}")
+                    if accessory:
+                        acc_clean = accessory.replace("\n", " • ")
+                        lines.append(f"_{acc_clean}_")
+                lines.append("")
+
+            lines.append("---\n")
+            ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
+            for sec in today_data.get("sections", []):
+                sec_title = (sec.get("title") or "Tasks").strip()
+                grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+                for task in sec.get("tasks", []):
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    if assignee:
+                        if sec_title.lower() == assignee.lower():
+                            sub_title = sec_title
+                        else:
+                            sub_title = f"{sec_title} — {assignee}"
+                    else:
+                        sub_title = sec_title
+
+                    lines.append(f"### {sub_title}\n")
+                    cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
+                    for cat_key, cat_label, cat_tasks in cat_groups:
+                        lines.append(f"#### {cat_label}")
+                        for task in cat_tasks:
+                            label = extract_task_label(task)
+                            t_title = (task.get("title") or task.get("name") or "").strip()
+                            due = format_due_date(task.get("due", ""))
+
+                            parts = []
+                            if label:
+                                parts.append(f"**{label}**")
+                            if t_title:
+                                parts.append(t_title)
+                            task_line = " ".join(parts)
+                            if due:
+                                task_line += f" ({due})"
+                            lines.append(task_line)
+                        lines.append("")
+        else:
+            ref_d = today_dt.date() if isinstance(today_dt, datetime) else today_dt
+            for sec in today_data.get("sections", []):
+                sec_title = (sec.get("title") or "Tasks").strip()
+                grouped_tasks = {}
+                for task in sec.get("tasks", []):
+                    assignee = (task.get("assignee") or "").strip()
+                    if assignee not in grouped_tasks:
+                        grouped_tasks[assignee] = []
+                    grouped_tasks[assignee].append(task)
+
+                for assignee, t_list in grouped_tasks.items():
+                    if assignee:
+                        if sec_title.lower() == assignee.lower():
+                            sub_title = sec_title
+                        else:
+                            sub_title = f"{sec_title} — {assignee}"
+                    else:
+                        sub_title = sec_title
+
+                    lines.append(f"### {sub_title}\n")
+                    cat_groups = group_and_sort_tasks_by_due(t_list, ref_d)
+                    for cat_key, cat_label, cat_tasks in cat_groups:
+                        lines.append(f"#### {cat_label}")
+                        for task in cat_tasks:
+                            label = extract_task_label(task)
+                            t_title = (task.get("title") or task.get("name") or "").strip()
+                            due = format_due_date(task.get("due", ""))
+
+                            parts = []
+                            if label:
+                                parts.append(f"**{label}**")
+                            if t_title:
+                                parts.append(t_title)
+                            task_line = " ".join(parts)
+                            if due:
+                                task_line += f" ({due})"
+                            lines.append(task_line)
+                        lines.append("")
+
+            lines.append("---\n")
+            upcoming_data = self.multi_day_data[1:] if len(self.multi_day_data) > 1 else []
+            lines.append(f"## NEXT {len(upcoming_data)} DAYS\n")
+            for day_dict in upcoming_data:
+                d_str = day_dict.get("date", "")
+                try:
+                    d_obj = datetime.strptime(d_str, "%Y-%m-%d")
+                    heading_str = f"{d_obj.strftime('%A')}, {d_obj.strftime('%m/%d')}"
+                except Exception:
+                    d_obj = self.date
+                    heading_str = d_str
+
+                lines.append(f"### {heading_str}\n")
+                evs = day_dict.get("agenda", [])
+                if not evs:
+                    lines.append("_No scheduled events_\n")
+                else:
+                    sorted_day_evs = sort_agenda_events(evs, ref_date=d_obj)
+                    for ev in sorted_day_evs:
+                        time_raw = ev.get("time", "")
+                        c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
+                        title = ev.get("title", "")
+                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
+                        acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""
+                        lines.append(f"{c_time} - {title}{acc_str}")
+                    lines.append("")
+
+        return "\n".join(lines)

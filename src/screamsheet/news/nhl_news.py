@@ -4,17 +4,13 @@ from datetime import datetime
 
 from .base_news import NewsScreamsheet
 from ..base import Section
-from ..renderers import WeatherSection, NewsArticlesSection
+from ..components.news import NHLNewsComponent
+from ..components.weather import WeatherComponent
 from ..providers.nhl_news_rss_provider import NHLNewsRssProvider
 
 
 class NHLNewsScreamsheet(NewsScreamsheet):
-    """Screamsheet for NHL.com news via team-specific RSS feeds.
-
-    Fetches four articles, prioritising favourite teams in order before
-    falling back to the general NHL news feed. Team priority is
-    configurable via ``favorite_teams`` at construction time.
-    """
+    """Screamsheet for NHL.com news via team-specific RSS feeds."""
 
     def __init__(
         self,
@@ -51,7 +47,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
         sections: List[Section] = []
 
         if self.include_weather:
-            sections.append(WeatherSection(
+            sections.append(WeatherComponent(
                 title="Weather Report",
                 date=self.date,
                 lat=self.weather_lat,
@@ -60,7 +56,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
             ))
 
         sections.append(
-            NewsArticlesSection(
+            NHLNewsComponent(
                 title="Latest News",
                 provider=self.provider,
                 max_articles=2,
@@ -68,7 +64,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
             )
         )
 
-        back_section = NewsArticlesSection(
+        back_section = NHLNewsComponent(
             title="More News",
             provider=self.provider,
             max_articles=2,

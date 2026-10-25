@@ -10,6 +10,7 @@ ScreamsheetOrder and pass it to ``runner.run_order()``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 class OrderValidationError(ValueError):
@@ -179,6 +180,44 @@ class OutputOrderOptions:
 
 
 @dataclass
+class ComponentSpec:
+    """Specification for a single component in a custom component-based screamsheet."""
+
+    type: str
+    title: str | None = None
+    teams: list[Any] = field(default_factory=list)
+    max_articles: int = 4
+    mad_fan: bool = False
+    weather: WeatherLocationOptions | None = None
+    options: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.type or not str(self.type).strip():
+            raise OrderValidationError("ComponentSpec.type must not be empty")
+        if self.max_articles is not None and self.max_articles < 1:
+            raise OrderValidationError(
+                f"ComponentSpec.max_articles must be >= 1, got {self.max_articles!r}"
+            )
+
+
+@dataclass
+class CustomSheetOrderOptions:
+    """Options for a custom component-based screamsheet defined in subscriber YAML."""
+
+    sheet_key: str = "custom"
+    screamsheet_title: str = "Screamsheet"
+    subtitle: str | None = None
+    components: list[ComponentSpec] = field(default_factory=list)
+    weather: WeatherLocationOptions | None = None
+
+    def __post_init__(self) -> None:
+        if not self.sheet_key or not str(self.sheet_key).strip():
+            raise OrderValidationError("CustomSheetOrderOptions.sheet_key must not be empty")
+        if not self.screamsheet_title or not str(self.screamsheet_title).strip():
+            self.screamsheet_title = "Screamsheet"
+
+
+@dataclass
 class ScreamsheetOrder:
     """Complete input contract for the screamsheet engine.
 
@@ -202,6 +241,8 @@ class ScreamsheetOrder:
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None
+    # --- custom component-based screamsheets ---
+    custom_sheets: list[CustomSheetOrderOptions] = field(default_factory=list)
 
 
 @dataclass
@@ -212,3 +253,94 @@ class ScreamsheetResult:
     sheets_generated: list[str] = field(default_factory=list)
     options_summary: dict[str, list[str]] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+
+
+_RESERVED_COMPONENT_KEYS: frozenset[str] = frozenset(
+    {
+        "type",
+        "title",
+        "teams",
+        "favorite_teams",
+        "max_articles",
+        "mad_fan",
+        "weather",
+        "location",
+        "options",
+    }
+)
+
+
+def build_custom_sheet_options_from_dict(
+    sheet_key: str,
+    raw: dict[str, Any],
+    default_weather: WeatherLocationOptions | None = None,
+) -> CustomSheetOrderOptions:
+    """Parse a custom screamsheet YAML dictionary (containing ``components:``) into ``CustomSheetOrderOptions``."""
+    screamsheet_title = str(raw.get("screamsheet_title") or raw.get("title") or "Screamsheet")
+    subtitle = str(raw["subtitle"]) if raw.get("subtitle") is not None else None
+
+    sheet_weather = default_weather
+    loc_raw = raw.get("weather") or raw.get("location")
+    if isinstance(loc_raw, dict) and "lat" in loc_raw and "lon" in loc_raw:
+        sheet_weather = WeatherLocationOptions(
+            lat=float(loc_raw["lat"]),
+            lon=float(loc_raw["lon"]),
+            location_name=str(
+                loc_raw.get("name")
+                or loc_raw.get("location_name")
+                or (default_weather.location_name if default_weather else "My Location")
+            ),
+        )
+
+    specs: list[ComponentSpec] = []
+    for item in raw.get("components", []) or []:
+        if isinstance(item, str):
+            specs.append(ComponentSpec(type=item.strip(), weather=sheet_weather))
+            continue
+        if not isinstance(item, dict) or not item.get("type"):
+            continue
+        comp_type = str(item["type"]).strip()
+        comp_title = str(item["title"]) if item.get("title") is not None else None
+        raw_teams = item.get("teams", item.get("favorite_teams", [])) or []
+        if isinstance(raw_teams, str):
+            raw_teams = [raw_teams]
+        max_articles = int(item.get("max_articles", 4))
+        mad_fan = bool(item.get("mad_fan", False))
+
+        comp_weather = sheet_weather
+        comp_loc = item.get("weather") or item.get("location")
+        if isinstance(comp_loc, dict) and "lat" in comp_loc and "lon" in comp_loc:
+            comp_weather = WeatherLocationOptions(
+                lat=float(comp_loc["lat"]),
+                lon=float(comp_loc["lon"]),
+                location_name=str(
+                    comp_loc.get("name")
+                    or comp_loc.get("location_name")
+                    or (sheet_weather.location_name if sheet_weather else "My Location")
+                ),
+            )
+
+        extra_options: dict[str, Any] = dict(item.get("options") or {})
+        for k, v in item.items():
+            if k not in _RESERVED_COMPONENT_KEYS:
+                extra_options[k] = v
+
+        specs.append(
+            ComponentSpec(
+                type=comp_type,
+                title=comp_title,
+                teams=list(raw_teams),
+                max_articles=max_articles,
+                mad_fan=mad_fan,
+                weather=comp_weather,
+                options=extra_options,
+            )
+        )
+
+    return CustomSheetOrderOptions(
+        sheet_key=sheet_key,
+        screamsheet_title=screamsheet_title,
+        subtitle=subtitle,
+        components=specs,
+        weather=sheet_weather,
+    )

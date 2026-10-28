@@ -130,6 +130,10 @@ def _run_mlb_news(
         "output_filename": _output_path(output_dir, f"MLB_NEWS_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "mode": getattr(options, "mode", "multi"),
+        "primary_source": getattr(options, "primary_source", "MLB.com"),
+        "primary_source_bonus": getattr(options, "primary_source_bonus", 25),
+        "extra_feeds": getattr(options, "extra_feeds", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -149,6 +153,10 @@ def _run_nhl_news(
         "output_filename": _output_path(output_dir, f"NHL_NEWS_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "mode": getattr(options, "mode", "multi"),
+        "primary_source": getattr(options, "primary_source", "NHL.com"),
+        "primary_source_bonus": getattr(options, "primary_source_bonus", 25),
+        "extra_feeds": getattr(options, "extra_feeds", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -168,6 +176,10 @@ def _run_mlb_trade_rumors(
         "output_filename": _output_path(output_dir, f"MLB_trade_rumors_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "mode": getattr(options, "mode", "single"),
+        "primary_source": getattr(options, "primary_source", "MLB Trade Rumors"),
+        "primary_source_bonus": getattr(options, "primary_source_bonus", 0),
+        "extra_feeds": getattr(options, "extra_feeds", None) or None,
     }
     if options.weather:
         kwargs.update(

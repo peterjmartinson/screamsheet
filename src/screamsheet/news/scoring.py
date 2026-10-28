@@ -157,18 +157,76 @@ class PoliticalNewsScorer(BaseNewsScorer):
         return total
 
 
+# High-impact sports newsworthiness keyword weights
+SPORTS_KEYWORD_WEIGHTS: Dict[str, int] = {
+    # Transactions & roster moves
+    "designated for assignment": 6,
+    "free agent": 6,
+    "called up": 6,
+    "call-up": 6,
+    "trade": 8,
+    "traded": 8,
+    "acquire": 7,
+    "acquires": 7,
+    "acquired": 7,
+    "sign": 6,
+    "signs": 6,
+    "signed": 6,
+    "extension": 7,
+    "contract": 5,
+    "waivers": 5,
+    # Injuries & availability
+    "injured list": 7,
+    "injured reserve": 7,
+    "out indefinitely": 8,
+    "day-to-day": 4,
+    "injury": 6,
+    "surgery": 7,
+    "concussion": 6,
+    "activated": 5,
+    # High-impact game & season moments
+    "perfect game": 10,
+    "no-hitter": 9,
+    "walk-off": 7,
+    "grand slam": 6,
+    "hat trick": 7,
+    "all-star": 5,
+    "hall of fame": 6,
+    "shutout": 5,
+    "overtime": 5,
+    "playoffs": 6,
+    "postseason": 6,
+    "clinched": 7,
+    "eliminated": 7,
+    "championship": 7,
+    # Coaching / Front Office / Discipline
+    "fired": 8,
+    "hired": 7,
+    "suspended": 7,
+    "suspension": 7,
+}
+
+
 class SportsNewsScorer(BaseNewsScorer):
-    """Score sports news entries prioritizing favorite teams and penalizing junk."""
+    """Score sports news entries with favorite-team boosts, keyword weights, and primary-source bonus."""
 
     def __init__(
         self,
         sport: str = "mlb",
         favorite_teams: Optional[List[str]] = None,
         junk_keywords: Optional[List[str]] = None,
+        primary_source: Optional[str] = None,
+        primary_source_bonus: int = 25,
+        min_primary_words: int = 40,
+        keyword_weights: Optional[Dict[str, int]] = None,
     ) -> None:
         self.sport = sport.lower()
         self.favorite_teams = favorite_teams or []
         self.junk_keywords = [k.lower() for k in (junk_keywords or [])]
+        self.primary_source = (primary_source or "").strip()
+        self.primary_source_bonus = primary_source_bonus
+        self.min_primary_words = min_primary_words
+        self.keyword_weights = keyword_weights if keyword_weights is not None else SPORTS_KEYWORD_WEIGHTS
 
     def _get_team_match_patterns(self, team_name: str) -> Set[str]:
         patterns: Set[str] = {team_name.strip().lower()}
@@ -207,30 +265,63 @@ class SportsNewsScorer(BaseNewsScorer):
         summary = (entry.get("summary") or "").strip()
         combined = f"{title} {summary}".lower()
 
+        if not combined.strip():
+            return 0
+
         # Check junk
         for junk in self.junk_keywords:
             if junk in combined:
                 return 0
 
         # Base score for any clean news
-        score = 10
+        raw_score = 10
 
-        # Tiered favorite team bonuses:
-        # Tier 1 (1st team): +35
-        # Tier 2 (2nd team): +20
-        # Tier 3 (3rd+ teams): +10
+        # Sports newsworthiness keyword weights
+        already_matched: List[str] = []
+        for keyword, weight in self.keyword_weights.items():
+            if " " not in keyword:
+                if any(keyword in phrase for phrase in already_matched):
+                    continue
+            if keyword in combined:
+                raw_score += weight
+                already_matched.append(keyword)
+
+        # Heavy favorite team tier bonuses:
+        # Tier 1 (1st team): +50
+        # Tier 2 (2nd team): +35
+        # Tier 3+ (3rd+ teams): +25
+        team_tag = (entry.get("team_tag") or "").strip().lower()
         for idx, team in enumerate(self.favorite_teams):
-            if self._matches_team(combined, team):
+            team_clean = team.strip().lower()
+            if (team_tag and team_tag == team_clean) or self._matches_team(combined, team):
                 if idx == 0:
-                    score += 35
+                    raw_score += 50
                 elif idx == 1:
-                    score += 20
+                    raw_score += 35
                 else:
-                    score += 10
+                    raw_score += 25
                 break  # Don't double count multiple favorite matches on same team
 
-        multiplier = self.calculate_substance_multiplier(summary)
-        return int(round(score * multiplier))
+        # Primary / authority source bonus (modeled on White House bonus in PoliticalNewsScorer)
+        primary_bonus = 0
+        if self.primary_source and self.primary_source_bonus > 0:
+            entry_source = (entry.get("source") or "").strip()
+            is_primary = (
+                bool(entry.get("is_primary_source"))
+                or entry_source.lower() == self.primary_source.lower()
+            )
+            if is_primary:
+                if self.has_substantial_text(summary, min_words=self.min_primary_words):
+                    primary_bonus = self.primary_source_bonus
+                else:
+                    # Partial authority edge when feed only carries a headline/teaser pre-scrape
+                    primary_bonus = max(1, self.primary_source_bonus // 2)
+
+        multiplier = self.calculate_substance_multiplier(summary if summary else title)
+        total = int(round(raw_score * multiplier)) + primary_bonus
+        if raw_score > 0 and total == 0:
+            total = 1
+        return total
 
 
 class ClusterScorer:

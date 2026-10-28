@@ -23,10 +23,26 @@ class MLBTradeRumorsProvider(NewsDataProvider):
         'Best of', 'MLBTR Chat', 'Front Office', 'Prospects'
     ]
     
-    def __init__(self, favorite_teams: Optional[List[str]] = None, max_articles: int = 4, **config):
+    PRIMARY_SOURCE = "MLB Trade Rumors"
+    PRIMARY_SOURCE_BONUS = 0
+
+    def __init__(
+        self,
+        favorite_teams: Optional[List[str]] = None,
+        max_articles: int = 4,
+        mode: str = "single",
+        primary_source: str = PRIMARY_SOURCE,
+        primary_source_bonus: int = PRIMARY_SOURCE_BONUS,
+        extra_feeds: Optional[Dict[str, str]] = None,
+        **config: Any,
+    ):
         super().__init__(**config)
         self.favorite_teams = favorite_teams if favorite_teams is not None else []
         self.max_articles = max_articles
+        self.mode = mode
+        self.primary_source = primary_source
+        self.primary_source_bonus = primary_source_bonus
+        self.secondary_feeds: Dict[str, str] = dict(extra_feeds) if extra_feeds else {}
     
     def _get_team_match_patterns(self, team_name: str) -> List[str]:
         """Return a list of matching keywords/aliases for a team name."""
@@ -75,86 +91,80 @@ class MLBTradeRumorsProvider(NewsDataProvider):
         Articles are prioritized by favorite teams and clustered into semantic
         topics to eliminate redundancy.
         """
-        from ..news.clustering import TopicClusterer
-        from ..news.scoring import SportsNewsScorer
-
-        feed = feedparser.parse(self.RSS_URL)
-        clean_entries = [
-            entry for entry in feed.entries
-            if not self._is_garbage(entry)
-        ]
-        if not clean_entries:
-            return []
-
-        # 1. Fill favorite team slots in priority order
-        selected_clusters: List[Any] = []
+        all_entries: List[Dict[str, Any]] = []
         seen_links: set = set()
 
-        for team in self.favorite_teams:
-            if len(selected_clusters) >= self.max_articles:
-                break
-            team_entries = [
-                e for e in clean_entries
-                if (e.get('link', '') or e.get('id', '')) not in seen_links
-                and self._entry_matches_team(e, team)
-            ]
-            if team_entries:
-                scorer = SportsNewsScorer(sport="mlb", favorite_teams=[team], junk_keywords=self.EXCLUSION_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.75, scorer=scorer)
-                team_clusters = clusterer.cluster(team_entries, top_n=1)
-                if team_clusters:
-                    best = team_clusters[0]
-                    for a in best.articles:
-                        seen_links.add(a.get("link", "") or a.get("id", ""))
-                    selected_clusters.append(best)
-
-        # 2. Fill remaining slots with general clean articles
-        if len(selected_clusters) < self.max_articles:
-            remaining_entries = [
-                e for e in clean_entries
-                if (e.get('link', '') or e.get('id', '')) not in seen_links
-            ]
-            if remaining_entries:
-                needed = self.max_articles - len(selected_clusters)
-                scorer = SportsNewsScorer(sport="mlb", favorite_teams=self.favorite_teams, junk_keywords=self.EXCLUSION_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.75, scorer=scorer)
-                general_clusters = clusterer.cluster(remaining_entries, top_n=needed)
-                for gc in general_clusters:
-                    selected_clusters.append(gc)
-                    for a in gc.articles:
-                        seen_links.add(a.get("link", "") or a.get("id", ""))
-
-        output: List[Dict] = []
-        for i, cluster in enumerate(selected_clusters):
-            first_article = cluster.articles[0] if cluster.articles else {}
-            pub_parsed = (
-                first_article.get("published_parsed")
-                if hasattr(first_article, "get")
-                else getattr(first_article, "published_parsed", None)
+        feed = feedparser.parse(self.RSS_URL)
+        for entry in feed.entries:
+            if self._is_garbage(entry):
+                continue
+            link = entry.get("link", "") or entry.get("id", "")
+            if not link or link in seen_links:
+                continue
+            seen_links.add(link)
+            matched_team = next(
+                (team for team in self.favorite_teams if self._entry_matches_team(entry, team)),
+                None,
             )
-            slot_entry = {
-                "title": cluster.topic,
-                "summary": cluster.combined_summary,
-                "link": cluster.primary_link,
-                "id": cluster.primary_link,
-                "source": "MLB Trade Rumors",
-                "sources": ["MLB Trade Rumors"],
-                "reports": [
-                    {
-                        "source": "MLB Trade Rumors",
-                        "title": a.get("title", "") if hasattr(a, "get") else getattr(a, "title", ""),
-                        "summary": a.get("summary", "") if hasattr(a, "get") else getattr(a, "summary", ""),
-                        "link": a.get("link", "") if hasattr(a, "get") else getattr(a, "link", ""),
-                    }
-                    for a in cluster.articles
-                ],
-                "is_cluster": True,
-                "cluster_score": cluster.score,
-                "published_parsed": pub_parsed,
+            entry_dict: Dict[str, Any] = {
+                "title": entry.get("title", "") if hasattr(entry, "get") else getattr(entry, "title", ""),
+                "link": link,
+                "summary": entry.get("summary", "") if hasattr(entry, "get") else getattr(entry, "summary", ""),
+                "published_parsed": (
+                    entry.get("published_parsed")
+                    if hasattr(entry, "get")
+                    else getattr(entry, "published_parsed", None)
+                ),
+                "source": self.primary_source,
+                "is_primary_source": True,
             }
-            output.append({"slot": f"Section {i + 1}", "entry": slot_entry})
+            if matched_team:
+                entry_dict["team_tag"] = matched_team
+            all_entries.append(entry_dict)
 
-        return output
+        if self.mode == "multi" and self.secondary_feeds:
+            for source_name, feed_url in self.secondary_feeds.items():
+                try:
+                    sec_feed = feedparser.parse(feed_url)
+                except Exception:
+                    continue
+                for entry in getattr(sec_feed, "entries", []):
+                    if self._is_garbage(entry):
+                        continue
+                    link = entry.get("link", "") or entry.get("id", "")
+                    if not link or link in seen_links:
+                        continue
+                    seen_links.add(link)
+                    matched_team = next(
+                        (team for team in self.favorite_teams if self._entry_matches_team(entry, team)),
+                        None,
+                    )
+                    sec_dict: Dict[str, Any] = {
+                        "title": entry.get("title", "") if hasattr(entry, "get") else getattr(entry, "title", ""),
+                        "link": link,
+                        "summary": entry.get("summary", "") if hasattr(entry, "get") else getattr(entry, "summary", ""),
+                        "published_parsed": (
+                            entry.get("published_parsed")
+                            if hasattr(entry, "get")
+                            else getattr(entry, "published_parsed", None)
+                        ),
+                        "source": source_name,
+                    }
+                    if matched_team:
+                        sec_dict["team_tag"] = matched_team
+                    all_entries.append(sec_dict)
+
+        return self._score_and_cluster_entries(
+            entries=all_entries,
+            sport="mlb",
+            favorite_teams=self.favorite_teams,
+            junk_keywords=self.EXCLUSION_KEYWORDS,
+            max_articles=self.max_articles,
+            primary_source=self.primary_source,
+            primary_source_bonus=self.primary_source_bonus,
+            similarity_threshold=0.75,
+            default_source=self.primary_source,
+        )
     
     def _is_garbage(self, entry: Dict) -> bool:
         """Check if an article contains blacklisted promotional keywords."""

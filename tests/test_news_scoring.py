@@ -120,6 +120,49 @@ class TestSportsNewsScorer:
         }
         assert scorer.score(entry) == 0
 
+    def test_primary_source_bonus_and_heavy_team_boost(self):
+        scorer = SportsNewsScorer(
+            sport="mlb",
+            favorite_teams=["Phillies", "Padres"],
+            primary_source="MLB.com",
+            primary_source_bonus=25,
+        )
+        rich_summary = "Detailed baseball report covering the roster move and pitching rotation. " * 10
+        mlb_entry = {
+            "title": "Dodgers acquire reliever in trade",
+            "summary": rich_summary,
+            "source": "MLB.com",
+        }
+        espn_entry = {
+            "title": "Dodgers acquire reliever in trade",
+            "summary": rich_summary,
+            "source": "ESPN",
+        }
+        phillies_entry = {
+            "title": "Phillies call up reliever from Triple-A",
+            "summary": rich_summary,
+            "source": "ESPN",
+            "team_tag": "Phillies",
+        }
+        assert scorer.score(mlb_entry) > scorer.score(espn_entry)
+        assert scorer.score(phillies_entry) > scorer.score(mlb_entry)
+
+    def test_headline_only_entry_scores_nonzero(self):
+        scorer = SportsNewsScorer(
+            sport="nhl",
+            favorite_teams=["Flyers"],
+            primary_source="NHL.com",
+            primary_source_bonus=25,
+        )
+        entry = {
+            "title": "Flyers sign veteran defenseman to extension",
+            "summary": "",
+            "source": "NHL.com",
+            "team_tag": "Flyers",
+            "is_primary_source": True,
+        }
+        assert scorer.score(entry) > 0
+
 
 class TestClusterScorer:
     def test_multi_source_bonus(self):

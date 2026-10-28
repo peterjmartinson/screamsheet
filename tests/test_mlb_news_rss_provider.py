@@ -375,3 +375,64 @@ class TestMLBNewsRssProviderBodyEnrichment:
         mock_scrape.assert_not_called()
         assert result[0]["entry"]["summary"] == original_summary
 
+
+class TestMLBNewsRssProviderMultiSource:
+    def test_multi_source_clusters_and_preserves_sources(self) -> None:
+        mlb_entry = {
+            "title": "Phillies sign Bryce Harper to massive contract extension",
+            "link": "https://www.mlb.com/phillies/news/harper-extension",
+            "summary": "Philadelphia Phillies and Bryce Harper agreed to a contract extension.",
+        }
+        espn_entry = {
+            "title": "Phillies sign Bryce Harper to contract extension in Philadelphia",
+            "link": "https://www.espn.com/mlb/story/harper-extension",
+            "summary": "Bryce Harper and the Philadelphia Phillies finalized a contract extension.",
+        }
+
+        def fake_parse(url: str) -> MagicMock:
+            feed = MagicMock()
+            if "mlb.com/phillies" in url:
+                feed.entries = [mlb_entry]
+            elif "espn.com" in url:
+                feed.entries = [espn_entry]
+            else:
+                feed.entries = []
+            return feed
+
+        p = MLBNewsRssProvider(
+            favorite_teams=["Phillies"],
+            max_articles=1,
+            mode="multi",
+            extra_feeds={"ESPN": "https://www.espn.com/espn/rss/mlb/news"},
+        )
+        with patch("feedparser.parse", side_effect=fake_parse):
+            articles = p.get_articles()
+            sanitized = p.sanitize_articles(articles)
+
+        assert len(sanitized) == 1
+        entry = sanitized[0]["entry"]
+        assert "MLB.com" in entry["sources"]
+        assert "ESPN" in entry["sources"]
+        assert "MLB.com" in entry["source"]
+        assert "ESPN" in entry["source"]
+        assert len(entry["reports"]) == 2
+
+    def test_single_source_mode_skips_secondary_feeds(self) -> None:
+        called_urls: list[str] = []
+
+        def fake_parse(url: str) -> MagicMock:
+            called_urls.append(url)
+            feed = MagicMock()
+            feed.entries = []
+            return feed
+
+        p = MLBNewsRssProvider(
+            favorite_teams=["Phillies"],
+            max_articles=1,
+            mode="single",
+            extra_feeds={"ESPN": "https://www.espn.com/espn/rss/mlb/news"},
+        )
+        with patch("feedparser.parse", side_effect=fake_parse):
+            p.get_articles()
+
+        assert not any("espn.com" in u for u in called_urls)

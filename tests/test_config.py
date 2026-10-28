@@ -271,3 +271,41 @@ class TestSkyPeopleConfig:
             "Give a compliment about her haircut.",
             "Mention renewed creative energy.",
         ]
+
+
+class TestNewsConfig:
+    def test_news_config_defaults(self, tmp_path):
+        path = _write_yaml(tmp_path, {})
+        cfg = load_config(path)
+        assert cfg.news.mlb_news.mode == "multi"
+        assert cfg.news.mlb_news.primary_source == "MLB.com"
+        assert cfg.news.nhl_news.mode == "multi"
+        assert cfg.news.nhl_news.primary_source == "NHL.com"
+        assert cfg.news.nfl_news.mode == "multi"
+        assert cfg.news.mlb_trade_rumors.mode == "single"
+        assert cfg.news.mlb_trade_rumors.primary_source == "MLB Trade Rumors"
+
+    def test_news_config_overrides(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "news": {
+                    "mlb_news": {
+                        "mode": "single",
+                        "primary_source": "MLB.com",
+                        "primary_source_bonus": 40,
+                    },
+                    "mlb_trade_rumors": {
+                        "mode": "multi",
+                        "extra_feeds": {"ESPN": "https://www.espn.com/espn/rss/mlb/news"},
+                    },
+                }
+            },
+        )
+        cfg = load_config(path)
+        assert cfg.news.mlb_news.mode == "single"
+        assert cfg.news.mlb_news.primary_source_bonus == 40
+        assert cfg.news.mlb_trade_rumors.mode == "multi"
+        assert cfg.news.mlb_trade_rumors.extra_feeds == {
+            "ESPN": "https://www.espn.com/espn/rss/mlb/news"
+        }

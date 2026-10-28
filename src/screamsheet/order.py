@@ -98,6 +98,10 @@ class MLBNewsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    mode: str = "multi"
+    primary_source: str = "MLB.com"
+    primary_source_bonus: int = 25
+    extra_feeds: dict[str, str] | None = None
 
 
 @dataclass
@@ -106,6 +110,10 @@ class NHLNewsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    mode: str = "multi"
+    primary_source: str = "NHL.com"
+    primary_source_bonus: int = 25
+    extra_feeds: dict[str, str] | None = None
 
 
 @dataclass
@@ -121,6 +129,10 @@ class MLBTradeRumorsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    mode: str = "single"
+    primary_source: str = "MLB Trade Rumors"
+    primary_source_bonus: int = 0
+    extra_feeds: dict[str, str] | None = None
 
 
 @dataclass

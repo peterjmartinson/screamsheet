@@ -562,4 +562,60 @@ def test_nfl_data_provider_get_day_schedule():
         assert games[0]["schedule_line"] == "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)"
 
 
+def test_nfl_news_provider_multi_source_clustering():
+    from screamsheet.providers.nfl_news_provider import NFLNewsProvider
+
+    espn_payload = {
+        "articles": [
+            {
+                "headline": "Eagles sign star linebacker to contract extension",
+                "description": "Philadelphia Eagles locked up their defensive leader on a multi-year deal.",
+                "links": {"web": {"href": "https://www.espn.com/nfl/story/eagles-lb-extension"}},
+                "published": "2026-09-14T15:00:00Z",
+            }
+        ]
+    }
+    nfl_rss_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+    <rss version="2.0"><channel>
+      <item>
+        <title>Eagles sign star linebacker to contract extension in Philadelphia</title>
+        <link>https://www.nfl.com/news/eagles-lb-extension</link>
+        <description>The Philadelphia Eagles agreed to a contract extension with their star linebacker.</description>
+      </item>
+    </channel></rss>
+    """
+
+    def fake_get(url: str, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status.return_value = None
+        if "site.api.espn.com" in url:
+            resp.json.return_value = espn_payload
+            resp.text = ""
+        elif "nfl.com/rss" in url:
+            resp.text = nfl_rss_xml
+        else:
+            resp.text = ""
+        return resp
+
+    provider = NFLNewsProvider(
+        favorite_teams=["Philadelphia Eagles"],
+        max_articles=1,
+        mode="multi",
+        extra_feeds={"NFL.com": "https://www.nfl.com/rss/rsslanding?searchString=home"},
+    )
+    with patch("requests.get", side_effect=fake_get):
+        articles = provider.get_articles()
+        sanitized = provider.sanitize_articles(articles)
+
+    assert len(sanitized) == 1
+    entry = sanitized[0]["entry"]
+    assert "ESPN" in entry["sources"]
+    assert "NFL.com" in entry["sources"]
+    assert "ESPN" in entry["source"]
+    assert "NFL.com" in entry["source"]
+    assert len(entry["reports"]) == 2
+
+
+
 

@@ -122,6 +122,10 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                mode=cfg.news.mlb_trade_rumors.mode,
+                primary_source=cfg.news.mlb_trade_rumors.primary_source,
+                primary_source_bonus=cfg.news.mlb_trade_rumors.primary_source_bonus,
+                extra_feeds=cfg.news.mlb_trade_rumors.extra_feeds or None,
             ),
         ),
         (
@@ -134,6 +138,10 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                mode=cfg.news.mlb_news.mode,
+                primary_source=cfg.news.mlb_news.primary_source,
+                primary_source_bonus=cfg.news.mlb_news.primary_source_bonus,
+                extra_feeds=cfg.news.mlb_news.extra_feeds or None,
             ),
         ),
         (
@@ -164,6 +172,10 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.nhl_news.lon,
                 weather_location_name=cfg.weather.nhl_news.location_name,
                 date=today,
+                mode=cfg.news.nhl_news.mode,
+                primary_source=cfg.news.nhl_news.primary_source,
+                primary_source_bonus=cfg.news.nhl_news.primary_source_bonus,
+                extra_feeds=cfg.news.nhl_news.extra_feeds or None,
             ),
         ),
         (
@@ -292,6 +304,10 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         mlb_news=MLBNewsOrderOptions(
             news_names=cfg.mlb.news_names,
             weather=weather_mlb,
+            mode=cfg.news.mlb_news.mode,
+            primary_source=cfg.news.mlb_news.primary_source,
+            primary_source_bonus=cfg.news.mlb_news.primary_source_bonus,
+            extra_feeds=cfg.news.mlb_news.extra_feeds or None,
         ),
         french_mlb_news=FrenchMLBNewsOrderOptions(
             news_names=cfg.french_mlb.news_names,
@@ -299,6 +315,10 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         nhl_news=NHLNewsOrderOptions(
             news_names=cfg.nhl.news_names,
             weather=weather_nhl,
+            mode=cfg.news.nhl_news.mode,
+            primary_source=cfg.news.nhl_news.primary_source,
+            primary_source_bonus=cfg.news.nhl_news.primary_source_bonus,
+            extra_feeds=cfg.news.nhl_news.extra_feeds or None,
         ),
         nba=NBAOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams],

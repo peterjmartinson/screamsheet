@@ -134,11 +134,28 @@ class MLBNewsRssProvider(NewsDataProvider):
         "prospects",
     ]
 
-    # CSS selectors tried in order when scraping MLB.com article pages.
+    PRIMARY_SOURCE: str = "MLB.com"
+    PRIMARY_SOURCE_BONUS: int = 25
+
+    SECONDARY_FEEDS: Dict[str, str] = {
+        "ESPN": "https://www.espn.com/espn/rss/mlb/news",
+        "CBS Sports": "https://www.cbssports.com/rss/headlines/mlb/",
+        "Yahoo Sports": "https://sports.yahoo.com/mlb/rss.xml",
+        "MLB Trade Rumors": "https://feeds.feedburner.com/MlbTradeRumors",
+        "FanGraphs": "https://blogs.fangraphs.com/feed/",
+        "Fox Sports": "https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJqaPU244mlTDK1i&size=30&tags=fs/mlb",
+    }
+
+    # CSS selectors tried in order when scraping article pages.
     _ARTICLE_SELECTORS: List[str] = [
         "div.article-template__body-text",
         "div.article-template__content",
         "div.bam-content",
+        "div.article-body",
+        "div.Story__Body",
+        "div.caas-body",
+        "div.Article-content",
+        "div.entry-content",
         "article",
         "main",
     ]
@@ -154,112 +171,127 @@ class MLBNewsRssProvider(NewsDataProvider):
         self,
         favorite_teams: Optional[List[str]] = None,
         max_articles: int = 4,
+        mode: str = "multi",
+        primary_source: str = PRIMARY_SOURCE,
+        primary_source_bonus: int = PRIMARY_SOURCE_BONUS,
+        extra_feeds: Optional[Dict[str, str]] = None,
         **config: object,
     ) -> None:
         super().__init__(**config)
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
+        self.mode: str = (mode or "multi").strip().lower()
+        self.primary_source: str = primary_source or self.PRIMARY_SOURCE
+        self.primary_source_bonus: int = primary_source_bonus
+        self.extra_feeds: Dict[str, str] = dict(extra_feeds) if extra_feeds else {}
 
     # ------------------------------------------------------------------
     # News-specific interface
     # ------------------------------------------------------------------
 
-    def get_articles(self) -> List[Dict]:
-        """Fetch up to ``max_articles`` articles from MLB.com RSS feeds.
+    def _raw_to_entry_dict(
+        self,
+        raw_entry: object,
+        source_name: str,
+        team_tag: Optional[str] = None,
+        is_primary: bool = False,
+    ) -> Optional[Dict]:
+        link = (
+            raw_entry.get("link", "")
+            if hasattr(raw_entry, "get")
+            else getattr(raw_entry, "link", "")
+        )
+        if not link or self._is_junk_article(raw_entry):
+            return None
+        title = (
+            raw_entry.get("title", "")
+            if hasattr(raw_entry, "get")
+            else getattr(raw_entry, "title", "")
+        )
+        summary = (
+            raw_entry.get("summary", "") or raw_entry.get("description", "")
+            if hasattr(raw_entry, "get")
+            else getattr(raw_entry, "summary", "")
+        )
+        pub_parsed = (
+            raw_entry.get("published_parsed")
+            if hasattr(raw_entry, "get")
+            else getattr(raw_entry, "published_parsed", None)
+        )
+        entry_dict: Dict = {
+            "title": title,
+            "link": link,
+            "summary": summary or "",
+            "published_parsed": pub_parsed,
+            "source": source_name,
+            "is_primary_source": is_primary,
+        }
+        if team_tag:
+            entry_dict["team_tag"] = team_tag
+        return entry_dict
 
-        Articles are scored with favorite team tier weighting and clustered
-        into semantic topics so duplicate coverage is unified.
+    def get_articles(self) -> List[Dict]:
+        """Fetch up to ``max_articles`` articles across MLB.com and secondary RSS feeds.
+
+        Articles are pooled across sources (unless ``mode == "single"``), scored
+        with a heavy favorite-team boost and primary-source authority bonus, and
+        clustered into unified multi-source topics.
 
         Returns:
             List of dicts with keys ``'slot'`` (str) and ``'entry'`` (dict).
         """
-        from ..news.clustering import TopicClusterer
-        from ..news.scoring import SportsNewsScorer
+        all_entries: List[Dict] = []
 
-        selected_clusters: List[Any] = []
-        seen_links: set = set()
-
-        # 1. Cluster and select top topic per favorite team in priority order
+        # 1. Fetch primary source: favorite team MLB.com feeds in priority order
         for team in self.favorite_teams:
-            if len(selected_clusters) >= self.max_articles:
-                break
-            team_entries: List[Dict] = []
             for raw_entry in self._fetch_entries(team):
-                link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
-                if link and link not in seen_links and not self._is_junk_article(raw_entry):
-                    entry_dict = {
-                        "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
-                        "link": link,
-                        "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
-                        "published_parsed": getattr(raw_entry, "published_parsed", None),
-                        "source": team,
-                    }
-                    team_entries.append(entry_dict)
+                ed = self._raw_to_entry_dict(
+                    raw_entry,
+                    source_name=self.primary_source,
+                    team_tag=team,
+                    is_primary=True,
+                )
+                if ed:
+                    all_entries.append(ed)
 
-            if team_entries:
-                scorer = SportsNewsScorer(sport="mlb", favorite_teams=[team], junk_keywords=self.JUNK_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.68, scorer=scorer)
-                team_clusters = clusterer.cluster(team_entries, top_n=1)
-                if team_clusters:
-                    best = team_clusters[0]
-                    for a in best.articles:
-                        seen_links.add(a.get("link", ""))
-                    selected_clusters.append(best)
+        # 2. Fetch primary source: general MLB.com feed
+        for raw_entry in self._fetch_entries(None):
+            ed = self._raw_to_entry_dict(
+                raw_entry,
+                source_name=self.primary_source,
+                is_primary=True,
+            )
+            if ed:
+                all_entries.append(ed)
 
-        # 2. Fill remaining slots from the general MLB feed
-        if len(selected_clusters) < self.max_articles:
-            general_entries: List[Dict] = []
-            for raw_entry in self._fetch_entries(None):
-                link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
-                if link and link not in seen_links and not self._is_junk_article(raw_entry):
-                    entry_dict = {
-                        "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
-                        "link": link,
-                        "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
-                        "published_parsed": getattr(raw_entry, "published_parsed", None),
-                        "source": "MLB.com",
-                    }
-                    general_entries.append(entry_dict)
+        # 3. Fetch secondary multi-source feeds (when mode == "multi")
+        if self.mode == "multi":
+            feeds = dict(self.SECONDARY_FEEDS)
+            feeds.update(self.extra_feeds)
+            for source_name, feed_url in feeds.items():
+                try:
+                    feed = feedparser.parse(feed_url)
+                    for raw_entry in getattr(feed, "entries", []):
+                        ed = self._raw_to_entry_dict(
+                            raw_entry,
+                            source_name=source_name,
+                            is_primary=(source_name.lower() == self.primary_source.lower()),
+                        )
+                        if ed:
+                            all_entries.append(ed)
+                except Exception:
+                    continue
 
-            if general_entries:
-                needed = self.max_articles - len(selected_clusters)
-                scorer = SportsNewsScorer(sport="mlb", favorite_teams=self.favorite_teams, junk_keywords=self.JUNK_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.68, scorer=scorer)
-                general_clusters = clusterer.cluster(general_entries, top_n=needed)
-                for gc in general_clusters:
-                    selected_clusters.append(gc)
-                    for a in gc.articles:
-                        seen_links.add(a.get("link", ""))
-
-        output: List[Dict] = []
-        for i, cluster in enumerate(selected_clusters):
-            slot_entry = {
-                "title": cluster.topic,
-                "summary": cluster.combined_summary,
-                "link": cluster.primary_link,
-                "id": cluster.primary_link,
-                "source": ", ".join(cluster.sources) if cluster.sources else "MLB.com",
-                "sources": cluster.sources,
-                "reports": [
-                    {
-                        "source": a.get("source", "MLB.com"),
-                        "title": a.get("title", ""),
-                        "summary": a.get("summary", ""),
-                        "link": a.get("link", ""),
-                    }
-                    for a in cluster.articles
-                ],
-                "is_cluster": True,
-                "cluster_score": cluster.score,
-                "published_parsed": (
-                    cluster.articles[0].get("published_parsed")
-                    if cluster.articles
-                    else None
-                ),
-            }
-            output.append({"slot": f"Section {i + 1}", "entry": slot_entry})
-
-        return output
+        return self._score_and_cluster_entries(
+            entries=all_entries,
+            sport="mlb",
+            favorite_teams=self.favorite_teams,
+            junk_keywords=self.JUNK_KEYWORDS,
+            primary_source=self.primary_source,
+            primary_source_bonus=self.primary_source_bonus,
+            max_articles=self.max_articles,
+            similarity_threshold=0.68,
+        )
 
     def sanitize_articles(self, articles: List[Dict]) -> List[Dict]:
         """Filter junk entries and enrich each article with scraped body text.
@@ -270,6 +302,13 @@ class MLBNewsRssProvider(NewsDataProvider):
         LLM real content to work with instead of an empty string.
         """
         enriched: List[Dict] = []
+        scraped_cache: Dict[str, str] = {}
+
+        def _get_scraped(url: str) -> str:
+            if url not in scraped_cache:
+                scraped_cache[url] = self._scrape_article_text(url)
+            return scraped_cache[url]
+
         for item in articles:
             entry = item.get("entry") if isinstance(item, dict) else None
             if entry is None:
@@ -281,7 +320,7 @@ class MLBNewsRssProvider(NewsDataProvider):
             summary = entry.get("summary", "") if hasattr(entry, "get") else ""
 
             if link and not summary:
-                scraped = self._scrape_article_text(link)
+                scraped = _get_scraped(link)
                 if scraped:
                     new_entry: Dict = {
                         k: (entry.get(k) if hasattr(entry, "get") else getattr(entry, k, None))
@@ -291,12 +330,23 @@ class MLBNewsRssProvider(NewsDataProvider):
                     item = {"slot": item.get("slot", "Section"), "entry": new_entry}
 
             # Also enrich member reports if any report summary is empty
-            if isinstance(item.get("entry"), dict) and item["entry"].get("reports"):
-                for rep in item["entry"]["reports"]:
+            cur_entry = item.get("entry")
+            if isinstance(cur_entry, dict) and cur_entry.get("reports"):
+                reports_updated = False
+                for rep in cur_entry["reports"]:
                     if rep.get("link") and not rep.get("summary"):
-                        scraped_rep = self._scrape_article_text(rep["link"])
+                        scraped_rep = _get_scraped(rep["link"])
                         if scraped_rep:
                             rep["summary"] = scraped_rep
+                            reports_updated = True
+                if reports_updated and not cur_entry.get("summary"):
+                    rep_summaries = [
+                        r["summary"].strip()
+                        for r in cur_entry["reports"]
+                        if r.get("summary") and r["summary"].strip()
+                    ]
+                    if rep_summaries:
+                        cur_entry["summary"] = "\n\n".join(dict.fromkeys(rep_summaries))
 
             enriched.append(item)
 

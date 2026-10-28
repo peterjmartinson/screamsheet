@@ -1,4 +1,5 @@
-"""NHL.com news data provider using team-specific news pages."""
+"""NHL.com and multi-source NHL news data provider."""
+import feedparser
 import requests
 from bs4 import BeautifulSoup
 from typing import Any, Dict, List, Optional
@@ -10,19 +11,24 @@ from ..base import NewsDataProvider
 
 class NHLNewsRssProvider(NewsDataProvider):
     """
-    Data provider for NHL.com news via team-specific news pages.
+    Data provider for NHL news via NHL.com pages and secondary RSS feeds.
 
-    Fetches articles from NHL.com in team-priority order, then falls back
-    to the general NHL news page to fill any remaining slots.
-
-    Team priorities are fully configurable at construction time - simply
-    pass a different ``favorite_teams`` list to change which feeds are
-    polled first.
-
-    Articles whose titles contain any entry in ``JUNK_KEYWORDS`` are
-    silently skipped. The article body is scraped from the article URL
-    when the RSS feed provides an empty summary.
+    Fetches articles from NHL.com (primary source) and secondary outlets,
+    scores all candidates with an authority bonus for NHL.com and heavy
+    favorite-team tier boosts, and clusters stories across outlets.
     """
+
+    PRIMARY_SOURCE: str = "NHL.com"
+    PRIMARY_SOURCE_BONUS: int = 25
+
+    SECONDARY_FEEDS: Dict[str, str] = {
+        "ESPN": "https://www.espn.com/espn/rss/nhl/news",
+        "CBS Sports": "https://www.cbssports.com/rss/headlines/nhl/",
+        "Yahoo Sports": "https://sports.yahoo.com/nhl/rss.xml",
+        "ProHockeyRumors": "https://www.prohockeyrumors.com/feed",
+        "The Hockey News": "https://thehockeynews.com/.rss/full/",
+        "Sportsnet": "https://www.sportsnet.ca/hockey/nhl/feed/",
+    }
 
     # Maps team name to its NHL.com news URL.
     # None is the sentinel key for the general NHL news page used as fallback.
@@ -91,11 +97,21 @@ class NHLNewsRssProvider(NewsDataProvider):
         self,
         favorite_teams: Optional[List[str]] = None,
         max_articles: int = 4,
+        mode: str = "multi",
+        primary_source: str = PRIMARY_SOURCE,
+        primary_source_bonus: int = PRIMARY_SOURCE_BONUS,
+        extra_feeds: Optional[Dict[str, str]] = None,
         **config: object,
     ) -> None:
         super().__init__(**config)
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles
+        self.mode: str = mode
+        self.primary_source: str = primary_source
+        self.primary_source_bonus: int = primary_source_bonus
+        self.secondary_feeds: Dict[str, str] = (
+            dict(extra_feeds) if extra_feeds is not None else dict(self.SECONDARY_FEEDS)
+        )
         self._article_cache: Dict[Optional[str], List[Dict]] = {}
 
     # ------------------------------------------------------------------
@@ -103,105 +119,105 @@ class NHLNewsRssProvider(NewsDataProvider):
     # ------------------------------------------------------------------
 
     def get_articles(self) -> List[Dict]:
-        """Fetch up to ``max_articles`` articles from NHL.com RSS feeds.
+        """Fetch up to ``max_articles`` articles from NHL.com and secondary feeds.
 
-        Articles are scored with favorite team tier weighting and clustered
-        into semantic topics so duplicate coverage is unified.
+        Articles are scored with favorite team tier weighting and primary source
+        bonuses, then clustered into semantic topics so multi-source coverage is unified.
 
         Returns:
             List of dicts with keys ``'slot'`` (str) and ``'entry'`` (dict).
             The list length equals ``max_articles``, but may be shorter if
-            the page does not contain enough recent entries.
+            the feeds do not contain enough recent entries.
         """
-        from ..news.clustering import TopicClusterer
-        from ..news.scoring import SportsNewsScorer
-
-        selected_clusters: List[Any] = []
+        all_entries: List[Dict[str, Any]] = []
         seen_links: set = set()
 
-        # 1. Cluster and select top topic per favorite team in priority order
+        # 1. Collect candidate entries from favorite team feeds (tagged with team_tag)
         for team in self.favorite_teams:
-            if len(selected_clusters) >= self.max_articles:
-                break
-            team_entries: List[Dict] = []
             for raw_entry in self._fetch_entries(team):
                 if not self._team_matches_entry(team, raw_entry):
                     continue
                 link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
                 if link and link not in seen_links and not self._is_junk_article(raw_entry):
-                    entry_dict = {
-                        "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
-                        "link": link,
-                        "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
-                        "published_parsed": getattr(raw_entry, "published_parsed", None),
-                        "source": team,
-                    }
-                    team_entries.append(entry_dict)
+                    seen_links.add(link)
+                    all_entries.append(
+                        {
+                            "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
+                            "link": link,
+                            "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
+                            "published_parsed": (
+                                raw_entry.get("published_parsed")
+                                if hasattr(raw_entry, "get")
+                                else getattr(raw_entry, "published_parsed", None)
+                            ),
+                            "source": self.primary_source,
+                            "team_tag": team,
+                            "is_primary_source": True,
+                        }
+                    )
 
-            if team_entries:
-                scorer = SportsNewsScorer(sport="nhl", favorite_teams=[team], junk_keywords=self.JUNK_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.68, scorer=scorer)
-                team_clusters = clusterer.cluster(team_entries, top_n=1)
-                if team_clusters:
-                    best = team_clusters[0]
-                    for a in best.articles:
-                        seen_links.add(a.get("link", ""))
-                    selected_clusters.append(best)
+        # 2. Collect candidate entries from the general NHL.com feed
+        for raw_entry in self._fetch_entries(None):
+            link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
+            if link and link not in seen_links and not self._is_junk_article(raw_entry):
+                seen_links.add(link)
+                matched_team = next(
+                    (t for t in self.favorite_teams if self._team_matches_entry(t, raw_entry)),
+                    None,
+                )
+                entry_dict: Dict[str, Any] = {
+                    "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
+                    "link": link,
+                    "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
+                    "published_parsed": (
+                        raw_entry.get("published_parsed")
+                        if hasattr(raw_entry, "get")
+                        else getattr(raw_entry, "published_parsed", None)
+                    ),
+                    "source": self.primary_source,
+                    "is_primary_source": True,
+                }
+                if matched_team:
+                    entry_dict["team_tag"] = matched_team
+                all_entries.append(entry_dict)
 
-        # 2. Fill remaining slots from the general NHL feed
-        if len(selected_clusters) < self.max_articles:
-            general_entries: List[Dict] = []
-            for raw_entry in self._fetch_entries(None):
-                link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
-                if link and link not in seen_links and not self._is_junk_article(raw_entry):
-                    entry_dict = {
-                        "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
-                        "link": link,
-                        "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
-                        "published_parsed": getattr(raw_entry, "published_parsed", None),
-                        "source": "NHL.com",
-                    }
-                    general_entries.append(entry_dict)
+        # 3. In multi-source mode, poll secondary RSS feeds
+        if self.mode == "multi":
+            for source_name, feed_url in self.secondary_feeds.items():
+                for raw_entry in self._fetch_rss_entries(feed_url):
+                    link = raw_entry.get("link", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "link", "")
+                    if link and link not in seen_links and not self._is_junk_article(raw_entry):
+                        seen_links.add(link)
+                        matched_team = next(
+                            (t for t in self.favorite_teams if self._team_matches_entry(t, raw_entry)),
+                            None,
+                        )
+                        sec_entry: Dict[str, Any] = {
+                            "title": raw_entry.get("title", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "title", ""),
+                            "link": link,
+                            "summary": raw_entry.get("summary", "") if hasattr(raw_entry, "get") else getattr(raw_entry, "summary", ""),
+                            "published_parsed": (
+                                raw_entry.get("published_parsed")
+                                if hasattr(raw_entry, "get")
+                                else getattr(raw_entry, "published_parsed", None)
+                            ),
+                            "source": source_name,
+                        }
+                        if matched_team:
+                            sec_entry["team_tag"] = matched_team
+                        all_entries.append(sec_entry)
 
-            if general_entries:
-                needed = self.max_articles - len(selected_clusters)
-                scorer = SportsNewsScorer(sport="nhl", favorite_teams=self.favorite_teams, junk_keywords=self.JUNK_KEYWORDS)
-                clusterer = TopicClusterer(similarity_threshold=0.68, scorer=scorer)
-                general_clusters = clusterer.cluster(general_entries, top_n=needed)
-                for gc in general_clusters:
-                    selected_clusters.append(gc)
-                    for a in gc.articles:
-                        seen_links.add(a.get("link", ""))
-
-        output: List[Dict] = []
-        for i, cluster in enumerate(selected_clusters):
-            slot_entry = {
-                "title": cluster.topic,
-                "summary": cluster.combined_summary,
-                "link": cluster.primary_link,
-                "id": cluster.primary_link,
-                "source": ", ".join(cluster.sources) if cluster.sources else "NHL.com",
-                "sources": cluster.sources,
-                "reports": [
-                    {
-                        "source": a.get("source", "NHL.com"),
-                        "title": a.get("title", ""),
-                        "summary": a.get("summary", ""),
-                        "link": a.get("link", ""),
-                    }
-                    for a in cluster.articles
-                ],
-                "is_cluster": True,
-                "cluster_score": cluster.score,
-                "published_parsed": (
-                    cluster.articles[0].get("published_parsed")
-                    if cluster.articles
-                    else None
-                ),
-            }
-            output.append({"slot": f"Section {i + 1}", "entry": slot_entry})
-
-        return output
+        return self._score_and_cluster_entries(
+            entries=all_entries,
+            sport="nhl",
+            favorite_teams=self.favorite_teams,
+            junk_keywords=self.JUNK_KEYWORDS,
+            max_articles=self.max_articles,
+            primary_source=self.primary_source,
+            primary_source_bonus=self.primary_source_bonus,
+            similarity_threshold=0.68,
+            default_source=self.primary_source,
+        )
 
     def sanitize_articles(self, articles: List[Dict]) -> List[Dict]:
         """
@@ -213,6 +229,13 @@ class NHLNewsRssProvider(NewsDataProvider):
         paragraph text is extracted to populate the summary.
         """
         enriched: List[Dict] = []
+        scrape_cache: Dict[str, str] = {}
+
+        def _scrape_cached(url: str) -> str:
+            if url not in scrape_cache:
+                scrape_cache[url] = self._scrape_article_text(url)
+            return scrape_cache[url]
+
         for item in articles:
             entry = item.get("entry") if isinstance(item, dict) else None
             if entry is None:
@@ -223,25 +246,49 @@ class NHLNewsRssProvider(NewsDataProvider):
             link = entry.get("link", "") if hasattr(entry, "get") else ""
             summary = entry.get("summary", "") if hasattr(entry, "get") else ""
 
+            new_entry: Dict[str, Any] = {
+                k: (entry.get(k) if hasattr(entry, "get") else getattr(entry, k, None))
+                for k in (
+                    "title",
+                    "link",
+                    "id",
+                    "published_parsed",
+                    "summary",
+                    "source",
+                    "sources",
+                    "reports",
+                    "is_cluster",
+                    "cluster_score",
+                )
+            }
+
             if link and not summary:
-                scraped = self._scrape_article_text(link)
+                scraped = _scrape_cached(link)
                 if scraped:
-                    # Build a fresh dict so we don't mutate the feedparser object
-                    new_entry: Dict = {
-                        k: (entry.get(k) if hasattr(entry, "get") else getattr(entry, k, None))
-                        for k in ("title", "link", "id", "published_parsed", "summary", "source", "sources", "reports", "is_cluster", "cluster_score")
-                    }
                     new_entry["summary"] = scraped
-                    item = {"slot": item.get("slot", "Section"), "entry": new_entry}
 
             # Also enrich member reports if any report summary is empty
-            if isinstance(item.get("entry"), dict) and item["entry"].get("reports"):
-                for rep in item["entry"]["reports"]:
-                    if rep.get("link") and not rep.get("summary"):
-                        scraped_rep = self._scrape_article_text(rep["link"])
+            if new_entry.get("reports"):
+                updated_reports = []
+                for rep in new_entry["reports"]:
+                    rep_copy = dict(rep)
+                    if rep_copy.get("link") and not rep_copy.get("summary"):
+                        scraped_rep = _scrape_cached(rep_copy["link"])
                         if scraped_rep:
-                            rep["summary"] = scraped_rep
+                            rep_copy["summary"] = scraped_rep
+                    updated_reports.append(rep_copy)
+                new_entry["reports"] = updated_reports
 
+                if not new_entry.get("summary"):
+                    combined = [
+                        f"[{r.get('source', self.primary_source)}] {r.get('summary', '')}"
+                        for r in updated_reports
+                        if r.get("summary")
+                    ]
+                    if combined:
+                        new_entry["summary"] = "\n\n".join(combined)
+
+            item = {"slot": item.get("slot", "Section"), "entry": new_entry}
             enriched.append(item)
 
         return super().sanitize_articles(enriched)
@@ -379,6 +426,19 @@ class NHLNewsRssProvider(NewsDataProvider):
             if entry.get("link", "") not in seen_links and not self._is_junk_article(entry):
                 return entry
         return None
+
+    def _fetch_rss_entries(self, feed_url: str) -> List[object]:
+        """Fetch and parse a secondary RSS feed URL."""
+        try:
+            resp = requests.get(
+                feed_url, timeout=self._SCRAPE_TIMEOUT, headers=self._SCRAPE_HEADERS
+            )
+            if resp.status_code != 200 or not getattr(resp, "text", ""):
+                return []
+            feed = feedparser.parse(resp.text)
+            return list(getattr(feed, "entries", []))
+        except Exception:
+            return []
 
     def _fetch_entries(self, team: Optional[str]) -> List[object]:
         """Fetch and return recent article cards for the given team or the general feed."""

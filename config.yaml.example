@@ -99,6 +99,32 @@ french_mlb:
     - "Blue Jays"
     - "Phillies"
 
+# News source aggregation mode per screamsheet.
+# mode: "multi" (default for mlb_news, nhl_news, nfl_news, presidential) polls
+#       the primary source plus secondary RSS feeds and clusters similar stories.
+# mode: "single" (default for mlb_trade_rumors) uses only the primary source.
+news:
+  mlb_news:
+    mode: "multi"
+    primary_source: "MLB.com"
+    primary_source_bonus: 25
+  nhl_news:
+    mode: "multi"
+    primary_source: "NHL.com"
+    primary_source_bonus: 25
+  nfl_news:
+    mode: "multi"
+    primary_source: "NFL.com"
+    primary_source_bonus: 25
+  mlb_trade_rumors:
+    mode: "single"
+    primary_source: "MLB Trade Rumors"
+    primary_source_bonus: 0
+  presidential:
+    mode: "multi"
+    primary_source: "White House"
+    primary_source_bonus: 35
+
 # Sky Tonight location.
 # Find lat/lon for your city at https://www.latlong.net/
 sky:

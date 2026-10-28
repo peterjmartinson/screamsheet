@@ -28,10 +28,18 @@ class NFLNewsComponent(NewsStoryComponent):
         schedule_items: Optional[List[str]] = None,
         schedule_title: str = "Today's Broadcasts",
         date: Optional[datetime] = None,
+        mode: str = "multi",
+        primary_source: str = NFLNewsProvider.PRIMARY_SOURCE,
+        primary_source_bonus: int = NFLNewsProvider.PRIMARY_SOURCE_BONUS,
+        extra_feeds: Optional[dict[str, str]] = None,
         **kwargs: Any,
     ) -> None:
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else []
         self._initial_max_articles = max_articles if max_articles is not None else 4
+        self.mode = mode
+        self.primary_source = primary_source
+        self.primary_source_bonus = primary_source_bonus
+        self.extra_feeds = extra_feeds
         super().__init__(
             title=title,
             provider=provider,
@@ -49,4 +57,8 @@ class NFLNewsComponent(NewsStoryComponent):
         return NFLNewsProvider(
             favorite_teams=self.favorite_teams,
             max_articles=max(self._initial_max_articles, 8),
+            mode=self.mode,
+            primary_source=self.primary_source,
+            primary_source_bonus=self.primary_source_bonus,
+            extra_feeds=self.extra_feeds,
         )

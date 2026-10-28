@@ -195,7 +195,11 @@ class ScreamsheetFactory:
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        mode: str = "single",
+        primary_source: str = "MLB Trade Rumors",
+        primary_source_bonus: int = 0,
+        extra_feeds: Optional[dict] = None,
     ) -> MLBTradeRumorsScreamsheet:
         """
         Create an MLB Trade Rumors news screamsheet.
@@ -209,6 +213,10 @@ class ScreamsheetFactory:
             weather_lon: Longitude for weather location
             weather_location_name: Display name for weather location
             date: Target date (defaults to today)
+            mode: Aggregation mode ("single" or "multi", default: "single")
+            primary_source: Authority source name
+            primary_source_bonus: Bonus points for primary source
+            extra_feeds: Optional extra RSS feeds map
             
         Returns:
             MLBTradeRumorsScreamsheet instance
@@ -221,7 +229,11 @@ class ScreamsheetFactory:
             weather_lat=weather_lat,
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
-            date=date
+            date=date,
+            mode=mode,
+            primary_source=primary_source,
+            primary_source_bonus=primary_source_bonus,
+            extra_feeds=extra_feeds,
         )
     
     @staticmethod
@@ -233,9 +245,13 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
+        mode: str = "multi",
+        primary_source: str = "MLB.com",
+        primary_source_bonus: int = 25,
+        extra_feeds: Optional[dict] = None,
     ) -> MLBNewsScreamsheet:
         """
-        Create an MLB News screamsheet sourced from MLB.com team RSS feeds.
+        Create an MLB News screamsheet sourced from MLB.com and secondary RSS feeds.
 
         Args:
             output_filename: Path to save the PDF.
@@ -245,6 +261,10 @@ class ScreamsheetFactory:
             weather_lon: Longitude for weather location.
             weather_location_name: Display name for weather location.
             date:            Target date (defaults to today).
+            mode:            Aggregation mode ("multi" or "single", default: "multi").
+            primary_source:  Authority source name (default: "MLB.com").
+            primary_source_bonus: Bonus points for primary source (default: 25).
+            extra_feeds:     Optional override map of secondary RSS feeds.
 
         Returns:
             MLBNewsScreamsheet instance
@@ -257,6 +277,10 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            mode=mode,
+            primary_source=primary_source,
+            primary_source_bonus=primary_source_bonus,
+            extra_feeds=extra_feeds,
         )
 
     @staticmethod
@@ -268,9 +292,13 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
+        mode: str = "multi",
+        primary_source: str = "NHL.com",
+        primary_source_bonus: int = 25,
+        extra_feeds: Optional[dict] = None,
     ) -> NHLNewsScreamsheet:
         """
-        Create an NHL News screamsheet sourced from NHL.com team RSS feeds.
+        Create an NHL News screamsheet sourced from NHL.com and secondary RSS feeds.
 
         Args:
             output_filename: Path to save the PDF.
@@ -280,6 +308,10 @@ class ScreamsheetFactory:
             weather_lon: Longitude for weather location.
             weather_location_name: Display name for weather location.
             date: Target date (defaults to today).
+            mode: Aggregation mode ("multi" or "single", default: "multi").
+            primary_source: Authority source name (default: "NHL.com").
+            primary_source_bonus: Bonus points for primary source (default: 25).
+            extra_feeds: Optional override map of secondary RSS feeds.
 
         Returns:
             NHLNewsScreamsheet instance
@@ -292,6 +324,10 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            mode=mode,
+            primary_source=primary_source,
+            primary_source_bonus=primary_source_bonus,
+            extra_feeds=extra_feeds,
         )
 
     @staticmethod

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
 
@@ -140,6 +140,45 @@ class DbConfig:
 
 
 @dataclass
+class NewsSheetConfig:
+    """Configuration for a news screamsheet's source aggregation mode."""
+    mode: str = "multi"  # "multi" | "single"
+    primary_source: str = ""
+    primary_source_bonus: int = 25
+    extra_feeds: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class NewsConfig:
+    """News aggregation settings across screamsheets."""
+    mlb_news: NewsSheetConfig = field(
+        default_factory=lambda: NewsSheetConfig(
+            mode="multi", primary_source="MLB.com", primary_source_bonus=25
+        )
+    )
+    nhl_news: NewsSheetConfig = field(
+        default_factory=lambda: NewsSheetConfig(
+            mode="multi", primary_source="NHL.com", primary_source_bonus=25
+        )
+    )
+    nfl_news: NewsSheetConfig = field(
+        default_factory=lambda: NewsSheetConfig(
+            mode="multi", primary_source="NFL.com", primary_source_bonus=25
+        )
+    )
+    mlb_trade_rumors: NewsSheetConfig = field(
+        default_factory=lambda: NewsSheetConfig(
+            mode="single", primary_source="MLB Trade Rumors", primary_source_bonus=0
+        )
+    )
+    presidential: NewsSheetConfig = field(
+        default_factory=lambda: NewsSheetConfig(
+            mode="multi", primary_source="White House", primary_source_bonus=35
+        )
+    )
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: NHLConfig = field(default_factory=NHLConfig)
@@ -151,6 +190,7 @@ class ScreamsheetConfig:
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
     briefing: BriefingConfig = field(default_factory=BriefingConfig)
+    news: NewsConfig = field(default_factory=NewsConfig)
     branding: str = ""
     output: OutputConfig = field(default_factory=OutputConfig)
     database: DbConfig = field(default_factory=DbConfig)
@@ -295,6 +335,38 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     )
 
 
+def _parse_news_sheet(
+    raw: dict,
+    default_mode: str,
+    default_primary: str,
+    default_bonus: int,
+) -> NewsSheetConfig:
+    raw = raw or {}
+    extra_raw = raw.get("extra_feeds") or {}
+    extra_feeds = {str(k): str(v) for k, v in extra_raw.items()} if isinstance(extra_raw, dict) else {}
+    return NewsSheetConfig(
+        mode=str(raw.get("mode", default_mode)),
+        primary_source=str(raw.get("primary_source", default_primary)),
+        primary_source_bonus=int(raw.get("primary_source_bonus", default_bonus)),
+        extra_feeds=extra_feeds,
+    )
+
+
+def _parse_news(raw: dict) -> NewsConfig:
+    raw = raw or {}
+    return NewsConfig(
+        mlb_news=_parse_news_sheet(raw.get("mlb_news", {}), "multi", "MLB.com", 25),
+        nhl_news=_parse_news_sheet(raw.get("nhl_news", {}), "multi", "NHL.com", 25),
+        nfl_news=_parse_news_sheet(raw.get("nfl_news", {}), "multi", "NFL.com", 25),
+        mlb_trade_rumors=_parse_news_sheet(
+            raw.get("mlb_trade_rumors", {}), "single", "MLB Trade Rumors", 0
+        ),
+        presidential=_parse_news_sheet(
+            raw.get("presidential", {}), "multi", "White House", 35
+        ),
+    )
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -331,6 +403,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         weather=weather,
         sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),
         briefing=_parse_briefing(raw.get("briefing") or raw.get("morning_briefing") or {}, weather),
+        news=_parse_news(raw.get("news", {})),
         branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
         database=_parse_db(raw.get("database", {})),

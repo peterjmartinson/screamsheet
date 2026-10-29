@@ -31,66 +31,15 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urlparse, urlunparse
 
+from ..news.scoring import POLITICAL_KEYWORD_WEIGHTS
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Keyword weights  — single place for tuning
+# Keyword weights — shared with screamsheet.news.scoring
 # ---------------------------------------------------------------------------
 
-# Multi-word phrases MUST appear before their component single words so the
-# scanning loop can give them priority without double-counting.
-KEYWORD_WEIGHTS: Dict[str, int] = {
-    # Core presidential / White House
-    "white house":       8,
-    "executive order":   7,
-    "trump":            10,
-    "president":         6,
-    # Domestic policy hot-buttons
-    "tariff":            6,
-    "tariffs":           6,
-    "immigration":       5,
-    "border":            4,
-    "inflation":         4,
-    "federal reserve":   5,
-    "congress":          4,
-    "senate":            4,
-    "house of representatives": 4,
-    # Key international actors
-    "xi jinping":        7,
-    "xi":                5,
-    "putin":             5,
-    "zelensky":          5,
-    "netanyahu":         5,
-    "modi":              4,
-    "macron":            4,
-    "kim jong":          6,
-    # Geopolitical topics
-    "ukraine":           5,
-    "russia":            4,
-    "china":             4,
-    "nato":              5,
-    "israel":            4,
-    "gaza":              4,
-    "taiwan":            5,
-    "north korea":       6,
-    # Trade / foreign policy
-    "diplomacy":         5,
-    "sanctions":         5,
-    "trade war":         6,
-    "trade deal":        5,
-    # Key Washington institutions
-    "supreme court":     5,
-    "department of justice": 5,
-    "doj":               4,
-    "fbi":               4,
-    "cia":               4,
-    "pentagon":          4,
-    # Elon Musk / tech power
-    "musk":              5,
-    "elon":              4,
-    "spacex":            3,
-    "tesla":             3,
-}
+KEYWORD_WEIGHTS: Dict[str, int] = POLITICAL_KEYWORD_WEIGHTS
 
 
 # ---------------------------------------------------------------------------

@@ -222,15 +222,13 @@ SPORTS_KEYWORD_WEIGHTS: Dict[str, int] = {
 
 
 class SportsNewsScorer(BaseNewsScorer):
-    """Score sports news entries with favorite-team boosts, keyword weights, and primary-source bonus."""
+    """Score sports news entries with favorite-team boosts, keyword weights, and per-source bonuses."""
 
     def __init__(
         self,
         sport: str = "mlb",
         favorite_teams: Optional[List[str]] = None,
         junk_keywords: Optional[List[str]] = None,
-        primary_source: Optional[str] = None,
-        primary_source_bonus: int = 25,
         min_primary_words: int = 40,
         keyword_weights: Optional[Dict[str, int]] = None,
         source_bonuses: Optional[Dict[str, int]] = None,
@@ -238,8 +236,6 @@ class SportsNewsScorer(BaseNewsScorer):
         self.sport = sport.lower()
         self.favorite_teams = favorite_teams or []
         self.junk_keywords = [k.lower() for k in (junk_keywords or [])]
-        self.primary_source = (primary_source or "").strip()
-        self.primary_source_bonus = primary_source_bonus
         self.min_primary_words = min_primary_words
         self.keyword_weights = keyword_weights if keyword_weights is not None else SPORTS_KEYWORD_WEIGHTS
         self.source_bonuses: Dict[str, int] = {
@@ -320,7 +316,7 @@ class SportsNewsScorer(BaseNewsScorer):
                     raw_score += 25
                 break  # Don't double count multiple favorite matches on same team
 
-        # Primary / authority source bonus (modeled on White House bonus in PoliticalNewsScorer)
+        # Authority source bonus (modeled on White House bonus in PoliticalNewsScorer)
         primary_bonus = 0
         entry_source = (entry.get("source") or "").strip()
         configured_bonus: Optional[int] = (
@@ -330,17 +326,6 @@ class SportsNewsScorer(BaseNewsScorer):
         )
         if configured_bonus is None and self.source_bonuses and entry_source:
             configured_bonus = self.source_bonuses.get(entry_source.lower())
-        if (
-            configured_bonus is None
-            and self.primary_source
-            and self.primary_source_bonus > 0
-        ):
-            is_primary = (
-                bool(entry.get("is_primary_source"))
-                or entry_source.lower() == self.primary_source.lower()
-            )
-            if is_primary:
-                configured_bonus = self.primary_source_bonus
 
         if configured_bonus and configured_bonus > 0:
             if self.has_substantial_text(summary, min_words=self.min_primary_words):

@@ -22,8 +22,6 @@ class MLBTradeRumorsProvider(UnifiedNewsProvider):
     RSS_URL: str = NEWS_SOURCE_CATALOG["mlb_trade_rumors"].url
     EXCLUSION_KEYWORDS: List[str] = MLB_TRADE_RUMORS_JUNK_KEYWORDS
 
-    PRIMARY_SOURCE: str = "MLB Trade Rumors"
-    PRIMARY_SOURCE_BONUS: int = 0
     DEFAULT_SHEET: str = "mlb_trade_rumors"
     DEFAULT_CATEGORY: str = "mlb"
     SIMILARITY_THRESHOLD: float = 0.75
@@ -32,22 +30,13 @@ class MLBTradeRumorsProvider(UnifiedNewsProvider):
         self,
         favorite_teams: Optional[List[str]] = None,
         max_articles: int = 4,
-        mode: str = "single",
-        primary_source: str = PRIMARY_SOURCE,
-        primary_source_bonus: int = PRIMARY_SOURCE_BONUS,
-        extra_feeds: Optional[Dict[str, str]] = None,
         sources: Optional[Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]] = None,
         **config: Any,
     ) -> None:
-        self.secondary_feeds: Dict[str, str] = dict(extra_feeds) if extra_feeds else {}
         super().__init__(
             favorite_teams=favorite_teams,
             max_articles=max_articles,
             sources=sources,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             sport="mlb",
             category="mlb",
             default_sheet="mlb_trade_rumors",
@@ -67,5 +56,4 @@ class MLBTradeRumorsProvider(UnifiedNewsProvider):
             for src in active:
                 if src.id == "mlb_trade_rumors":
                     src.url = self.RSS_URL
-                    src.name = self.primary_source
         return active

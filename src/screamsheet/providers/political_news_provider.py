@@ -271,8 +271,6 @@ class PoliticalNewsProvider(UnifiedNewsProvider):
     and caches the resulting ``{'slot', 'entry'}`` list.
     """
 
-    PRIMARY_SOURCE: str = "White House"
-    PRIMARY_SOURCE_BONUS: int = 25
     DEFAULT_SHEET: str = "presidential"
     DEFAULT_CATEGORY: str = "political"
 
@@ -280,19 +278,11 @@ class PoliticalNewsProvider(UnifiedNewsProvider):
         self,
         max_articles: int = 4,
         sources: Optional[Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]] = None,
-        mode: str = "multi",
-        primary_source: str = PRIMARY_SOURCE,
-        primary_source_bonus: int = PRIMARY_SOURCE_BONUS,
-        extra_feeds: Optional[Dict[str, str]] = None,
         **config: Any,
     ) -> None:
         super().__init__(
             max_articles=max_articles,
             sources=sources,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             category="political",
             default_sheet="presidential",
             junk_keywords=[],

@@ -601,8 +601,7 @@ def test_nfl_news_provider_multi_source_clustering():
     provider = NFLNewsProvider(
         favorite_teams=["Philadelphia Eagles"],
         max_articles=1,
-        mode="multi",
-        extra_feeds={"NFL.com": "https://www.nfl.com/rss/rsslanding?searchString=home"},
+        sources=["espn_nfl", {"id": "nfl_com", "bonus": 25}],
     )
     with patch("requests.get", side_effect=fake_get):
         articles = provider.get_articles()

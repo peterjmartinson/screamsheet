@@ -141,42 +141,18 @@ class DbConfig:
 
 @dataclass
 class NewsSheetConfig:
-    """Configuration for a news screamsheet's source aggregation and cherry-picking."""
-    mode: str = "multi"  # "multi" | "single"
-    primary_source: str = ""
-    primary_source_bonus: int = 25
-    extra_feeds: Dict[str, str] = field(default_factory=dict)
+    """Configuration for a news screamsheet's cherry-picked sources and authority bonuses."""
     sources: List[Union[str, Dict[str, Any]]] = field(default_factory=list)
 
 
 @dataclass
 class NewsConfig:
     """News aggregation settings across screamsheets."""
-    mlb_news: NewsSheetConfig = field(
-        default_factory=lambda: NewsSheetConfig(
-            mode="multi", primary_source="MLB.com", primary_source_bonus=25
-        )
-    )
-    nhl_news: NewsSheetConfig = field(
-        default_factory=lambda: NewsSheetConfig(
-            mode="multi", primary_source="NHL.com", primary_source_bonus=25
-        )
-    )
-    nfl_news: NewsSheetConfig = field(
-        default_factory=lambda: NewsSheetConfig(
-            mode="multi", primary_source="NFL.com", primary_source_bonus=25
-        )
-    )
-    mlb_trade_rumors: NewsSheetConfig = field(
-        default_factory=lambda: NewsSheetConfig(
-            mode="single", primary_source="MLB Trade Rumors", primary_source_bonus=0
-        )
-    )
-    presidential: NewsSheetConfig = field(
-        default_factory=lambda: NewsSheetConfig(
-            mode="multi", primary_source="White House", primary_source_bonus=35
-        )
-    )
+    mlb_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    nhl_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    nfl_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    mlb_trade_rumors: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    presidential: NewsSheetConfig = field(default_factory=NewsSheetConfig)
 
 
 @dataclass
@@ -336,15 +312,8 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     )
 
 
-def _parse_news_sheet(
-    raw: dict,
-    default_mode: str,
-    default_primary: str,
-    default_bonus: int,
-) -> NewsSheetConfig:
+def _parse_news_sheet(raw: dict) -> NewsSheetConfig:
     raw = raw or {}
-    extra_raw = raw.get("extra_feeds") or {}
-    extra_feeds = {str(k): str(v) for k, v in extra_raw.items()} if isinstance(extra_raw, dict) else {}
     sources_raw = raw.get("sources") or []
     sources: List[Union[str, Dict[str, Any]]] = []
     if isinstance(sources_raw, list):
@@ -353,27 +322,17 @@ def _parse_news_sheet(
                 sources.append(item.strip())
             elif isinstance(item, dict):
                 sources.append(dict(item))
-    return NewsSheetConfig(
-        mode=str(raw.get("mode", default_mode)),
-        primary_source=str(raw.get("primary_source", default_primary)),
-        primary_source_bonus=int(raw.get("primary_source_bonus", default_bonus)),
-        extra_feeds=extra_feeds,
-        sources=sources,
-    )
+    return NewsSheetConfig(sources=sources)
 
 
 def _parse_news(raw: dict) -> NewsConfig:
     raw = raw or {}
     return NewsConfig(
-        mlb_news=_parse_news_sheet(raw.get("mlb_news", {}), "multi", "MLB.com", 25),
-        nhl_news=_parse_news_sheet(raw.get("nhl_news", {}), "multi", "NHL.com", 25),
-        nfl_news=_parse_news_sheet(raw.get("nfl_news", {}), "multi", "NFL.com", 25),
-        mlb_trade_rumors=_parse_news_sheet(
-            raw.get("mlb_trade_rumors", {}), "single", "MLB Trade Rumors", 0
-        ),
-        presidential=_parse_news_sheet(
-            raw.get("presidential", {}), "multi", "White House", 35
-        ),
+        mlb_news=_parse_news_sheet(raw.get("mlb_news", {})),
+        nhl_news=_parse_news_sheet(raw.get("nhl_news", {})),
+        nfl_news=_parse_news_sheet(raw.get("nfl_news", {})),
+        mlb_trade_rumors=_parse_news_sheet(raw.get("mlb_trade_rumors", {})),
+        presidential=_parse_news_sheet(raw.get("presidential", {})),
     )
 
 

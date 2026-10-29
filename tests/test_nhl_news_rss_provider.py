@@ -229,8 +229,7 @@ class TestNHLNewsRssProviderFallback:
         p = NHLNewsRssProvider(
             favorite_teams=["Flyers"],
             max_articles=1,
-            mode="multi",
-            extra_feeds={"ESPN": "https://www.espn.com/espn/rss/nhl/news"},
+            sources=[{"id": "nhl_com", "bonus": 25}, "espn_nhl"],
         )
         with patch("requests.get", side_effect=fake_get):
             articles = p.get_articles()

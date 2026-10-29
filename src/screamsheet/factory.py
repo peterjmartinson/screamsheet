@@ -196,10 +196,6 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
-        mode: str = "single",
-        primary_source: str = "MLB Trade Rumors",
-        primary_source_bonus: int = 0,
-        extra_feeds: Optional[dict] = None,
         sources: Optional[list] = None,
     ) -> MLBTradeRumorsScreamsheet:
         """
@@ -214,10 +210,6 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             sources=sources,
         )
     
@@ -230,10 +222,6 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
-        mode: str = "multi",
-        primary_source: str = "MLB.com",
-        primary_source_bonus: int = 25,
-        extra_feeds: Optional[dict] = None,
         sources: Optional[list] = None,
     ) -> MLBNewsScreamsheet:
         """
@@ -247,10 +235,6 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             sources=sources,
         )
 
@@ -263,10 +247,6 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
-        mode: str = "multi",
-        primary_source: str = "NHL.com",
-        primary_source_bonus: int = 25,
-        extra_feeds: Optional[dict] = None,
         sources: Optional[list] = None,
     ) -> NHLNewsScreamsheet:
         """
@@ -280,10 +260,6 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             sources=sources,
         )
 
@@ -327,10 +303,6 @@ class ScreamsheetFactory:
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
-        mode: str = "multi",
-        primary_source: str = "White House",
-        primary_source_bonus: int = 25,
-        extra_feeds: Optional[dict] = None,
         sources: Optional[list] = None,
     ) -> PresidentialScreamsheet:
         """
@@ -344,10 +316,6 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
-            mode=mode,
-            primary_source=primary_source,
-            primary_source_bonus=primary_source_bonus,
-            extra_feeds=extra_feeds,
             sources=sources,
         )
 

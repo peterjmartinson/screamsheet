@@ -120,12 +120,11 @@ class TestSportsNewsScorer:
         }
         assert scorer.score(entry) == 0
 
-    def test_primary_source_bonus_and_heavy_team_boost(self):
+    def test_source_bonus_and_heavy_team_boost(self):
         scorer = SportsNewsScorer(
             sport="mlb",
             favorite_teams=["Phillies", "Padres"],
-            primary_source="MLB.com",
-            primary_source_bonus=25,
+            source_bonuses={"MLB.com": 25},
         )
         rich_summary = "Detailed baseball report covering the roster move and pitching rotation. " * 10
         mlb_entry = {
@@ -151,15 +150,14 @@ class TestSportsNewsScorer:
         scorer = SportsNewsScorer(
             sport="nhl",
             favorite_teams=["Flyers"],
-            primary_source="NHL.com",
-            primary_source_bonus=25,
+            source_bonuses={"NHL.com": 25},
         )
         entry = {
             "title": "Flyers sign veteran defenseman to extension",
             "summary": "",
             "source": "NHL.com",
             "team_tag": "Flyers",
-            "is_primary_source": True,
+            "source_bonus": 25,
         }
         assert scorer.score(entry) > 0
 

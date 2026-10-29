@@ -402,8 +402,7 @@ class TestMLBNewsRssProviderMultiSource:
         p = MLBNewsRssProvider(
             favorite_teams=["Phillies"],
             max_articles=1,
-            mode="multi",
-            extra_feeds={"ESPN": "https://www.espn.com/espn/rss/mlb/news"},
+            sources=[{"id": "mlb_com", "bonus": 25}, "espn_mlb"],
         )
         with patch("feedparser.parse", side_effect=fake_parse):
             articles = p.get_articles()
@@ -417,7 +416,7 @@ class TestMLBNewsRssProviderMultiSource:
         assert "ESPN" in entry["source"]
         assert len(entry["reports"]) == 2
 
-    def test_single_source_mode_skips_secondary_feeds(self) -> None:
+    def test_single_source_cherry_pick_skips_secondary_feeds(self) -> None:
         called_urls: list[str] = []
 
         def fake_parse(url: str) -> MagicMock:
@@ -429,8 +428,7 @@ class TestMLBNewsRssProviderMultiSource:
         p = MLBNewsRssProvider(
             favorite_teams=["Phillies"],
             max_articles=1,
-            mode="single",
-            extra_feeds={"ESPN": "https://www.espn.com/espn/rss/mlb/news"},
+            sources=[{"id": "mlb_com", "bonus": 25}],
         )
         with patch("feedparser.parse", side_effect=fake_parse):
             p.get_articles()

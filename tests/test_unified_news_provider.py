@@ -119,10 +119,14 @@ class TestResolveNewsSources:
         assert resolved[3].url == "https://example.com/rss"
         assert resolved[3].bonus == 5
 
-    def test_resolve_single_mode_filters_to_primary(self) -> None:
-        resolved = resolve_news_sources(default_sheet="mlb_news", mode="single")
+    def test_resolve_single_source_cherry_pick(self) -> None:
+        resolved = resolve_news_sources(
+            sources=[{"id": "mlb_com", "bonus": 25}],
+            default_sheet="mlb_news",
+        )
         assert len(resolved) == 1
         assert resolved[0].id == "mlb_com"
+        assert resolved[0].bonus == 25
 
 
 class TestUnifiedNewsProviderCherryPicking:

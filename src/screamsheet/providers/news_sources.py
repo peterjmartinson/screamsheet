@@ -567,14 +567,6 @@ DEFAULT_SHEET_SOURCES: Dict[str, List[Union[str, Dict[str, Any]]]] = {
     ],
 }
 
-SINGLE_MODE_SHEET_SOURCES: Dict[str, List[Union[str, Dict[str, Any]]]] = {
-    "mlb_news": [{"id": "mlb_com", "bonus": 25}],
-    "mlb_trade_rumors": [{"id": "mlb_trade_rumors", "bonus": 0}],
-    "nhl_news": [{"id": "nhl_com", "bonus": 25}],
-    "nfl_news": ["espn_nfl"],
-    "presidential": [{"id": "white_house", "bonus": 25}],
-}
-
 
 def lookup_source_spec(
     key: str, category: Optional[str] = None
@@ -612,34 +604,23 @@ def resolve_news_sources(
     sources: Optional[Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]] = None,
     default_sheet: str = "mlb_news",
     category: Optional[str] = None,
-    mode: str = "multi",
-    primary_source: Optional[str] = None,
-    primary_source_bonus: Optional[int] = None,
-    extra_feeds: Optional[Dict[str, str]] = None,
-    replace_secondary_with_extra: bool = False,
 ) -> List[ResolvedNewsSource]:
-    """Normalize a user-supplied ``sources`` list or legacy parameters into :class:`ResolvedNewsSource` items.
+    """Normalize a user-supplied ``sources`` list into :class:`ResolvedNewsSource` items.
 
     Supports:
     - String catalog IDs: ``"espn_mlb"``, ``"mlb_com"``, ``"white_house"``
     - String display names: ``"MLB.com"``, ``"FanGraphs"``
     - Dicts with catalog ID + bonus: ``{"id": "mlb_com", "bonus": 25}``
     - Ad-hoc custom RSS dicts: ``{"name": "Custom", "url": "https://...", "bonus": 10}``
-    - Legacy ``mode`` ("single" vs "multi") and ``extra_feeds`` when ``sources`` is omitted.
+    - Default sheet source lists from :data:`DEFAULT_SHEET_SOURCES` when ``sources`` is omitted.
     """
-    mode_clean = (mode or "multi").strip().lower()
     cat = (category or "").strip().lower() or None
 
     raw_items: Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]
-    explicit_sources = sources is not None and len(sources) > 0
-
-    if explicit_sources:
-        raw_items = list(sources)  # type: ignore[arg-type]
+    if sources is not None and len(sources) > 0:
+        raw_items = list(sources)
     else:
-        if mode_clean == "single" and default_sheet in SINGLE_MODE_SHEET_SOURCES:
-            raw_items = list(SINGLE_MODE_SHEET_SOURCES[default_sheet])
-        else:
-            raw_items = list(DEFAULT_SHEET_SOURCES.get(default_sheet, []))
+        raw_items = list(DEFAULT_SHEET_SOURCES.get(default_sheet, []))
 
     resolved: List[ResolvedNewsSource] = []
 
@@ -718,53 +699,6 @@ def resolve_news_sources(
             else:
                 logger.warning("Invalid news source dict '%s' ignored.", item)
 
-    # Apply legacy extra_feeds when explicit sources were not passed
-    if not explicit_sources and mode_clean == "multi" and extra_feeds:
-        if replace_secondary_with_extra and resolved:
-            # Keep the primary non-RSS source (e.g. nhl_com html or espn_nfl api) and replace secondary RSS feeds
-            primary_kept = [
-                r for r in resolved if r.kind in ("mlb_team_rss", "nhl_html", "espn_api", "white_house_html")
-            ]
-            if not primary_kept:
-                primary_kept = resolved[:1]
-            resolved = primary_kept
-            for source_name, feed_url in extra_feeds.items():
-                spec = lookup_source_spec(source_name, category=cat)
-                bonus_val = spec.default_bonus if spec else 0
-                resolved.append(
-                    ResolvedNewsSource(
-                        id=spec.id if spec else source_name.lower().replace(" ", "_"),
-                        name=source_name,
-                        category=cat or "custom",
-                        kind="rss",
-                        url=feed_url,
-                        bonus=bonus_val,
-                    )
-                )
-        else:
-            existing_names = {r.name.lower(): r for r in resolved}
-            for source_name, feed_url in extra_feeds.items():
-                if source_name.lower() in existing_names:
-                    existing_names[source_name.lower()].url = feed_url
-                else:
-                    resolved.append(
-                        ResolvedNewsSource(
-                            id=source_name.lower().replace(" ", "_"),
-                            name=source_name,
-                            category=cat or "custom",
-                            kind="rss",
-                            url=feed_url,
-                            bonus=0,
-                        )
-                    )
-
-    # Apply legacy primary_source / primary_source_bonus override if specified
-    if primary_source and primary_source_bonus is not None:
-        ps_low = primary_source.strip().lower()
-        for r in resolved:
-            if r.name.lower() == ps_low or r.id.lower() == ps_low:
-                r.bonus = int(primary_source_bonus)
-
     return resolved
 
 
@@ -785,8 +719,6 @@ class UnifiedNewsProvider(NewsDataProvider):
 
     TEAM_FEEDS: Dict[Optional[str], str] = MLB_TEAM_FEEDS
     JUNK_KEYWORDS: List[str] = MLB_JUNK_KEYWORDS
-    PRIMARY_SOURCE: str = "MLB.com"
-    PRIMARY_SOURCE_BONUS: int = 25
     DEFAULT_SHEET: str = "mlb_news"
     DEFAULT_CATEGORY: str = "mlb"
     SIMILARITY_THRESHOLD: float = 0.68
@@ -823,10 +755,6 @@ class UnifiedNewsProvider(NewsDataProvider):
         favorite_teams: Optional[List[str]] = None,
         max_articles: int = 4,
         sources: Optional[Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]] = None,
-        mode: str = "multi",
-        primary_source: Optional[str] = None,
-        primary_source_bonus: Optional[int] = None,
-        extra_feeds: Optional[Dict[str, str]] = None,
         sport: Optional[str] = None,
         category: Optional[str] = None,
         default_sheet: Optional[str] = None,
@@ -835,25 +763,14 @@ class UnifiedNewsProvider(NewsDataProvider):
         use_requests_for_rss: bool = False,
         check_summary_for_junk: bool = False,
         min_summary_chars_before_scrape: int = 1,
-        replace_secondary_with_extra: bool = False,
         **config: Any,
     ) -> None:
         super().__init__(**config)
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else []
         self.max_articles: int = max_articles
-        self.mode: str = (mode or "multi").strip().lower()
         self.category: str = (category or sport or self.DEFAULT_CATEGORY).strip().lower()
         self.sport: str = (sport or (self.category if self.category != "political" else "mlb")).strip().lower()
         self.default_sheet: str = default_sheet or self.DEFAULT_SHEET
-        self.primary_source: str = (
-            primary_source if primary_source is not None else self.PRIMARY_SOURCE
-        )
-        self.primary_source_bonus: int = (
-            int(primary_source_bonus)
-            if primary_source_bonus is not None
-            else self.PRIMARY_SOURCE_BONUS
-        )
-        self.extra_feeds: Dict[str, str] = dict(extra_feeds) if extra_feeds else {}
         if junk_keywords is not None:
             self.JUNK_KEYWORDS = list(junk_keywords)
         self.similarity_threshold: float = (
@@ -864,45 +781,21 @@ class UnifiedNewsProvider(NewsDataProvider):
         self._use_requests_for_rss: bool = use_requests_for_rss
         self._check_summary_for_junk: bool = check_summary_for_junk
         self._min_summary_chars_before_scrape: int = min_summary_chars_before_scrape
-        self._replace_secondary_with_extra: bool = replace_secondary_with_extra
         self._has_custom_sources: bool = sources is not None and len(sources) > 0
-        self._raw_sources = list(sources) if sources is not None else None
         self._article_cache: Dict[Optional[str], List[Dict]] = {}
 
         self.resolved_sources: List[ResolvedNewsSource] = resolve_news_sources(
             sources=sources,
             default_sheet=self.default_sheet,
             category=self.category,
-            mode=self.mode,
-            primary_source=self.primary_source,
-            primary_source_bonus=self.primary_source_bonus,
-            extra_feeds=self.extra_feeds if self.extra_feeds else None,
-            replace_secondary_with_extra=self._replace_secondary_with_extra,
         )
 
     def _get_active_sources(self) -> List[ResolvedNewsSource]:
-        """Return resolved sources, respecting runtime updates to mode or extra_feeds."""
-        if self._has_custom_sources:
-            return self.resolved_sources
-        return resolve_news_sources(
-            sources=None,
-            default_sheet=self.default_sheet,
-            category=self.category,
-            mode=self.mode,
-            primary_source=self.primary_source,
-            primary_source_bonus=self.primary_source_bonus,
-            extra_feeds=self.extra_feeds if self.extra_feeds else None,
-            replace_secondary_with_extra=self._replace_secondary_with_extra,
-        )
+        """Return resolved sources for this provider."""
+        return self.resolved_sources
 
     def _get_source_bonuses(self, active_sources: List[ResolvedNewsSource]) -> Dict[str, int]:
-        bonuses: Dict[str, int] = {}
-        for src in active_sources:
-            if src.bonus > 0:
-                bonuses[src.name.lower()] = src.bonus
-        if self.primary_source and self.primary_source_bonus > 0:
-            bonuses.setdefault(self.primary_source.lower(), self.primary_source_bonus)
-        return bonuses
+        return {src.name.lower(): src.bonus for src in active_sources if src.bonus > 0}
 
     # ------------------------------------------------------------------
     # Public API
@@ -916,19 +809,14 @@ class UnifiedNewsProvider(NewsDataProvider):
         seen_links: set = set()
 
         for src in active_sources:
-            is_primary = (
-                src.bonus > 0
-                or (bool(self.primary_source) and src.name.lower() == self.primary_source.lower())
-            )
             if src.kind == "mlb_team_rss":
                 # 1. Favorite team MLB.com feeds in priority order
                 for team in self.favorite_teams:
                     for raw_entry in self._fetch_entries(team):
                         ed = self._raw_to_entry_dict(
                             raw_entry,
-                            source_name=self.primary_source if src.id == "mlb_com" else src.name,
+                            source_name=src.name,
                             team_tag=team,
-                            is_primary=is_primary,
                             source_bonus=src.bonus,
                         )
                         if ed:
@@ -937,15 +825,13 @@ class UnifiedNewsProvider(NewsDataProvider):
                 for raw_entry in self._fetch_entries(None):
                     ed = self._raw_to_entry_dict(
                         raw_entry,
-                        source_name=self.primary_source if src.id == "mlb_com" else src.name,
-                        is_primary=is_primary,
+                        source_name=src.name,
                         source_bonus=src.bonus,
                     )
                     if ed:
                         all_entries.append(ed)
 
             elif src.kind == "nhl_html":
-                src_label = self.primary_source if src.id == "nhl_com" else src.name
                 # 1. Favorite team NHL.com pages
                 for team in self.favorite_teams:
                     for raw_entry in self._fetch_nhl_entries(team, team_feeds=src.team_feeds, news_url=src.url):
@@ -976,9 +862,8 @@ class UnifiedNewsProvider(NewsDataProvider):
                                         if hasattr(raw_entry, "get")
                                         else getattr(raw_entry, "published_parsed", None)
                                     ),
-                                    "source": src_label,
+                                    "source": src.name,
                                     "team_tag": team,
-                                    "is_primary_source": is_primary,
                                     "source_bonus": src.bonus,
                                 }
                             )
@@ -1012,8 +897,7 @@ class UnifiedNewsProvider(NewsDataProvider):
                                 if hasattr(raw_entry, "get")
                                 else getattr(raw_entry, "published_parsed", None)
                             ),
-                            "source": src_label,
-                            "is_primary_source": is_primary,
+                            "source": src.name,
                             "source_bonus": src.bonus,
                         }
                         if matched_team:
@@ -1030,7 +914,6 @@ class UnifiedNewsProvider(NewsDataProvider):
                     matched_team = self._match_favorite_team(entry_copy)
                     if matched_team:
                         entry_copy["team_tag"] = matched_team
-                    entry_copy["is_primary_source"] = is_primary
                     entry_copy["source_bonus"] = src.bonus
                     all_entries.append(entry_copy)
 
@@ -1042,7 +925,6 @@ class UnifiedNewsProvider(NewsDataProvider):
                     if link:
                         seen_links.add(link)
                     wh_copy = dict(wh_art)
-                    wh_copy["is_primary_source"] = True
                     wh_copy["source_bonus"] = src.bonus
                     if wh_copy.get("published") and not wh_copy.get("published_parsed"):
                         try:
@@ -1090,7 +972,6 @@ class UnifiedNewsProvider(NewsDataProvider):
                         "summary": summary or "",
                         "published_parsed": pub_parsed,
                         "source": src.name,
-                        "is_primary_source": is_primary,
                         "source_bonus": src.bonus,
                     }
                     if pub_parsed is not None:
@@ -1108,17 +989,13 @@ class UnifiedNewsProvider(NewsDataProvider):
                 source_bonuses=source_bonuses,
             )
 
-        default_source = self.primary_source
-        if self.default_sheet == "nfl_news" and default_source == "NFL.com":
-            default_source = "ESPN"
+        default_source = active_sources[0].name if active_sources else ""
 
         return self._score_and_cluster_entries(
             entries=all_entries,
             sport=self.sport,
             favorite_teams=[str(t) for t in self.favorite_teams],
             junk_keywords=self.JUNK_KEYWORDS,
-            primary_source=self.primary_source,
-            primary_source_bonus=self.primary_source_bonus,
             max_articles=self.max_articles,
             similarity_threshold=self.similarity_threshold,
             default_source=default_source,
@@ -1284,7 +1161,6 @@ class UnifiedNewsProvider(NewsDataProvider):
         raw_entry: object,
         source_name: str,
         team_tag: Optional[str] = None,
-        is_primary: bool = False,
         source_bonus: int = 0,
     ) -> Optional[Dict[str, Any]]:
         link = (
@@ -1315,7 +1191,6 @@ class UnifiedNewsProvider(NewsDataProvider):
             "summary": summary or "",
             "published_parsed": pub_parsed,
             "source": source_name,
-            "is_primary_source": is_primary,
             "source_bonus": source_bonus,
         }
         if team_tag:

@@ -29,10 +29,6 @@ class UnifiedNewsComponent(NewsStoryComponent):
         sport: str = "mlb",
         category: Optional[str] = None,
         default_sheet: str = "mlb_news",
-        mode: str = "multi",
-        primary_source: str = "",
-        primary_source_bonus: int = 25,
-        extra_feeds: Optional[dict[str, str]] = None,
         **kwargs: Any,
     ) -> None:
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else []
@@ -41,10 +37,6 @@ class UnifiedNewsComponent(NewsStoryComponent):
         self.sport = sport
         self.category = category or sport
         self.default_sheet = default_sheet
-        self.mode = mode
-        self.primary_source = primary_source
-        self.primary_source_bonus = primary_source_bonus
-        self.extra_feeds = extra_feeds
         super().__init__(
             title=title,
             provider=provider,
@@ -63,8 +55,4 @@ class UnifiedNewsComponent(NewsStoryComponent):
             sport=self.sport,
             category=self.category,
             default_sheet=self.default_sheet,
-            mode=self.mode,
-            primary_source=self.primary_source or None,
-            primary_source_bonus=self.primary_source_bonus,
-            extra_feeds=self.extra_feeds,
         )

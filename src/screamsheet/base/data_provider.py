@@ -323,6 +323,7 @@ class NewsDataProvider(DataProvider):
         max_articles: int = 4,
         similarity_threshold: float = 0.68,
         default_source: Optional[str] = None,
+        source_bonuses: Optional[Dict[str, int]] = None,
     ) -> List[Dict[str, Any]]:
         """Deduplicate by URL, score with authority & favorite-team boosts, and cluster into topics."""
         from ..news.clustering import TopicClusterer
@@ -349,6 +350,7 @@ class NewsDataProvider(DataProvider):
             junk_keywords=junk_keywords,
             primary_source=primary_source,
             primary_source_bonus=primary_source_bonus,
+            source_bonuses=source_bonuses,
         )
         clusterer = TopicClusterer(
             similarity_threshold=similarity_threshold,

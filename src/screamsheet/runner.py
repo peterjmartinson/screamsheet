@@ -134,6 +134,7 @@ def _run_mlb_news(
         "primary_source": getattr(options, "primary_source", "MLB.com"),
         "primary_source_bonus": getattr(options, "primary_source_bonus", 25),
         "extra_feeds": getattr(options, "extra_feeds", None) or None,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -157,6 +158,7 @@ def _run_nhl_news(
         "primary_source": getattr(options, "primary_source", "NHL.com"),
         "primary_source_bonus": getattr(options, "primary_source_bonus", 25),
         "extra_feeds": getattr(options, "extra_feeds", None) or None,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -180,6 +182,7 @@ def _run_mlb_trade_rumors(
         "primary_source": getattr(options, "primary_source", "MLB Trade Rumors"),
         "primary_source_bonus": getattr(options, "primary_source_bonus", 0),
         "extra_feeds": getattr(options, "extra_feeds", None) or None,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -210,6 +213,10 @@ def _run_presidential(
         "output_filename": _output_path(output_dir, f"presidential_screamsheet_{today_str}.pdf"),
         "date": today,
     }
+    if getattr(options, "sources", None):
+        kwargs["sources"] = options.sources
+    if getattr(options, "extra_feeds", None):
+        kwargs["extra_feeds"] = options.extra_feeds
     if options.weather:
         kwargs.update(
             include_weather=True,
@@ -286,6 +293,8 @@ def _run_briefing(
 
 _NEWS_COMPONENT_TYPES: frozenset[str] = frozenset(
     {
+        "news",
+        "unified_news",
         "mlb_news",
         "nhl_news",
         "nfl_news",

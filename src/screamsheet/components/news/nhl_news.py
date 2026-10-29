@@ -28,6 +28,7 @@ class NHLNewsComponent(NewsStoryComponent):
         primary_source: str = NHLNewsRssProvider.PRIMARY_SOURCE,
         primary_source_bonus: int = NHLNewsRssProvider.PRIMARY_SOURCE_BONUS,
         extra_feeds: Optional[dict[str, str]] = None,
+        sources: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else []
@@ -36,6 +37,7 @@ class NHLNewsComponent(NewsStoryComponent):
         self.primary_source = primary_source
         self.primary_source_bonus = primary_source_bonus
         self.extra_feeds = extra_feeds
+        self.sources = list(sources) if sources else None
         super().__init__(
             title=title,
             provider=provider,
@@ -54,4 +56,5 @@ class NHLNewsComponent(NewsStoryComponent):
             primary_source=self.primary_source,
             primary_source_bonus=self.primary_source_bonus,
             extra_feeds=self.extra_feeds,
+            sources=self.sources,
         )

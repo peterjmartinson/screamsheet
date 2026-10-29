@@ -6,6 +6,7 @@ from .mlb_trade_rumors import MLBTradeRumorsComponent
 from .nfl_news import NFLNewsComponent
 from .nhl_news import NHLNewsComponent
 from .presidential import PresidentialNewsComponent
+from .unified_news import UnifiedNewsComponent
 
 __all__ = [
     "NewsStoryComponent",
@@ -15,6 +16,7 @@ __all__ = [
     "MLBNewsComponent",
     "NHLNewsComponent",
     "NFLNewsComponent",
+    "UnifiedNewsComponent",
     "FrenchMLBArticlesComponent",
     "FrenchMLBLexiconComponent",
 ]

@@ -126,6 +126,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 primary_source=cfg.news.mlb_trade_rumors.primary_source,
                 primary_source_bonus=cfg.news.mlb_trade_rumors.primary_source_bonus,
                 extra_feeds=cfg.news.mlb_trade_rumors.extra_feeds or None,
+                sources=cfg.news.mlb_trade_rumors.sources or None,
             ),
         ),
         (
@@ -142,6 +143,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 primary_source=cfg.news.mlb_news.primary_source,
                 primary_source_bonus=cfg.news.mlb_news.primary_source_bonus,
                 extra_feeds=cfg.news.mlb_news.extra_feeds or None,
+                sources=cfg.news.mlb_news.sources or None,
             ),
         ),
         (
@@ -176,6 +178,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 primary_source=cfg.news.nhl_news.primary_source,
                 primary_source_bonus=cfg.news.nhl_news.primary_source_bonus,
                 extra_feeds=cfg.news.nhl_news.extra_feeds or None,
+                sources=cfg.news.nhl_news.sources or None,
             ),
         ),
         (
@@ -207,6 +210,11 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.presidential.lon,
                 weather_location_name=cfg.weather.presidential.location_name,
                 date=today,
+                mode=cfg.news.presidential.mode,
+                primary_source=cfg.news.presidential.primary_source,
+                primary_source_bonus=cfg.news.presidential.primary_source_bonus,
+                extra_feeds=cfg.news.presidential.extra_feeds or None,
+                sources=cfg.news.presidential.sources or None,
             ),
         ),
         (
@@ -308,6 +316,7 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
             primary_source=cfg.news.mlb_news.primary_source,
             primary_source_bonus=cfg.news.mlb_news.primary_source_bonus,
             extra_feeds=cfg.news.mlb_news.extra_feeds or None,
+            sources=cfg.news.mlb_news.sources or None,
         ),
         french_mlb_news=FrenchMLBNewsOrderOptions(
             news_names=cfg.french_mlb.news_names,
@@ -319,12 +328,20 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
             primary_source=cfg.news.nhl_news.primary_source,
             primary_source_bonus=cfg.news.nhl_news.primary_source_bonus,
             extra_feeds=cfg.news.nhl_news.extra_feeds or None,
+            sources=cfg.news.nhl_news.sources or None,
         ),
         nba=NBAOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams],
             mad_fan=cfg.nba.mad_fan,
         ),
-        presidential=PresidentialOrderOptions(weather=weather_presidential),
+        presidential=PresidentialOrderOptions(
+            weather=weather_presidential,
+            mode=cfg.news.presidential.mode,
+            primary_source=cfg.news.presidential.primary_source,
+            primary_source_bonus=cfg.news.presidential.primary_source_bonus,
+            extra_feeds=cfg.news.presidential.extra_feeds or None,
+            sources=cfg.news.presidential.sources or None,
+        ),
         sky=SkyOrderOptions(
             lat=cfg.sky.lat,
             lon=cfg.sky.lon,

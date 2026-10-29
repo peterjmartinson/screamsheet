@@ -1,5 +1,5 @@
 """NHL News screamsheet - four articles from NHL.com and secondary RSS feeds."""
-from typing import Dict, Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import datetime
 
 from .base_news import NewsScreamsheet
@@ -26,6 +26,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
         primary_source: str = NHLNewsRssProvider.PRIMARY_SOURCE,
         primary_source_bonus: int = NHLNewsRssProvider.PRIMARY_SOURCE_BONUS,
         extra_feeds: Optional[Dict[str, str]] = None,
+        sources: Optional[List[Any]] = None,
     ) -> None:
         super().__init__(
             news_source="NHL News",
@@ -42,6 +43,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
         self.primary_source = primary_source
         self.primary_source_bonus = primary_source_bonus
         self.extra_feeds = extra_feeds
+        self.sources = list(sources) if sources else None
         self.provider: NHLNewsRssProvider = NHLNewsRssProvider(
             favorite_teams=self.favorite_teams,
             max_articles=self.max_articles,
@@ -49,6 +51,7 @@ class NHLNewsScreamsheet(NewsScreamsheet):
             primary_source=self.primary_source,
             primary_source_bonus=self.primary_source_bonus,
             extra_feeds=self.extra_feeds,
+            sources=self.sources,
         )
 
     def get_title(self) -> str:

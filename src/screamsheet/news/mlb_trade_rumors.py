@@ -1,5 +1,5 @@
 """MLB Trade Rumors screamsheet implementation."""
-from typing import Dict, Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import datetime
 
 from .base_news import NewsScreamsheet
@@ -26,6 +26,7 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         primary_source: str = MLBTradeRumorsProvider.PRIMARY_SOURCE,
         primary_source_bonus: int = MLBTradeRumorsProvider.PRIMARY_SOURCE_BONUS,
         extra_feeds: Optional[Dict[str, str]] = None,
+        sources: Optional[List[Any]] = None,
     ):
         super().__init__(
             news_source="MLB Trade Rumors",
@@ -42,6 +43,7 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         self.primary_source = primary_source
         self.primary_source_bonus = primary_source_bonus
         self.extra_feeds = extra_feeds
+        self.sources = list(sources) if sources else None
         self.provider = MLBTradeRumorsProvider(
             favorite_teams=self.favorite_teams,
             max_articles=self.max_articles,
@@ -49,6 +51,7 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
             primary_source=self.primary_source,
             primary_source_bonus=self.primary_source_bonus,
             extra_feeds=self.extra_feeds,
+            sources=self.sources,
         )
     
     def build_sections(self) -> List[Section]:

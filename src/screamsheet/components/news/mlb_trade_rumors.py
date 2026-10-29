@@ -29,6 +29,7 @@ class MLBTradeRumorsComponent(NewsStoryComponent):
         primary_source: str = MLBTradeRumorsProvider.PRIMARY_SOURCE,
         primary_source_bonus: int = MLBTradeRumorsProvider.PRIMARY_SOURCE_BONUS,
         extra_feeds: Optional[dict[str, str]] = None,
+        sources: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else ["Phillies", "Padres", "Yankees"]
@@ -37,6 +38,7 @@ class MLBTradeRumorsComponent(NewsStoryComponent):
         self.primary_source = primary_source
         self.primary_source_bonus = primary_source_bonus
         self.extra_feeds = extra_feeds
+        self.sources = list(sources) if sources else None
         super().__init__(
             title=title,
             provider=provider,
@@ -55,4 +57,5 @@ class MLBTradeRumorsComponent(NewsStoryComponent):
             primary_source=self.primary_source,
             primary_source_bonus=self.primary_source_bonus,
             extra_feeds=self.extra_feeds,
+            sources=self.sources,
         )

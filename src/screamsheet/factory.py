@@ -200,26 +200,10 @@ class ScreamsheetFactory:
         primary_source: str = "MLB Trade Rumors",
         primary_source_bonus: int = 0,
         extra_feeds: Optional[dict] = None,
+        sources: Optional[list] = None,
     ) -> MLBTradeRumorsScreamsheet:
         """
         Create an MLB Trade Rumors news screamsheet.
-        
-        Args:
-            output_filename: Path to save the PDF
-            favorite_teams: List of favorite team names (optional)
-            max_articles: Maximum number of articles (default: 4)
-            include_weather: Include weather report (default: True)
-            weather_lat: Latitude for weather location
-            weather_lon: Longitude for weather location
-            weather_location_name: Display name for weather location
-            date: Target date (defaults to today)
-            mode: Aggregation mode ("single" or "multi", default: "single")
-            primary_source: Authority source name
-            primary_source_bonus: Bonus points for primary source
-            extra_feeds: Optional extra RSS feeds map
-            
-        Returns:
-            MLBTradeRumorsScreamsheet instance
         """
         return MLBTradeRumorsScreamsheet(
             output_filename=output_filename,
@@ -234,6 +218,7 @@ class ScreamsheetFactory:
             primary_source=primary_source,
             primary_source_bonus=primary_source_bonus,
             extra_feeds=extra_feeds,
+            sources=sources,
         )
     
     @staticmethod
@@ -249,25 +234,10 @@ class ScreamsheetFactory:
         primary_source: str = "MLB.com",
         primary_source_bonus: int = 25,
         extra_feeds: Optional[dict] = None,
+        sources: Optional[list] = None,
     ) -> MLBNewsScreamsheet:
         """
         Create an MLB News screamsheet sourced from MLB.com and secondary RSS feeds.
-
-        Args:
-            output_filename: Path to save the PDF.
-            favorite_teams:  Teams to feature first (default: Phillies, Padres, Yankees).
-            include_weather: Include weather report (default: True).
-            weather_lat: Latitude for weather location.
-            weather_lon: Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date:            Target date (defaults to today).
-            mode:            Aggregation mode ("multi" or "single", default: "multi").
-            primary_source:  Authority source name (default: "MLB.com").
-            primary_source_bonus: Bonus points for primary source (default: 25).
-            extra_feeds:     Optional override map of secondary RSS feeds.
-
-        Returns:
-            MLBNewsScreamsheet instance
         """
         return MLBNewsScreamsheet(
             output_filename=output_filename,
@@ -281,6 +251,7 @@ class ScreamsheetFactory:
             primary_source=primary_source,
             primary_source_bonus=primary_source_bonus,
             extra_feeds=extra_feeds,
+            sources=sources,
         )
 
     @staticmethod
@@ -296,25 +267,10 @@ class ScreamsheetFactory:
         primary_source: str = "NHL.com",
         primary_source_bonus: int = 25,
         extra_feeds: Optional[dict] = None,
+        sources: Optional[list] = None,
     ) -> NHLNewsScreamsheet:
         """
         Create an NHL News screamsheet sourced from NHL.com and secondary RSS feeds.
-
-        Args:
-            output_filename: Path to save the PDF.
-            favorite_teams: Teams to feature first.
-            include_weather: Include weather report (default: True).
-            weather_lat: Latitude for weather location.
-            weather_lon: Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date: Target date (defaults to today).
-            mode: Aggregation mode ("multi" or "single", default: "multi").
-            primary_source: Authority source name (default: "NHL.com").
-            primary_source_bonus: Bonus points for primary source (default: 25).
-            extra_feeds: Optional override map of secondary RSS feeds.
-
-        Returns:
-            NHLNewsScreamsheet instance
         """
         return NHLNewsScreamsheet(
             output_filename=output_filename,
@@ -328,6 +284,7 @@ class ScreamsheetFactory:
             primary_source=primary_source,
             primary_source_bonus=primary_source_bonus,
             extra_feeds=extra_feeds,
+            sources=sources,
         )
 
     @staticmethod
@@ -370,24 +327,14 @@ class ScreamsheetFactory:
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
+        mode: str = "multi",
+        primary_source: str = "White House",
+        primary_source_bonus: int = 25,
+        extra_feeds: Optional[dict] = None,
+        sources: Optional[list] = None,
     ) -> PresidentialScreamsheet:
         """
         Create a Presidential Screamsheet.
-
-        Fetches political news from 7 RSS feeds and the White House,
-        scores and deduplicates, and renders top stories to PDF.
-
-        Args:
-            output_filename: Path to save the PDF.
-            max_articles:    Number of top stories to include (default: 4).
-            include_weather: Include weather report at top (default: True).
-            weather_lat:     Latitude for weather location.
-            weather_lon:     Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date:            Target date (defaults to today).
-
-        Returns:
-            PresidentialScreamsheet instance
         """
         return PresidentialScreamsheet(
             output_filename=output_filename,
@@ -397,6 +344,11 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            mode=mode,
+            primary_source=primary_source,
+            primary_source_bonus=primary_source_bonus,
+            extra_feeds=extra_feeds,
+            sources=sources,
         )
 
     @staticmethod

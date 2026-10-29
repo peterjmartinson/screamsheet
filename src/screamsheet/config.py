@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
@@ -141,11 +141,12 @@ class DbConfig:
 
 @dataclass
 class NewsSheetConfig:
-    """Configuration for a news screamsheet's source aggregation mode."""
+    """Configuration for a news screamsheet's source aggregation and cherry-picking."""
     mode: str = "multi"  # "multi" | "single"
     primary_source: str = ""
     primary_source_bonus: int = 25
     extra_feeds: Dict[str, str] = field(default_factory=dict)
+    sources: List[Union[str, Dict[str, Any]]] = field(default_factory=list)
 
 
 @dataclass
@@ -344,11 +345,20 @@ def _parse_news_sheet(
     raw = raw or {}
     extra_raw = raw.get("extra_feeds") or {}
     extra_feeds = {str(k): str(v) for k, v in extra_raw.items()} if isinstance(extra_raw, dict) else {}
+    sources_raw = raw.get("sources") or []
+    sources: List[Union[str, Dict[str, Any]]] = []
+    if isinstance(sources_raw, list):
+        for item in sources_raw:
+            if isinstance(item, str) and item.strip():
+                sources.append(item.strip())
+            elif isinstance(item, dict):
+                sources.append(dict(item))
     return NewsSheetConfig(
         mode=str(raw.get("mode", default_mode)),
         primary_source=str(raw.get("primary_source", default_primary)),
         primary_source_bonus=int(raw.get("primary_source_bonus", default_bonus)),
         extra_feeds=extra_feeds,
+        sources=sources,
     )
 
 

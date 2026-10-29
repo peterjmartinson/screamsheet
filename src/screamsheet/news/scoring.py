@@ -97,17 +97,21 @@ class PoliticalNewsScorer(BaseNewsScorer):
         keyword_weights: Optional[Dict[str, int]] = None,
         white_house_bonus: int = 25,
         min_white_house_words: int = 60,
+        source_bonuses: Optional[Dict[str, int]] = None,
     ) -> None:
         self.keyword_weights = keyword_weights or POLITICAL_KEYWORD_WEIGHTS
         self.white_house_bonus = white_house_bonus
         self.min_white_house_words = min_white_house_words
+        self.source_bonuses: Dict[str, int] = {
+            k.strip().lower(): int(v) for k, v in (source_bonuses or {}).items()
+        }
 
     def score(self, entry: Dict[str, Any]) -> int:
         """Return a relevance score for a political news entry.
 
         Applies:
         1. Keyword weighting over combined title and summary.
-        2. White House authority bonus ONLY if substantial text is present.
+        2. White House (or custom source) authority bonus ONLY if substantial text is present.
         3. Substance scaling multiplier so hollow teasers are deranked.
         """
         title = (entry.get("title") or "").strip()
@@ -134,16 +138,26 @@ class PoliticalNewsScorer(BaseNewsScorer):
         link = entry.get("link") or ""
         is_wh = source == "White House" or "whitehouse.gov" in link
 
+        entry_bonus = entry.get("source_bonus")
+        if not isinstance(entry_bonus, int):
+            entry_bonus = self.source_bonuses.get(source.strip().lower())
+
         wh_bonus = 0
         if is_wh:
-            if self.has_substantial_text(summary, min_words=self.min_white_house_words):
-                wh_bonus = self.white_house_bonus
+            target_wh_bonus = entry_bonus if entry_bonus is not None else self.white_house_bonus
+            if target_wh_bonus > 0 and self.has_substantial_text(summary, min_words=self.min_white_house_words):
+                wh_bonus = target_wh_bonus
             else:
                 logger.debug(
                     "White House entry '%s' lacks substantial text (%d words); authority bonus skipped.",
                     title,
                     len(summary.split()),
                 )
+        elif entry_bonus and entry_bonus > 0:
+            if self.has_substantial_text(summary, min_words=40):
+                wh_bonus = entry_bonus
+            else:
+                wh_bonus = max(1, entry_bonus // 2)
 
         # Substance scaling
         multiplier = self.calculate_substance_multiplier(summary)
@@ -219,6 +233,7 @@ class SportsNewsScorer(BaseNewsScorer):
         primary_source_bonus: int = 25,
         min_primary_words: int = 40,
         keyword_weights: Optional[Dict[str, int]] = None,
+        source_bonuses: Optional[Dict[str, int]] = None,
     ) -> None:
         self.sport = sport.lower()
         self.favorite_teams = favorite_teams or []
@@ -227,6 +242,9 @@ class SportsNewsScorer(BaseNewsScorer):
         self.primary_source_bonus = primary_source_bonus
         self.min_primary_words = min_primary_words
         self.keyword_weights = keyword_weights if keyword_weights is not None else SPORTS_KEYWORD_WEIGHTS
+        self.source_bonuses: Dict[str, int] = {
+            k.strip().lower(): int(v) for k, v in (source_bonuses or {}).items()
+        }
 
     def _get_team_match_patterns(self, team_name: str) -> Set[str]:
         patterns: Set[str] = {team_name.strip().lower()}
@@ -304,18 +322,32 @@ class SportsNewsScorer(BaseNewsScorer):
 
         # Primary / authority source bonus (modeled on White House bonus in PoliticalNewsScorer)
         primary_bonus = 0
-        if self.primary_source and self.primary_source_bonus > 0:
-            entry_source = (entry.get("source") or "").strip()
+        entry_source = (entry.get("source") or "").strip()
+        configured_bonus: Optional[int] = (
+            entry.get("source_bonus")
+            if isinstance(entry.get("source_bonus"), int)
+            else None
+        )
+        if configured_bonus is None and self.source_bonuses and entry_source:
+            configured_bonus = self.source_bonuses.get(entry_source.lower())
+        if (
+            configured_bonus is None
+            and self.primary_source
+            and self.primary_source_bonus > 0
+        ):
             is_primary = (
                 bool(entry.get("is_primary_source"))
                 or entry_source.lower() == self.primary_source.lower()
             )
             if is_primary:
-                if self.has_substantial_text(summary, min_words=self.min_primary_words):
-                    primary_bonus = self.primary_source_bonus
-                else:
-                    # Partial authority edge when feed only carries a headline/teaser pre-scrape
-                    primary_bonus = max(1, self.primary_source_bonus // 2)
+                configured_bonus = self.primary_source_bonus
+
+        if configured_bonus and configured_bonus > 0:
+            if self.has_substantial_text(summary, min_words=self.min_primary_words):
+                primary_bonus = configured_bonus
+            else:
+                # Partial authority edge when feed only carries a headline/teaser pre-scrape
+                primary_bonus = max(1, configured_bonus // 2)
 
         multiplier = self.calculate_substance_multiplier(summary if summary else title)
         total = int(round(raw_score * multiplier)) + primary_bonus

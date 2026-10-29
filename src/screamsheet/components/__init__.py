@@ -38,6 +38,7 @@ from .news import (
     NFLNewsComponent,
     NHLNewsComponent,
     PresidentialNewsComponent,
+    UnifiedNewsComponent,
 )
 from .nfl_injuries import NFLInjuriesComponent
 from .registry import ComponentRegistry
@@ -95,6 +96,7 @@ __all__ = [
     "MLBNewsComponent",
     "NHLNewsComponent",
     "NFLNewsComponent",
+    "UnifiedNewsComponent",
     "FrenchMLBArticlesComponent",
     "FrenchMLBLexiconComponent",
     "ZodiacWheelComponent",

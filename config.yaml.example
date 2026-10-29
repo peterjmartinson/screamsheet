@@ -99,31 +99,51 @@ french_mlb:
     - "Blue Jays"
     - "Phillies"
 
-# News source aggregation mode per screamsheet.
-# mode: "multi" (default for mlb_news, nhl_news, nfl_news, presidential) polls
-#       the primary source plus secondary RSS feeds and clusters similar stories.
-# mode: "single" (default for mlb_trade_rumors) uses only the primary source.
+# News source selection and authority bonuses per screamsheet.
+# Each screamsheet can cherry-pick sources from NEWS_SOURCE_CATALOG (in
+# src/screamsheet/providers/news_sources.py) via a `sources:` list.
+# Entries may be plain catalog IDs (default bonus 0) or `{id, bonus}` dicts.
 news:
   mlb_news:
-    mode: "multi"
-    primary_source: "MLB.com"
-    primary_source_bonus: 25
+    sources:
+      - {id: mlb_com, bonus: 25}
+      - espn_mlb
+      - cbs_mlb
+      - yahoo_mlb
+      - mlb_trade_rumors
+      - fangraphs
+      - fox_mlb
   nhl_news:
-    mode: "multi"
-    primary_source: "NHL.com"
-    primary_source_bonus: 25
+    sources:
+      - {id: nhl_com, bonus: 25}
+      - espn_nhl
+      - cbs_nhl
+      - yahoo_nhl
+      - pro_hockey_rumors
+      - the_hockey_news
+      - sportsnet_nhl
   nfl_news:
-    mode: "multi"
-    primary_source: "NFL.com"
-    primary_source_bonus: 25
+    sources:
+      - espn_nfl
+      - {id: nfl_com, bonus: 25}
+      - pro_football_talk
+      - cbs_nfl
+      - yahoo_nfl
+      - nfl_trade_rumors
+      - fox_nfl
   mlb_trade_rumors:
-    mode: "single"
-    primary_source: "MLB Trade Rumors"
-    primary_source_bonus: 0
+    sources:
+      - {id: mlb_trade_rumors, bonus: 0}
   presidential:
-    mode: "multi"
-    primary_source: "White House"
-    primary_source_bonus: 35
+    sources:
+      - {id: white_house, bonus: 25}
+      - the_guardian
+      - google_news
+      - bbc
+      - nyt
+      - politico
+      - npr
+      - washington_post
 
 # Sky Tonight location.
 # Find lat/lon for your city at https://www.latlong.net/
@@ -153,6 +173,6 @@ database:
 # Output directory: generated PDFs are copied here after generation.
 # Override per-run with: uv run screamsheet --output-dir /path/to/dir
 # In CI, __PRINT_DIR__ is substituted by the deploy workflow using the
-# PRINT_DIR GitHub repository variable.
+# DB_PATH GitHub repository variable.
 output:
   directory: __PRINT_DIR__

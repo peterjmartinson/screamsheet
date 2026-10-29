@@ -102,6 +102,7 @@ class MLBNewsOrderOptions:
     primary_source: str = "MLB.com"
     primary_source_bonus: int = 25
     extra_feeds: dict[str, str] | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -114,6 +115,7 @@ class NHLNewsOrderOptions:
     primary_source: str = "NHL.com"
     primary_source_bonus: int = 25
     extra_feeds: dict[str, str] | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -133,6 +135,7 @@ class MLBTradeRumorsOrderOptions:
     primary_source: str = "MLB Trade Rumors"
     primary_source_bonus: int = 0
     extra_feeds: dict[str, str] | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -140,6 +143,11 @@ class PresidentialOrderOptions:
     """Options for the Presidential sheet."""
 
     weather: WeatherLocationOptions | None = None
+    mode: str = "multi"
+    primary_source: str = "White House"
+    primary_source_bonus: int = 25
+    extra_feeds: dict[str, str] | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass

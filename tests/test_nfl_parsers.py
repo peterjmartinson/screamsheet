@@ -192,6 +192,72 @@ def test_extract_injuries():
     assert injuries[0]["description"] == "Calf tightness"
 
 
+def test_extract_injuries_espn_nested_format():
+    nested_payload = {
+        "injuries": [
+            {
+                "id": "21",
+                "displayName": "Philadelphia Eagles",
+                "injuries": [
+                    {
+                        "athlete": {
+                            "displayName": "DeVonta Smith",
+                            "position": {"abbreviation": "WR"}
+                        },
+                        "status": "Questionable",
+                        "date": "2026-10-29",
+                        "details": {"type": "Hamstring", "detail": "Not Specified"}
+                    },
+                    {
+                        "athlete": {
+                            "displayName": "Saquon Barkley",
+                            "position": {"abbreviation": "RB"}
+                        },
+                        "status": "Questionable",
+                        "date": "2026-10-29",
+                        "details": {"type": "Hamstring", "detail": "Strain"}
+                    }
+                ]
+            },
+            {
+                "id": "4",
+                "displayName": "Cincinnati Bengals",
+                "injuries": [
+                    {
+                        "athlete": {
+                            "displayName": "Joe Burrow",
+                            "position": {"abbreviation": "QB"}
+                        },
+                        "status": "Active",
+                        "date": "2026-10-29",
+                        "details": {"type": "Wrist", "detail": "Not Specified"}
+                    }
+                ]
+            }
+        ]
+    }
+
+    # Match by team_id
+    eagles_inj = extract_injuries(nested_payload, team_id=21)
+    assert len(eagles_inj) == 2
+    assert eagles_inj[0]["athlete"] == "DeVonta Smith"
+    assert eagles_inj[0]["position"] == "WR"
+    assert eagles_inj[0]["description"] == "Hamstring"  # 'Not Specified' stripped, 'Hamstring' used
+    assert eagles_inj[1]["athlete"] == "Saquon Barkley"
+    assert eagles_inj[1]["description"] == "Hamstring - Strain"
+
+    # Match by team_name
+    bengals_inj = extract_injuries(nested_payload, team_name="Cincinnati Bengals")
+    assert len(bengals_inj) == 1
+    assert bengals_inj[0]["athlete"] == "Joe Burrow"
+    assert bengals_inj[0]["description"] == "Wrist"
+
+    # Mismatched ID fallback: id 4 with name "Philadelphia Eagles" prioritizes name
+    mismatched = extract_injuries(nested_payload, team_id=4, team_name="Philadelphia Eagles")
+    assert len(mismatched) == 2
+    assert mismatched[0]["athlete"] == "DeVonta Smith"
+
+
 def test_extract_box_score_valid():
     raw_payload = {
         "header": {

@@ -271,3 +271,44 @@ class TestSkyPeopleConfig:
             "Give a compliment about her haircut.",
             "Mention renewed creative energy.",
         ]
+
+
+class TestNewsConfig:
+    def test_news_config_defaults(self, tmp_path):
+        path = _write_yaml(tmp_path, {})
+        cfg = load_config(path)
+        assert cfg.news.mlb_news.sources == []
+        assert cfg.news.nhl_news.sources == []
+        assert cfg.news.nfl_news.sources == []
+        assert cfg.news.mlb_trade_rumors.sources == []
+        assert cfg.news.presidential.sources == []
+
+    def test_news_config_overrides(self, tmp_path):
+        path = _write_yaml(
+            tmp_path,
+            {
+                "news": {
+                    "mlb_news": {
+                        "sources": [
+                            {"id": "mlb_com", "bonus": 40},
+                            "espn_mlb",
+                        ],
+                    },
+                    "mlb_trade_rumors": {
+                        "sources": [
+                            {"id": "mlb_trade_rumors", "bonus": 20},
+                            "fangraphs",
+                        ],
+                    },
+                }
+            },
+        )
+        cfg = load_config(path)
+        assert cfg.news.mlb_news.sources == [
+            {"id": "mlb_com", "bonus": 40},
+            "espn_mlb",
+        ]
+        assert cfg.news.mlb_trade_rumors.sources == [
+            {"id": "mlb_trade_rumors", "bonus": 20},
+            "fangraphs",
+        ]

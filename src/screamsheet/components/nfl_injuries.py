@@ -32,6 +32,7 @@ class NFLInjuriesComponent(ScreamsheetComponent):
         title: str = "NFL Injury Report",
         provider: Optional[DataProvider] = None,
         team_id: Optional[int] = None,
+        team_name: Optional[str] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         **kwargs: Any,
     ) -> None:
@@ -44,10 +45,12 @@ class NFLInjuriesComponent(ScreamsheetComponent):
         )
         if team_id is None and favorite_teams:
             self.team_id = favorite_teams[0][0]
+            self.team_name = team_name or favorite_teams[0][1]
             if self.title == "NFL Injury Report":
                 self.title = f"{favorite_teams[0][1]} Injury Report"
         else:
             self.team_id = team_id or 0
+            self.team_name = team_name or (favorite_teams[0][1] if favorite_teams else "")
         self.styles = getSampleStyleSheet()
 
         self.title_style = ParagraphStyle(
@@ -79,7 +82,10 @@ class NFLInjuriesComponent(ScreamsheetComponent):
     def fetch_data(self) -> None:
         """Fetch injuries from provider if available."""
         if self.provider is not None and hasattr(self.provider, "get_injuries") and self.team_id:
-            self.data = self.provider.get_injuries(self.team_id)
+            try:
+                self.data = self.provider.get_injuries(self.team_id, team_name=self.team_name)
+            except TypeError:
+                self.data = self.provider.get_injuries(self.team_id)
         else:
             self.data = []
 

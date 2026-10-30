@@ -53,7 +53,7 @@ nba:
 nfl:
   mad_fan: false
   favorite_teams:
-    - id: 4
+    - id: 21
       name: "Philadelphia Eagles"
 
 # Weather locations for each screamsheet type.
@@ -99,6 +99,52 @@ french_mlb:
     - "Blue Jays"
     - "Phillies"
 
+# News source selection and authority bonuses per screamsheet.
+# Each screamsheet can cherry-pick sources from NEWS_SOURCE_CATALOG (in
+# src/screamsheet/providers/news_sources.py) via a `sources:` list.
+# Entries may be plain catalog IDs (default bonus 0) or `{id, bonus}` dicts.
+news:
+  mlb_news:
+    sources:
+      - {id: mlb_com, bonus: 25}
+      - espn_mlb
+      - cbs_mlb
+      - yahoo_mlb
+      - mlb_trade_rumors
+      - fangraphs
+      - fox_mlb
+  nhl_news:
+    sources:
+      - {id: nhl_com, bonus: 25}
+      - espn_nhl
+      - cbs_nhl
+      - yahoo_nhl
+      - pro_hockey_rumors
+      - the_hockey_news
+      - sportsnet_nhl
+  nfl_news:
+    sources:
+      - espn_nfl
+      - {id: nfl_com, bonus: 25}
+      - pro_football_talk
+      - cbs_nfl
+      - yahoo_nfl
+      - nfl_trade_rumors
+      - fox_nfl
+  mlb_trade_rumors:
+    sources:
+      - {id: mlb_trade_rumors, bonus: 0}
+  presidential:
+    sources:
+      - {id: white_house, bonus: 25}
+      - the_guardian
+      - google_news
+      - bbc
+      - nyt
+      - politico
+      - npr
+      - washington_post
+
 # Sky Tonight location.
 # Find lat/lon for your city at https://www.latlong.net/
 sky:
@@ -127,6 +173,6 @@ database:
 # Output directory: generated PDFs are copied here after generation.
 # Override per-run with: uv run screamsheet --output-dir /path/to/dir
 # In CI, __PRINT_DIR__ is substituted by the deploy workflow using the
-# PRINT_DIR GitHub repository variable.
+# DB_PATH GitHub repository variable.
 output:
   directory: __PRINT_DIR__

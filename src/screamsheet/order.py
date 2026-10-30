@@ -98,6 +98,7 @@ class MLBNewsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -106,6 +107,7 @@ class NHLNewsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -121,6 +123,7 @@ class MLBTradeRumorsOrderOptions:
 
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass
@@ -128,6 +131,7 @@ class PresidentialOrderOptions:
     """Options for the Presidential sheet."""
 
     weather: WeatherLocationOptions | None = None
+    sources: list[Any] | None = None
 
 
 @dataclass

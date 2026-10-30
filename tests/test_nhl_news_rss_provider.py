@@ -199,3 +199,46 @@ class TestNHLNewsRssProviderFallback:
             result = p.get_articles()
         assert len(result) == 1
         assert result[0]["entry"]["title"] == "NHL General News"
+
+    def test_multi_source_clusters_and_preserves_sources(self) -> None:
+        now = datetime.now(timezone.utc)
+        nhl_html = _page_html([
+            _news_card(
+                "Flyers trade defenseman to Oilers for draft picks",
+                "https://www.nhl.com/news/flyers-oilers-trade",
+                now,
+            ),
+        ])
+        rss_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+        <rss version="2.0"><channel>
+          <item>
+            <title>Flyers trade defenseman to Oilers for draft picks in blockbuster deal</title>
+            <link>https://www.espn.com/nhl/story/flyers-oilers-trade</link>
+            <description>Philadelphia and Edmonton completed a major trade involving draft picks.</description>
+          </item>
+        </channel></rss>
+        """
+
+        def fake_get(url: str, **kwargs: object) -> MagicMock:
+            if "nhl.com" in url:
+                return _response(nhl_html)
+            if "espn.com" in url:
+                return _response(rss_xml)
+            return _response("")
+
+        p = NHLNewsRssProvider(
+            favorite_teams=["Flyers"],
+            max_articles=1,
+            sources=[{"id": "nhl_com", "bonus": 25}, "espn_nhl"],
+        )
+        with patch("requests.get", side_effect=fake_get):
+            articles = p.get_articles()
+            sanitized = p.sanitize_articles(articles)
+
+        assert len(sanitized) == 1
+        entry = sanitized[0]["entry"]
+        assert "NHL.com" in entry["sources"]
+        assert "ESPN" in entry["sources"]
+        assert "NHL.com" in entry["source"]
+        assert "ESPN" in entry["source"]
+        assert len(entry["reports"]) == 2

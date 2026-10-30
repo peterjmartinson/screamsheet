@@ -134,6 +134,41 @@ class TestSanitizeEntry:
         assert result is not None
         assert len(result["summary"]) <= 4100  # some slack for trailing "..."
 
+    def test_preserves_sources_and_reports(self):
+        entry = {
+            "title": "Phillies Sign Ace Pitcher",
+            "summary": "Philadelphia agreed to a multi-year deal with the right-hander.",
+            "link": "https://www.mlb.com/news/phillies-sign-ace",
+            "source": "MLB.com, ESPN",
+            "sources": ["MLB.com", "ESPN"],
+            "reports": [
+                {
+                    "source": "MLB.com",
+                    "title": "Phillies Sign Ace Pitcher",
+                    "summary": "<b>MLB.com</b> report on the signing.",
+                    "link": "https://www.mlb.com/news/phillies-sign-ace",
+                },
+                {
+                    "source": "ESPN",
+                    "title": "Phils land star starter",
+                    "summary": "ESPN details on contract incentives.",
+                    "link": "https://www.espn.com/mlb/story/1",
+                },
+            ],
+            "is_cluster": True,
+            "cluster_score": 88,
+        }
+        result = self.p.sanitize_entry(entry)
+        assert result is not None
+        assert result["source"] == "MLB.com, ESPN"
+        assert result["sources"] == ["MLB.com", "ESPN"]
+        assert result["is_cluster"] is True
+        assert result["cluster_score"] == 88
+        assert len(result["reports"]) == 2
+        assert result["reports"][0]["source"] == "MLB.com"
+        assert "<" not in result["reports"][0]["summary"]
+        assert result["reports"][1]["source"] == "ESPN"
+
 
 # ---------------------------------------------------------------------------
 # sanitize_articles

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from ...base import DataProvider
 from ...llm.summarizers import PoliticalNewsSummarizer
@@ -25,9 +25,11 @@ class PresidentialNewsComponent(NewsStoryComponent):
         start_index: int = 0,
         summarizer_class: Any = PoliticalNewsSummarizer,
         date: Optional[datetime] = None,
+        sources: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
         self._initial_max_articles = max_articles if max_articles is not None else 4
+        self.sources = list(sources) if sources else None
         super().__init__(
             title=title,
             provider=provider,
@@ -39,4 +41,7 @@ class PresidentialNewsComponent(NewsStoryComponent):
         )
 
     def create_default_provider(self) -> DataProvider:
-        return PoliticalNewsProvider(max_articles=max(self._initial_max_articles, 8))
+        return PoliticalNewsProvider(
+            max_articles=max(self._initial_max_articles, 8),
+            sources=self.sources,
+        )

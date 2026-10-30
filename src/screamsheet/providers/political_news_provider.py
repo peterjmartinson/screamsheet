@@ -1,21 +1,25 @@
 """Political news data providers: RSS feeds (7 sources) and White House HTML."""
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
-import time as _time
+from typing import Any, Dict, List, Optional, Sequence, Union
 
-import feedparser
+import feedparser  # type: ignore[import-untyped]
 import requests
 from bs4 import BeautifulSoup
 
 from ..base import NewsDataProvider
+from .news_sources import (
+    POLITICAL_RSS_SOURCES,
+    WHITE_HOUSE_SELECTOR_CHAIN,
+    WHITE_HOUSE_URL,
+    ResolvedNewsSource,
+    UnifiedNewsProvider,
+)
 
 logger = logging.getLogger(__name__)
 _LOG_FMT = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
 _DATE_FMT = "%Y-%m-%d %H:%M:%S"
 
-# Configure a handler only if the root logger has none (avoids duplicate output
-# when the application has already configured logging).
 if not logging.root.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter(_LOG_FMT, datefmt=_DATE_FMT))
@@ -28,49 +32,17 @@ if not logging.root.handlers:
 
 class PoliticalRSSProvider(NewsDataProvider):
     """
-    Fetches and normalizes news entries from 7 RSS feeds covering political
+    Fetches and normalizes news entries from RSS feeds covering political
     and world news.
-
-    Each entry is normalized to::
-
-        {
-            'title':     str,
-            'link':      str,
-            'published': datetime,   # UTC-aware; entries missing a date are dropped
-            'summary':   str,        # empty string when absent
-            'source':    str,        # human-readable source name
-        }
-
-    Entries older than 48 hours are filtered out.  One source failing does
-    not abort the others.
     """
 
-    RSS_SOURCES: Dict[str, str] = {
-        # Reuters deprecated its public RSS; replaced with The Guardian world feed
-        "The Guardian":    "https://www.theguardian.com/world/rss",
-        # AP deprecated its public RSS; replaced with Google News top-headlines
-        "Google News":     "https://news.google.com/rss/headlines/section/topic/NATION.en_US?hl=en-US&gl=US&ceid=US:en",
-        "BBC":             "https://feeds.bbci.co.uk/news/rss.xml",
-        "NYT":             "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
-        "Politico":        "https://rss.politico.com/congress.xml",
-        "NPR":             "https://feeds.npr.org/1001/rss.xml",
-        "Washington Post": "https://feeds.washingtonpost.com/rss/national",
-    }
+    RSS_SOURCES: Dict[str, str] = dict(POLITICAL_RSS_SOURCES)
 
-    def __init__(self, **config):
+    def __init__(self, **config: Any) -> None:
         super().__init__(**config)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def get_articles(self) -> List[Dict]:
-        """
-        Fetch all RSS sources and return normalized entries within 48 hours.
-
-        Returns:
-            Flat list of normalized entry dicts across all sources.
-        """
+        """Fetch all RSS sources and return normalized entries within 48 hours."""
         all_entries: List[Dict] = []
         for name, url in self.RSS_SOURCES.items():
             try:
@@ -83,10 +55,6 @@ class PoliticalRSSProvider(NewsDataProvider):
                 logger.error("PoliticalRSSProvider: %s failed: %s", name, exc)
         return all_entries
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     def _fetch_source(self, name: str, url: str) -> List[Dict]:
         """Parse one RSS feed and return normalized entries within 48 hours."""
         feed = feedparser.parse(url)
@@ -97,12 +65,8 @@ class PoliticalRSSProvider(NewsDataProvider):
                 results.append(normalized)
         return results
 
-    def _normalize_rss_entry(self, entry, source_name: str) -> Optional[Dict]:
-        """
-        Convert a feedparser entry to the common dict shape.
-
-        Returns None if the entry lacks a usable title or a parseable date.
-        """
+    def _normalize_rss_entry(self, entry: Any, source_name: str) -> Optional[Dict]:
+        """Convert a feedparser entry to the common dict shape."""
         title = (entry.get("title") or "").strip()
         if not title:
             return None
@@ -112,14 +76,14 @@ class PoliticalRSSProvider(NewsDataProvider):
             return None
 
         return {
-            "title":     title,
-            "link":      entry.get("link") or "",
+            "title": title,
+            "link": entry.get("link") or "",
             "published": published,
-            "summary":   (entry.get("summary") or entry.get("description") or "").strip(),
-            "source":    source_name,
+            "summary": (entry.get("summary") or entry.get("description") or "").strip(),
+            "source": source_name,
         }
 
-    def _published_dt(self, entry) -> Optional[datetime]:
+    def _published_dt(self, entry: Any) -> Optional[datetime]:
         """Convert feedparser published_parsed (struct_time, UTC) to an aware datetime."""
         struct = entry.get("published_parsed") or entry.get("updated_parsed")
         if struct is None:
@@ -140,47 +104,12 @@ class PoliticalRSSProvider(NewsDataProvider):
 
 class WhiteHouseProvider(NewsDataProvider):
     """
-    Scrapes press briefings and statements from https://www.whitehouse.gov/briefing-room/.
-
-    Uses a cascading selector chain so the provider degrades gracefully when
-    the site's markup changes.  Each selector dict has four keys:
-
-    * ``container``  — CSS selector for the repeating article wrapper
-    * ``headline``   — CSS selector (relative to container) for the title ``<a>``
-    * ``date``       — CSS selector (relative to container) for the ``<time>`` tag
-    * ``summary``    — CSS selector (relative to container) for a teaser paragraph
-
-    Output matches the same dict shape as :class:`PoliticalRSSProvider`.
+    Scrapes press briefings and statements from https://www.whitehouse.gov/news/.
     """
 
-    # /briefing-room/ redirects to /news/ — use the canonical URL directly
-    URL = "https://www.whitehouse.gov/news/"
-
-    # Ordered fallback: try specific selectors first, generic ones last.
-    # Primary selectors confirmed against live page as of March 2026 (WordPress
-    # block theme with li.wp-block-post containers).
-    SELECTOR_CHAIN: List[Dict] = [
-        {
-            "container": "li.wp-block-post",
-            "headline":  "h2.wp-block-post-title a",
-            "date":      "div.wp-block-post-date time",
-            "summary":   "",   # page does not include a teaser snippet
-        },
-        {
-            "container": "article",
-            "headline":  "h2 a",
-            "date":      "time",
-            "summary":   "p",
-        },
-        {
-            "container": "li.news-item",
-            "headline":  "a.news-item__title",
-            "date":      "time",
-            "summary":   "",
-        },
-    ]
-
-    SOURCE_NAME = "White House"
+    URL: str = WHITE_HOUSE_URL
+    SELECTOR_CHAIN: List[Dict[str, str]] = list(WHITE_HOUSE_SELECTOR_CHAIN)
+    SOURCE_NAME: str = "White House"
 
     _ARTICLE_SELECTORS: List[str] = [
         "div.entry-content",
@@ -198,22 +127,12 @@ class WhiteHouseProvider(NewsDataProvider):
         )
     }
 
-    def __init__(self, scrape_body: bool = True, **config):
+    def __init__(self, scrape_body: bool = True, **config: Any) -> None:
         super().__init__(**config)
         self.scrape_body = scrape_body
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def get_articles(self) -> List[Dict]:
-        """
-        Fetch the White House briefing room and return normalized entries
-        within 48 hours.
-
-        Returns:
-            List of normalized entry dicts.
-        """
+        """Fetch the White House briefing room and return normalized entries within 48 hours."""
         try:
             html = self._fetch_html()
         except Exception as exc:  # noqa: BLE001
@@ -221,14 +140,8 @@ class WhiteHouseProvider(NewsDataProvider):
             return []
 
         entries = self._parse_html(html)
-        logger.info(
-            "WhiteHouseProvider: %d entries within 48h", len(entries)
-        )
+        logger.info("WhiteHouseProvider: %d entries within 48h", len(entries))
         return entries
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _fetch_html(self) -> str:
         """Retrieve the briefing-room page and return its HTML."""
@@ -237,10 +150,7 @@ class WhiteHouseProvider(NewsDataProvider):
         return response.text
 
     def _parse_html(self, html: str) -> List[Dict]:
-        """
-        Parse HTML with BeautifulSoup, trying each selector in SELECTOR_CHAIN
-        until results are found.
-        """
+        """Parse HTML with BeautifulSoup, trying each selector in SELECTOR_CHAIN."""
         soup = BeautifulSoup(html, "html.parser")
 
         for selectors in self.SELECTOR_CHAIN:
@@ -260,9 +170,8 @@ class WhiteHouseProvider(NewsDataProvider):
         logger.warning("WhiteHouseProvider: no entries matched any selector")
         return []
 
-    def _extract_entry(self, container, selectors: Dict) -> Optional[Dict]:
+    def _extract_entry(self, container: Any, selectors: Dict) -> Optional[Dict]:
         """Extract a single normalized entry from one container element."""
-        # Headline / link
         headline_tag = container.select_one(selectors["headline"])
         if not headline_tag:
             return None
@@ -273,14 +182,12 @@ class WhiteHouseProvider(NewsDataProvider):
         if link and link.startswith("/"):
             link = "https://www.whitehouse.gov" + link
 
-        # Date
         date_sel = selectors.get("date") or ""
         time_tag = container.select_one(date_sel) if date_sel else None
         published = self._parse_date(time_tag)
         if published is None:
             return None
 
-        # Summary (optional, enriched from article page if empty)
         summary = ""
         summary_sel = selectors.get("summary") or ""
         if summary_sel:
@@ -292,11 +199,11 @@ class WhiteHouseProvider(NewsDataProvider):
             summary = self._scrape_article_text(link)
 
         return {
-            "title":     title,
-            "link":      link,
+            "title": title,
+            "link": link,
             "published": published,
-            "summary":   summary,
-            "source":    self.SOURCE_NAME,
+            "summary": summary,
+            "source": self.SOURCE_NAME,
         }
 
     def _scrape_article_text(self, url: str) -> str:
@@ -304,7 +211,9 @@ class WhiteHouseProvider(NewsDataProvider):
         if not url:
             return ""
         try:
-            resp = requests.get(url, timeout=self._SCRAPE_TIMEOUT, headers=self._SCRAPE_HEADERS)
+            resp = requests.get(
+                url, timeout=self._SCRAPE_TIMEOUT, headers=self._SCRAPE_HEADERS
+            )
             if resp.status_code != 200:
                 return ""
             soup = BeautifulSoup(resp.text, "html.parser")
@@ -321,13 +230,8 @@ class WhiteHouseProvider(NewsDataProvider):
             logger.debug("WhiteHouseProvider: failed to scrape %s: %s", url, exc)
             return ""
 
-    def _parse_date(self, time_tag) -> Optional[datetime]:
-        """
-        Extract a UTC-aware datetime from a ``<time>`` element.
-
-        Tries the ``datetime`` attribute first; falls back to parsing the
-        tag's visible text.  Returns None on failure.
-        """
+    def _parse_date(self, time_tag: Any) -> Optional[datetime]:
+        """Extract a UTC-aware datetime from a ``<time>`` element."""
         if time_tag is None:
             return None
 
@@ -349,6 +253,7 @@ class WhiteHouseProvider(NewsDataProvider):
                 return dt
             except ValueError:
                 continue
+        return None
 
     def _within_48h(self, dt: datetime) -> bool:
         """Return True if *dt* is no older than 48 hours from now (UTC)."""
@@ -356,41 +261,45 @@ class WhiteHouseProvider(NewsDataProvider):
 
 
 # ---------------------------------------------------------------------------
-# PoliticalNewsProvider — adapter for NewsArticlesSection
+# PoliticalNewsProvider — unified political news provider
 # ---------------------------------------------------------------------------
 
-class PoliticalNewsProvider(NewsDataProvider):
+class PoliticalNewsProvider(UnifiedNewsProvider):
     """
-    Adapter that wires ``PoliticalRSSProvider`` + ``WhiteHouseProvider`` +
-    ``PoliticalNewsProcessor`` into the shape expected by
-    :class:`~screamsheet.renderers.news_articles.NewsArticlesSection`::
-
-        [{'slot': 'Section 1', 'entry': {title, summary, link, id, source,
-                                         published_parsed: time.struct_time}}]
-
-    Results are cached after the first call so two ``NewsArticlesSection``
-    instances sharing the same provider only fetch the network once.
+    Unified political news provider that fetches from White House and political
+    RSS sources (or any cherry-picked ``sources`` list from :data:`NEWS_SOURCE_CATALOG`)
+    and caches the resulting ``{'slot', 'entry'}`` list.
     """
 
-    def __init__(self, max_articles: int = 4, **config):
-        super().__init__(**config)
-        self.max_articles = max_articles
+    DEFAULT_SHEET: str = "presidential"
+    DEFAULT_CATEGORY: str = "political"
+
+    def __init__(
+        self,
+        max_articles: int = 4,
+        sources: Optional[Sequence[Union[str, Dict[str, Any], ResolvedNewsSource]]] = None,
+        **config: Any,
+    ) -> None:
+        super().__init__(
+            max_articles=max_articles,
+            sources=sources,
+            category="political",
+            default_sheet="presidential",
+            junk_keywords=[],
+            similarity_threshold=0.68,
+            **config,
+        )
         self._cache: Optional[List[Dict]] = None
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def get_articles(self) -> List[Dict]:
-        """Fetch, process, and cache political news articles.
-
-        Returns a list of ``{'slot', 'entry'}`` dicts compatible with
-        :class:`~screamsheet.renderers.news_articles.NewsArticlesSection`.
-        The ``entry`` dict includes a ``published_parsed`` key containing a
-        ``time.struct_time`` (feedparser-compatible) derived from the
-        ``published`` datetime returned by the political providers.
-        """
+        """Fetch, process, and cache political news articles."""
         if self._cache is not None:
+            return self._cache
+
+        # When custom sources are cherry-picked, use the UnifiedNewsProvider pipeline
+        if self._has_custom_sources:
+            self._cache = super().get_articles()
+            logger.info("PoliticalNewsProvider (custom sources): %d articles cached", len(self._cache))
             return self._cache
 
         try:
@@ -404,8 +313,6 @@ class PoliticalNewsProvider(NewsDataProvider):
             logger.error("PoliticalNewsProvider: White House fetch failed: %s", exc)
             wh = []
 
-        # Import here to avoid any potential top-level circular import
-        # (processor.py has no top-level imports from providers/)
         from ..political.processor import PoliticalNewsProcessor  # noqa: PLC0415
 
         all_entries = rss + wh
@@ -423,11 +330,11 @@ class PoliticalNewsProvider(NewsDataProvider):
                 pass
 
             slot_entry = {
-                "title":            entry.get("title", ""),
-                "summary":          entry.get("summary", ""),
-                "link":             entry.get("link", ""),
-                "id":               entry.get("link", ""),
-                "source":           entry.get("source", ""),
+                "title": entry.get("title", ""),
+                "summary": entry.get("summary", ""),
+                "link": entry.get("link", ""),
+                "id": entry.get("link", ""),
+                "source": entry.get("source", ""),
                 "published_parsed": published_parsed,
             }
             if entry.get("sources"):
@@ -450,38 +357,5 @@ class PoliticalNewsProvider(NewsDataProvider):
             if not entry:
                 continue
             entry["summary"] = self._sanitize_text(entry.get("summary") or "")
-            entry["title"]   = self._sanitize_text(entry.get("title")   or "")
+            entry["title"] = self._sanitize_text(entry.get("title") or "")
         return articles
-
-
-if __name__ == "__main__":
-    from collections import Counter
-
-    print("=" * 60)
-    print("RSS FEEDS")
-    print("=" * 60)
-    rss_articles = PoliticalRSSProvider().get_articles()
-    by_source = Counter(a["source"] for a in rss_articles)
-    print(f"Total entries (last 48h): {len(rss_articles)}")
-    for source, count in sorted(by_source.items()):
-        print(f"  {source}: {count} entries")
-
-    if rss_articles:
-        print("\nFirst 3 entries:")
-        for entry in rss_articles[:3]:
-            print(f"\n  [{entry['source']}]  {entry['published'].strftime('%Y-%m-%d %H:%M')} UTC")
-            print(f"  Title:   {entry['title']}")
-            print(f"  Link:    {entry['link']}")
-            if entry["summary"]:
-                print(f"  Summary: {entry['summary'][:120]}...")
-
-    print()
-    print("=" * 60)
-    print("WHITE HOUSE")
-    print("=" * 60)
-    wh_articles = WhiteHouseProvider().get_articles()
-    print(f"Total entries (last 48h): {len(wh_articles)}")
-    for entry in wh_articles:
-        print(f"\n  {entry['published'].strftime('%Y-%m-%d %H:%M')} UTC")
-        print(f"  Title: {entry['title']}")
-        print(f"  Link:  {entry['link']}")

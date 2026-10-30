@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
@@ -140,6 +140,22 @@ class DbConfig:
 
 
 @dataclass
+class NewsSheetConfig:
+    """Configuration for a news screamsheet's cherry-picked sources and authority bonuses."""
+    sources: List[Union[str, Dict[str, Any]]] = field(default_factory=list)
+
+
+@dataclass
+class NewsConfig:
+    """News aggregation settings across screamsheets."""
+    mlb_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    nhl_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    nfl_news: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    mlb_trade_rumors: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+    presidential: NewsSheetConfig = field(default_factory=NewsSheetConfig)
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: NHLConfig = field(default_factory=NHLConfig)
@@ -151,6 +167,7 @@ class ScreamsheetConfig:
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
     briefing: BriefingConfig = field(default_factory=BriefingConfig)
+    news: NewsConfig = field(default_factory=NewsConfig)
     branding: str = ""
     output: OutputConfig = field(default_factory=OutputConfig)
     database: DbConfig = field(default_factory=DbConfig)
@@ -295,6 +312,30 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     )
 
 
+def _parse_news_sheet(raw: dict) -> NewsSheetConfig:
+    raw = raw or {}
+    sources_raw = raw.get("sources") or []
+    sources: List[Union[str, Dict[str, Any]]] = []
+    if isinstance(sources_raw, list):
+        for item in sources_raw:
+            if isinstance(item, str) and item.strip():
+                sources.append(item.strip())
+            elif isinstance(item, dict):
+                sources.append(dict(item))
+    return NewsSheetConfig(sources=sources)
+
+
+def _parse_news(raw: dict) -> NewsConfig:
+    raw = raw or {}
+    return NewsConfig(
+        mlb_news=_parse_news_sheet(raw.get("mlb_news", {})),
+        nhl_news=_parse_news_sheet(raw.get("nhl_news", {})),
+        nfl_news=_parse_news_sheet(raw.get("nfl_news", {})),
+        mlb_trade_rumors=_parse_news_sheet(raw.get("mlb_trade_rumors", {})),
+        presidential=_parse_news_sheet(raw.get("presidential", {})),
+    )
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -331,6 +372,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         weather=weather,
         sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),
         briefing=_parse_briefing(raw.get("briefing") or raw.get("morning_briefing") or {}, weather),
+        news=_parse_news(raw.get("news", {})),
         branding=str(raw.get("branding", "")),
         output=_parse_output(raw.get("output", {})),
         database=_parse_db(raw.get("database", {})),

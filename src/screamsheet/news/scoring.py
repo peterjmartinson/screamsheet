@@ -97,17 +97,21 @@ class PoliticalNewsScorer(BaseNewsScorer):
         keyword_weights: Optional[Dict[str, int]] = None,
         white_house_bonus: int = 25,
         min_white_house_words: int = 60,
+        source_bonuses: Optional[Dict[str, int]] = None,
     ) -> None:
         self.keyword_weights = keyword_weights or POLITICAL_KEYWORD_WEIGHTS
         self.white_house_bonus = white_house_bonus
         self.min_white_house_words = min_white_house_words
+        self.source_bonuses: Dict[str, int] = {
+            k.strip().lower(): int(v) for k, v in (source_bonuses or {}).items()
+        }
 
     def score(self, entry: Dict[str, Any]) -> int:
         """Return a relevance score for a political news entry.
 
         Applies:
         1. Keyword weighting over combined title and summary.
-        2. White House authority bonus ONLY if substantial text is present.
+        2. White House (or custom source) authority bonus ONLY if substantial text is present.
         3. Substance scaling multiplier so hollow teasers are deranked.
         """
         title = (entry.get("title") or "").strip()
@@ -134,16 +138,26 @@ class PoliticalNewsScorer(BaseNewsScorer):
         link = entry.get("link") or ""
         is_wh = source == "White House" or "whitehouse.gov" in link
 
+        entry_bonus = entry.get("source_bonus")
+        if not isinstance(entry_bonus, int):
+            entry_bonus = self.source_bonuses.get(source.strip().lower())
+
         wh_bonus = 0
         if is_wh:
-            if self.has_substantial_text(summary, min_words=self.min_white_house_words):
-                wh_bonus = self.white_house_bonus
+            target_wh_bonus = entry_bonus if entry_bonus is not None else self.white_house_bonus
+            if target_wh_bonus > 0 and self.has_substantial_text(summary, min_words=self.min_white_house_words):
+                wh_bonus = target_wh_bonus
             else:
                 logger.debug(
                     "White House entry '%s' lacks substantial text (%d words); authority bonus skipped.",
                     title,
                     len(summary.split()),
                 )
+        elif entry_bonus and entry_bonus > 0:
+            if self.has_substantial_text(summary, min_words=40):
+                wh_bonus = entry_bonus
+            else:
+                wh_bonus = max(1, entry_bonus // 2)
 
         # Substance scaling
         multiplier = self.calculate_substance_multiplier(summary)
@@ -157,18 +171,76 @@ class PoliticalNewsScorer(BaseNewsScorer):
         return total
 
 
+# High-impact sports newsworthiness keyword weights
+SPORTS_KEYWORD_WEIGHTS: Dict[str, int] = {
+    # Transactions & roster moves
+    "designated for assignment": 6,
+    "free agent": 6,
+    "called up": 6,
+    "call-up": 6,
+    "trade": 8,
+    "traded": 8,
+    "acquire": 7,
+    "acquires": 7,
+    "acquired": 7,
+    "sign": 6,
+    "signs": 6,
+    "signed": 6,
+    "extension": 7,
+    "contract": 5,
+    "waivers": 5,
+    # Injuries & availability
+    "injured list": 7,
+    "injured reserve": 7,
+    "out indefinitely": 8,
+    "day-to-day": 4,
+    "injury": 6,
+    "surgery": 7,
+    "concussion": 6,
+    "activated": 5,
+    # High-impact game & season moments
+    "perfect game": 10,
+    "no-hitter": 9,
+    "walk-off": 7,
+    "grand slam": 6,
+    "hat trick": 7,
+    "all-star": 5,
+    "hall of fame": 6,
+    "shutout": 5,
+    "overtime": 5,
+    "playoffs": 6,
+    "postseason": 6,
+    "clinched": 7,
+    "eliminated": 7,
+    "championship": 7,
+    # Coaching / Front Office / Discipline
+    "fired": 8,
+    "hired": 7,
+    "suspended": 7,
+    "suspension": 7,
+}
+
+
 class SportsNewsScorer(BaseNewsScorer):
-    """Score sports news entries prioritizing favorite teams and penalizing junk."""
+    """Score sports news entries with favorite-team boosts, keyword weights, and per-source bonuses."""
 
     def __init__(
         self,
         sport: str = "mlb",
         favorite_teams: Optional[List[str]] = None,
         junk_keywords: Optional[List[str]] = None,
+        min_primary_words: int = 40,
+        keyword_weights: Optional[Dict[str, int]] = None,
+        source_bonuses: Optional[Dict[str, int]] = None,
     ) -> None:
         self.sport = sport.lower()
         self.favorite_teams = favorite_teams or []
         self.junk_keywords = [k.lower() for k in (junk_keywords or [])]
+        self.min_primary_words = min_primary_words
+        self.keyword_weights = keyword_weights if keyword_weights is not None else SPORTS_KEYWORD_WEIGHTS
+        self.source_bonuses: Dict[str, int] = {
+            k.strip().lower(): int(v) for k, v in (source_bonuses or {}).items()
+        }
 
     def _get_team_match_patterns(self, team_name: str) -> Set[str]:
         patterns: Set[str] = {team_name.strip().lower()}
@@ -207,30 +279,66 @@ class SportsNewsScorer(BaseNewsScorer):
         summary = (entry.get("summary") or "").strip()
         combined = f"{title} {summary}".lower()
 
+        if not combined.strip():
+            return 0
+
         # Check junk
         for junk in self.junk_keywords:
             if junk in combined:
                 return 0
 
         # Base score for any clean news
-        score = 10
+        raw_score = 10
 
-        # Tiered favorite team bonuses:
-        # Tier 1 (1st team): +35
-        # Tier 2 (2nd team): +20
-        # Tier 3 (3rd+ teams): +10
+        # Sports newsworthiness keyword weights
+        already_matched: List[str] = []
+        for keyword, weight in self.keyword_weights.items():
+            if " " not in keyword:
+                if any(keyword in phrase for phrase in already_matched):
+                    continue
+            if keyword in combined:
+                raw_score += weight
+                already_matched.append(keyword)
+
+        # Heavy favorite team tier bonuses:
+        # Tier 1 (1st team): +50
+        # Tier 2 (2nd team): +35
+        # Tier 3+ (3rd+ teams): +25
+        team_tag = (entry.get("team_tag") or "").strip().lower()
         for idx, team in enumerate(self.favorite_teams):
-            if self._matches_team(combined, team):
+            team_clean = team.strip().lower()
+            if (team_tag and team_tag == team_clean) or self._matches_team(combined, team):
                 if idx == 0:
-                    score += 35
+                    raw_score += 50
                 elif idx == 1:
-                    score += 20
+                    raw_score += 35
                 else:
-                    score += 10
+                    raw_score += 25
                 break  # Don't double count multiple favorite matches on same team
 
-        multiplier = self.calculate_substance_multiplier(summary)
-        return int(round(score * multiplier))
+        # Authority source bonus (modeled on White House bonus in PoliticalNewsScorer)
+        primary_bonus = 0
+        entry_source = (entry.get("source") or "").strip()
+        configured_bonus: Optional[int] = (
+            entry.get("source_bonus")
+            if isinstance(entry.get("source_bonus"), int)
+            else None
+        )
+        if configured_bonus is None and self.source_bonuses and entry_source:
+            configured_bonus = self.source_bonuses.get(entry_source.lower())
+
+        if configured_bonus and configured_bonus > 0:
+            if self.has_substantial_text(summary, min_words=self.min_primary_words):
+                primary_bonus = configured_bonus
+            else:
+                # Partial authority edge when feed only carries a headline/teaser pre-scrape
+                primary_bonus = max(1, configured_bonus // 2)
+
+        multiplier = self.calculate_substance_multiplier(summary if summary else title)
+        total = int(round(raw_score * multiplier)) + primary_bonus
+        if raw_score > 0 and total == 0:
+            total = 1
+        return total
 
 
 class ClusterScorer:

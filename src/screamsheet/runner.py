@@ -130,6 +130,7 @@ def _run_mlb_news(
         "output_filename": _output_path(output_dir, f"MLB_NEWS_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -149,6 +150,7 @@ def _run_nhl_news(
         "output_filename": _output_path(output_dir, f"NHL_NEWS_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -168,6 +170,7 @@ def _run_mlb_trade_rumors(
         "output_filename": _output_path(output_dir, f"MLB_trade_rumors_{today_str}.pdf"),
         "favorite_teams": options.news_names,
         "date": today,
+        "sources": getattr(options, "sources", None) or None,
     }
     if options.weather:
         kwargs.update(
@@ -198,6 +201,8 @@ def _run_presidential(
         "output_filename": _output_path(output_dir, f"presidential_screamsheet_{today_str}.pdf"),
         "date": today,
     }
+    if getattr(options, "sources", None):
+        kwargs["sources"] = options.sources
     if options.weather:
         kwargs.update(
             include_weather=True,
@@ -274,6 +279,8 @@ def _run_briefing(
 
 _NEWS_COMPONENT_TYPES: frozenset[str] = frozenset(
     {
+        "news",
+        "unified_news",
         "mlb_news",
         "nhl_news",
         "nfl_news",

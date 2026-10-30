@@ -81,7 +81,7 @@ class FallbackLexicalVectorizer:
 
     def _tokenize(self, text: str) -> List[str]:
         words = re.findall(r"\b[a-zA-Z0-9_-]+\b", text.lower())
-        tokens = [w for w in words if len(w) >= self.min_token_len]
+        tokens = [w for w in words if len(w) >= self.min_token_len or w.isdigit()]
         bigrams = [f"{tokens[i]}_{tokens[i+1]}" for i in range(len(tokens) - 1)]
         return tokens + bigrams
 
@@ -244,6 +244,19 @@ class TopicClusterer:
         unassigned = set(sorted_indices)
         clusters: List[TopicCluster] = []
 
+        _stop_tokens = {
+            "the", "and", "for", "with", "from", "that", "this", "are", "was",
+            "were", "has", "have", "had", "not", "but", "into", "over", "after",
+            "article", "story", "summary", "text", "number", "test", "news",
+        }
+
+        def _content_tokens(entry_dict: Dict[str, Any]) -> set:
+            raw = f"{entry_dict.get('title', '')} {entry_dict.get('summary', '')}".lower()
+            words = re.findall(r"\b[a-z0-9]{3,}\b|\b\d+\b", raw)
+            return {w for w in words if w not in _stop_tokens}
+
+        entry_tokens = [_content_tokens(e) for e in scored_entries]
+
         for anchor_idx in sorted_indices:
             if anchor_idx not in unassigned:
                 continue
@@ -255,14 +268,16 @@ class TopicClusterer:
             # Find all matching articles exceeding the similarity threshold
             for other_idx in list(unassigned):
                 other_entry = scored_entries[other_idx]
-                src_a = (anchor_entry.get("source") or "").lower()
-                src_b = (other_entry.get("source") or "").lower()
-                general_sources = {"mlb.com", "nhl.com", "reuters", "ap", "google news", "bbc", "politico", "nyt", "npr", "washington post", "white house", ""}
-                if src_a and src_b and src_a != src_b and src_a not in general_sources and src_b not in general_sources:
+                team_a = (anchor_entry.get("team_tag") or "").lower()
+                team_b = (other_entry.get("team_tag") or "").lower()
+                if team_a and team_b and team_a != team_b:
                     text_a = f"{anchor_entry.get('title', '')} {anchor_entry.get('summary', '')}".lower()
                     text_b = f"{other_entry.get('title', '')} {other_entry.get('summary', '')}".lower()
-                    if src_b not in text_a and src_a not in text_b:
+                    if team_b not in text_a and team_a not in text_b:
                         continue
+
+                if not (entry_tokens[anchor_idx] & entry_tokens[other_idx]):
+                    continue
 
                 similarity = float(sim_matrix[anchor_idx, other_idx])
                 if similarity >= self.similarity_threshold:

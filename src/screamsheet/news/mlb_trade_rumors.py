@@ -1,5 +1,5 @@
 """MLB Trade Rumors screamsheet implementation."""
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import datetime
 
 from .base_news import NewsScreamsheet
@@ -21,7 +21,8 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        sources: Optional[List[Any]] = None,
     ):
         super().__init__(
             news_source="MLB Trade Rumors",
@@ -34,9 +35,11 @@ class MLBTradeRumorsScreamsheet(NewsScreamsheet):
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon
         self.weather_location_name = weather_location_name
+        self.sources = list(sources) if sources else None
         self.provider = MLBTradeRumorsProvider(
             favorite_teams=self.favorite_teams,
-            max_articles=self.max_articles
+            max_articles=self.max_articles,
+            sources=self.sources,
         )
     
     def build_sections(self) -> List[Section]:

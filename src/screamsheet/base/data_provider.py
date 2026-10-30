@@ -212,14 +212,58 @@ class DataProvider(ABC):
 
         # Build a cleaned minimal dict to avoid carrying unexpected/mutable
         # fields from the feedparser entry object. This ensures title+summary
-        # remain paired and stable.
-        cleaned = {
+        # remain paired and stable, while preserving multi-source cluster metadata.
+        cleaned: Dict[str, Any] = {
             'title': title,
             'summary': summary,
             'link': get('link', '') if callable(get) else entry.get('link', ''),
             'published_parsed': get('published_parsed', None) if callable(get) else entry.get('published_parsed', None),
             'id': get('id', get('guid', get('link', ''))) if callable(get) else entry.get('id', entry.get('guid', entry.get('link', ''))),
         }
+
+        raw_source = get('source', '') if callable(get) else entry.get('source', '')
+        raw_sources = get('sources', None) if callable(get) else entry.get('sources', None)
+        raw_reports = get('reports', None) if callable(get) else entry.get('reports', None)
+        is_cluster = get('is_cluster', False) if callable(get) else entry.get('is_cluster', False)
+        cluster_score = get('cluster_score', None) if callable(get) else entry.get('cluster_score', None)
+
+        if isinstance(raw_sources, list):
+            cleaned_sources = [self._sanitize_text(s) for s in raw_sources if self._sanitize_text(s)]
+            if cleaned_sources:
+                cleaned['sources'] = cleaned_sources
+
+        source_clean = self._sanitize_text(raw_source)
+        if not source_clean and cleaned.get('sources'):
+            source_clean = ", ".join(cleaned['sources'])
+        if source_clean:
+            cleaned['source'] = source_clean
+
+        if isinstance(raw_reports, list):
+            max_report_summary = 2000
+            cleaned_reports = []
+            for rep in raw_reports:
+                if not isinstance(rep, dict):
+                    continue
+                rep_title = self._sanitize_text(rep.get('title', ''))
+                rep_summary = self._sanitize_text(rep.get('summary', ''))
+                if len(rep_summary) > max_report_summary:
+                    rep_summary = rep_summary[:max_report_summary].rsplit(' ', 1)[0] + '...'
+                rep_source = self._sanitize_text(rep.get('source', ''))
+                rep_link = rep.get('link', '') or ''
+                if rep_title or rep_summary:
+                    cleaned_reports.append({
+                        'source': rep_source,
+                        'title': rep_title,
+                        'summary': rep_summary,
+                        'link': rep_link,
+                    })
+            if cleaned_reports:
+                cleaned['reports'] = cleaned_reports
+
+        if is_cluster:
+            cleaned['is_cluster'] = True
+        if cluster_score is not None:
+            cleaned['cluster_score'] = cluster_score
 
         return cleaned
 
@@ -267,5 +311,80 @@ class NewsDataProvider(DataProvider):
     def get_articles(self) -> List[Dict]:
         """Fetch and return news articles for this provider."""
         pass
+
+    def _score_and_cluster_entries(
+        self,
+        entries: List[Dict[str, Any]],
+        sport: str,
+        favorite_teams: List[str],
+        junk_keywords: List[str],
+        max_articles: int = 4,
+        similarity_threshold: float = 0.68,
+        default_source: str = "",
+        source_bonuses: Optional[Dict[str, int]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Deduplicate by URL, score with authority & favorite-team boosts, and cluster into topics."""
+        from ..news.clustering import TopicClusterer
+        from ..news.scoring import SportsNewsScorer
+
+        fallback_source = default_source
+
+        deduped: List[Dict[str, Any]] = []
+        seen_links: set = set()
+        for entry in entries:
+            link = str(entry.get("link") or entry.get("id") or "").strip()
+            if link:
+                if link in seen_links:
+                    continue
+                seen_links.add(link)
+            deduped.append(entry)
+
+        if not deduped:
+            return []
+
+        scorer = SportsNewsScorer(
+            sport=sport,
+            favorite_teams=favorite_teams,
+            junk_keywords=junk_keywords,
+            source_bonuses=source_bonuses,
+        )
+        clusterer = TopicClusterer(
+            similarity_threshold=similarity_threshold,
+            scorer=scorer,
+        )
+        selected_clusters = clusterer.cluster(deduped, top_n=max_articles)
+
+        output: List[Dict[str, Any]] = []
+        for i, cluster in enumerate(selected_clusters):
+            first_article = cluster.articles[0] if cluster.articles else {}
+            pub_parsed = (
+                first_article.get("published_parsed")
+                if hasattr(first_article, "get")
+                else getattr(first_article, "published_parsed", None)
+            )
+            slot_entry = {
+                "title": cluster.topic,
+                "summary": cluster.combined_summary,
+                "link": cluster.primary_link,
+                "id": cluster.primary_link,
+                "source": ", ".join(cluster.sources) if cluster.sources else fallback_source,
+                "sources": cluster.sources if cluster.sources else ([fallback_source] if fallback_source else []),
+                "reports": [
+                    {
+                        "source": (a.get("source") if hasattr(a, "get") else getattr(a, "source", "")) or fallback_source,
+                        "title": (a.get("title") if hasattr(a, "get") else getattr(a, "title", "")) or "",
+                        "summary": (a.get("summary") if hasattr(a, "get") else getattr(a, "summary", "")) or "",
+                        "link": (a.get("link") if hasattr(a, "get") else getattr(a, "link", "")) or "",
+                    }
+                    for a in cluster.articles
+                ],
+                "is_cluster": True,
+                "cluster_score": cluster.score,
+                "published_parsed": pub_parsed,
+            }
+            output.append({"slot": f"Section {i + 1}", "entry": slot_entry})
+
+        return output
+
 
 

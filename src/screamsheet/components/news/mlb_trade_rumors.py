@@ -25,10 +25,12 @@ class MLBTradeRumorsComponent(NewsStoryComponent):
         max_articles: int = 4,
         start_index: int = 0,
         date: Optional[datetime] = None,
+        sources: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
         self.favorite_teams: List[str] = list(favorite_teams) if favorite_teams else ["Phillies", "Padres", "Yankees"]
         self._initial_max_articles = max_articles if max_articles is not None else 4
+        self.sources = list(sources) if sources else None
         super().__init__(
             title=title,
             provider=provider,
@@ -43,4 +45,5 @@ class MLBTradeRumorsComponent(NewsStoryComponent):
         return MLBTradeRumorsProvider(
             favorite_teams=self.favorite_teams,
             max_articles=max(self._initial_max_articles, 8),
+            sources=self.sources,
         )

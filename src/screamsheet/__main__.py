@@ -122,6 +122,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                sources=cfg.news.mlb_trade_rumors.sources or None,
             ),
         ),
         (
@@ -134,6 +135,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.mlb_news.lon,
                 weather_location_name=cfg.weather.mlb_news.location_name,
                 date=today,
+                sources=cfg.news.mlb_news.sources or None,
             ),
         ),
         (
@@ -164,6 +166,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.nhl_news.lon,
                 weather_location_name=cfg.weather.nhl_news.location_name,
                 date=today,
+                sources=cfg.news.nhl_news.sources or None,
             ),
         ),
         (
@@ -195,6 +198,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 weather_lon=cfg.weather.presidential.lon,
                 weather_location_name=cfg.weather.presidential.location_name,
                 date=today,
+                sources=cfg.news.presidential.sources or None,
             ),
         ),
         (
@@ -292,6 +296,7 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         mlb_news=MLBNewsOrderOptions(
             news_names=cfg.mlb.news_names,
             weather=weather_mlb,
+            sources=cfg.news.mlb_news.sources or None,
         ),
         french_mlb_news=FrenchMLBNewsOrderOptions(
             news_names=cfg.french_mlb.news_names,
@@ -299,12 +304,16 @@ def _build_order_from_config(today: datetime) -> ScreamsheetOrder:
         nhl_news=NHLNewsOrderOptions(
             news_names=cfg.nhl.news_names,
             weather=weather_nhl,
+            sources=cfg.news.nhl_news.sources or None,
         ),
         nba=NBAOrderOptions(
             favorite_teams=[TeamEntry(id=t.id, name=t.name) for t in cfg.nba.favorite_teams],
             mad_fan=cfg.nba.mad_fan,
         ),
-        presidential=PresidentialOrderOptions(weather=weather_presidential),
+        presidential=PresidentialOrderOptions(
+            weather=weather_presidential,
+            sources=cfg.news.presidential.sources or None,
+        ),
         sky=SkyOrderOptions(
             lat=cfg.sky.lat,
             lon=cfg.sky.lon,

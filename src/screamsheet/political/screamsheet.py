@@ -1,6 +1,6 @@
 """Presidential Screamsheet: assembles the full political news PDF."""
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from ..base import Section
 from ..components.news import PresidentialNewsComponent
@@ -22,6 +22,7 @@ class PresidentialScreamsheet(NewsScreamsheet):
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
+        sources: Optional[List[Any]] = None,
     ):
         super().__init__(
             news_source="Presidential Screamsheet",
@@ -33,7 +34,11 @@ class PresidentialScreamsheet(NewsScreamsheet):
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon
         self.weather_location_name = weather_location_name
-        self.provider = PoliticalNewsProvider(max_articles=self.max_articles)
+        self.sources = list(sources) if sources else None
+        self.provider = PoliticalNewsProvider(
+            max_articles=self.max_articles,
+            sources=self.sources,
+        )
 
     def get_title(self) -> str:
         return "Presidential Screamsheet"

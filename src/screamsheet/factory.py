@@ -195,23 +195,11 @@ class ScreamsheetFactory:
         weather_lat: float = 40.02,
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        sources: Optional[list] = None,
     ) -> MLBTradeRumorsScreamsheet:
         """
         Create an MLB Trade Rumors news screamsheet.
-        
-        Args:
-            output_filename: Path to save the PDF
-            favorite_teams: List of favorite team names (optional)
-            max_articles: Maximum number of articles (default: 4)
-            include_weather: Include weather report (default: True)
-            weather_lat: Latitude for weather location
-            weather_lon: Longitude for weather location
-            weather_location_name: Display name for weather location
-            date: Target date (defaults to today)
-            
-        Returns:
-            MLBTradeRumorsScreamsheet instance
         """
         return MLBTradeRumorsScreamsheet(
             output_filename=output_filename,
@@ -221,7 +209,8 @@ class ScreamsheetFactory:
             weather_lat=weather_lat,
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
-            date=date
+            date=date,
+            sources=sources,
         )
     
     @staticmethod
@@ -233,21 +222,10 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
+        sources: Optional[list] = None,
     ) -> MLBNewsScreamsheet:
         """
-        Create an MLB News screamsheet sourced from MLB.com team RSS feeds.
-
-        Args:
-            output_filename: Path to save the PDF.
-            favorite_teams:  Teams to feature first (default: Phillies, Padres, Yankees).
-            include_weather: Include weather report (default: True).
-            weather_lat: Latitude for weather location.
-            weather_lon: Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date:            Target date (defaults to today).
-
-        Returns:
-            MLBNewsScreamsheet instance
+        Create an MLB News screamsheet sourced from MLB.com and secondary RSS feeds.
         """
         return MLBNewsScreamsheet(
             output_filename=output_filename,
@@ -257,6 +235,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            sources=sources,
         )
 
     @staticmethod
@@ -268,21 +247,10 @@ class ScreamsheetFactory:
         weather_lon: float = -75.34,
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
+        sources: Optional[list] = None,
     ) -> NHLNewsScreamsheet:
         """
-        Create an NHL News screamsheet sourced from NHL.com team RSS feeds.
-
-        Args:
-            output_filename: Path to save the PDF.
-            favorite_teams: Teams to feature first.
-            include_weather: Include weather report (default: True).
-            weather_lat: Latitude for weather location.
-            weather_lon: Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date: Target date (defaults to today).
-
-        Returns:
-            NHLNewsScreamsheet instance
+        Create an NHL News screamsheet sourced from NHL.com and secondary RSS feeds.
         """
         return NHLNewsScreamsheet(
             output_filename=output_filename,
@@ -292,6 +260,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            sources=sources,
         )
 
     @staticmethod
@@ -334,24 +303,10 @@ class ScreamsheetFactory:
         weather_lon: float = -77.0364,
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
+        sources: Optional[list] = None,
     ) -> PresidentialScreamsheet:
         """
         Create a Presidential Screamsheet.
-
-        Fetches political news from 7 RSS feeds and the White House,
-        scores and deduplicates, and renders top stories to PDF.
-
-        Args:
-            output_filename: Path to save the PDF.
-            max_articles:    Number of top stories to include (default: 4).
-            include_weather: Include weather report at top (default: True).
-            weather_lat:     Latitude for weather location.
-            weather_lon:     Longitude for weather location.
-            weather_location_name: Display name for weather location.
-            date:            Target date (defaults to today).
-
-        Returns:
-            PresidentialScreamsheet instance
         """
         return PresidentialScreamsheet(
             output_filename=output_filename,
@@ -361,6 +316,7 @@ class ScreamsheetFactory:
             weather_lon=weather_lon,
             weather_location_name=weather_location_name,
             date=date,
+            sources=sources,
         )
 
     @staticmethod

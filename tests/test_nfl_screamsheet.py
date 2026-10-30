@@ -9,6 +9,37 @@ from screamsheet.sports.nfl import NFLScreamsheet
 from screamsheet.sports.nfl_router import NFLDayStrategy
 
 
+@pytest.fixture(autouse=True)
+def mock_llm_summaries():
+    """Prevent live LLM calls during NFL screamsheet tests."""
+    with patch("screamsheet.llm.summary.NewsSummarizer.generate_summary", return_value="Mock summary of the news article."), \
+         patch("screamsheet.llm.summary.NFLGameSummarizer.generate_summary", return_value="Mock summary of the game."):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_nfl_news_provider_for_screamsheet(request):
+    """Prevent live HTTP news calls during NFL screamsheet generation tests."""
+    if "test_nfl_news_provider" in request.node.name:
+        yield
+        return
+    mock_prov = MagicMock()
+    mock_prov.get_articles.return_value = [
+        {
+            "slot": "Section 1",
+            "entry": {
+                "title": "NFL Update",
+                "summary": "Sample summary text.",
+                "link": "https://espn.com/story/1",
+                "source": "ESPN"
+            }
+        }
+    ]
+    mock_prov.sanitize_articles.side_effect = lambda arts: arts
+    with patch("screamsheet.sports.nfl.NFLNewsProvider", return_value=mock_prov):
+        yield
+
+
 @pytest.fixture
 def mock_nfl_provider():
     provider = MagicMock()
@@ -175,6 +206,7 @@ def test_nfl_screamsheet_postseason_superbowl(tmp_path, mock_nfl_provider):
 
 
 def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
     pdf_path = str(tmp_path / "nfl_tuesday.pdf")
     tuesday_date = datetime(2024, 9, 10)  # Tuesday
     
@@ -186,8 +218,38 @@ def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
         )
         assert sheet.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES
         sections = sheet.build_sections()
-        assert len(sections) >= 2
+        assert len(sections) == 3
+        injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
+        assert "Pittsburgh Steelers Injury Report" in injury_sec.title
+        assert injury_sec.team_id == 23
         
+        sheet.generate()
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0
+
+
+def test_nfl_screamsheet_friday_keys_to_victory_with_injuries(tmp_path, mock_nfl_provider):
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+    pdf_path = str(tmp_path / "nfl_friday.pdf")
+    friday_date = datetime(2024, 9, 13)  # Friday (after TNF)
+
+    # Completed teams contains Thursday night participants
+    mock_nfl_provider.get_all_teams_for_date.return_value = [(10, "Bills"), (15, "Dolphins")]
+
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
+        sheet = NFLScreamsheet(
+            output_filename=pdf_path,
+            favorite_teams=[(21, "Philadelphia Eagles")],
+            date=friday_date,
+        )
+        assert sheet.strategy == NFLDayStrategy.KEYS_TO_VICTORY
+        sections = sheet.build_sections()
+        assert len(sections) == 3
+        injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
+        assert "Philadelphia Eagles Final Injury Designations" in injury_sec.title
+        assert injury_sec.team_id == 21
+        assert injury_sec.team_name == "Philadelphia Eagles"
+
         sheet.generate()
         assert os.path.exists(pdf_path)
         assert os.path.getsize(pdf_path) > 0
@@ -560,6 +622,61 @@ def test_nfl_data_provider_get_day_schedule():
         assert games[0]["time_et"] == "8:15pm ET"
         assert games[0]["broadcast"] == "ESPN, ABC"
         assert games[0]["schedule_line"] == "Denver Broncos @ Kansas City Chiefs: 8:15pm ET (ESPN, ABC)"
+
+
+def test_nfl_news_provider_multi_source_clustering():
+    from screamsheet.providers.nfl_news_provider import NFLNewsProvider
+
+    espn_payload = {
+        "articles": [
+            {
+                "headline": "Eagles sign star linebacker to contract extension",
+                "description": "Philadelphia Eagles locked up their defensive leader on a multi-year deal.",
+                "links": {"web": {"href": "https://www.espn.com/nfl/story/eagles-lb-extension"}},
+                "published": "2026-09-14T15:00:00Z",
+            }
+        ]
+    }
+    nfl_rss_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+    <rss version="2.0"><channel>
+      <item>
+        <title>Eagles sign star linebacker to contract extension in Philadelphia</title>
+        <link>https://www.nfl.com/news/eagles-lb-extension</link>
+        <description>The Philadelphia Eagles agreed to a contract extension with their star linebacker.</description>
+      </item>
+    </channel></rss>
+    """
+
+    def fake_get(url: str, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status.return_value = None
+        if "site.api.espn.com" in url:
+            resp.json.return_value = espn_payload
+            resp.text = ""
+        elif "nfl.com/rss" in url:
+            resp.text = nfl_rss_xml
+        else:
+            resp.text = ""
+        return resp
+
+    provider = NFLNewsProvider(
+        favorite_teams=["Philadelphia Eagles"],
+        max_articles=1,
+        sources=["espn_nfl", {"id": "nfl_com", "bonus": 25}],
+    )
+    with patch("requests.get", side_effect=fake_get):
+        articles = provider.get_articles()
+        sanitized = provider.sanitize_articles(articles)
+
+    assert len(sanitized) == 1
+    entry = sanitized[0]["entry"]
+    assert "ESPN" in entry["sources"]
+    assert "NFL.com" in entry["sources"]
+    assert "ESPN" in entry["source"]
+    assert "NFL.com" in entry["source"]
+    assert len(entry["reports"]) == 2
+
 
 
 

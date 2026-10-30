@@ -516,17 +516,26 @@ class NFLDataProvider(SportsDataProvider):
             print(f"Error generating NFL game summary for event {event_id}: {e}")
             return None
 
-    def get_injuries(self, team_id: int) -> list:
+    def get_injuries(self, team_id: int, team_name: Optional[str] = None) -> list:
         """
         Get injury report for a specific team.
         """
         from .parsers.nfl_parsers import extract_injuries
-        url = f"{self.base_url}/teams/{team_id}/injuries"
+        url = f"{self.base_url}/injuries"
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
-            return extract_injuries(data)
+            resolved_name = team_name or self._get_team_name_lookup().get(team_id)
+            if not resolved_name:
+                try:
+                    from ..db import sport_resolve_team
+                    res = sport_resolve_team("nfl", str(team_id))
+                    if res:
+                        resolved_name = res.get("full_name")
+                except Exception:
+                    pass
+            return extract_injuries(data, team_id=team_id, team_name=resolved_name)
         except requests.exceptions.RequestException as e:
             print(f"Error fetching injuries for team {team_id}: {e}")
             return []

@@ -236,7 +236,7 @@ class MLBFanRantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
 
 class MLBAllStarGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
-    Generates an expanded ~500-word recap for the MLB All-Star Game from an NL beat writer perspective.
+    Generates a ~200-300-word recap for the MLB All-Star Game from an NL beat writer perspective.
 
     Expected ``data`` keys
     ----------------------

@@ -98,4 +98,10 @@ class Section(ABC):
         """
         if self.data is None:
             self.fetch_data()
-        return self.data is not None and len(self.data) > 0 if isinstance(self.data, (list, dict)) else self.data is not None
+        if self.data is None:
+            return False
+        if hasattr(self.data, "empty"):
+            return not bool(self.data.empty)
+        if isinstance(self.data, (list, dict, set, tuple)):
+            return len(self.data) > 0
+        return True

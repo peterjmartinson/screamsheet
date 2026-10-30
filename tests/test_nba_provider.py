@@ -443,3 +443,160 @@ class TestNBAGameExtractor:
         assert info["home_score"] == 144
         assert info["away_score"] == 106
 
+
+# ---------------------------------------------------------------------------
+# NBA API Retries
+# ---------------------------------------------------------------------------
+
+class TestNBARetries:
+    """Test tenacity retry behaviors on transient failures for NBA API calls."""
+
+    def test_game_scores_retries_transient_error_and_succeeds(self):
+        df = _make_gamefinder_df(
+            game_id="0022500001",
+            home_team="Philadelphia 76ers",
+            away_team="Boston Celtics",
+            home_score=110,
+            away_score=105,
+            home_matchup="PHI vs. BOS",
+            away_matchup="BOS @ PHI",
+        )
+        mock_instance = MagicMock()
+        mock_instance.get_data_frames.return_value = [df]
+
+        call_count = 0
+
+        def flaky_finder(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ConnectionResetError("Connection dropped by remote server")
+            return mock_instance
+
+        with patch(
+            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder",
+            side_effect=flaky_finder,
+        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+            provider = NBADataProvider()
+            scores = provider.get_game_scores(datetime(2026, 5, 3))
+
+        assert call_count == 3
+        assert mock_sleep.call_count == 2
+        assert len(scores) == 1
+        assert scores[0]["home_team"] == "Philadelphia 76ers"
+
+    def test_game_scores_exhausts_retries_on_persistent_error(self):
+        with patch(
+            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder",
+            side_effect=ConnectionResetError("Stats NBA maintenance"),
+        ) as mock_finder, patch("tenacity.nap.time.sleep") as mock_sleep:
+            provider = NBADataProvider()
+            scores = provider.get_game_scores(datetime(2026, 5, 3))
+
+        assert mock_finder.call_count == 3
+        assert mock_sleep.call_count == 2
+        assert scores == []
+
+    def test_standings_retries_transient_error_and_succeeds(self):
+        standings_df = pd.DataFrame([
+            {
+                "Conference": "East",
+                "TeamCity": "Boston",
+                "TeamName": "Celtics",
+                "WINS": 64,
+                "LOSSES": 18,
+                "WinPCT": 0.780,
+                "ConferenceRecord": "41-11",
+                "DivisionRank": 1,
+            }
+        ])
+        mock_instance = MagicMock()
+        mock_instance.get_data_frames.return_value = [standings_df]
+
+        call_count = 0
+
+        def flaky_standings(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise TimeoutError("stats.nba.com timed out")
+            return mock_instance
+
+        with patch(
+            "screamsheet.providers.nba_provider.leaguestandings.LeagueStandings",
+            side_effect=flaky_standings,
+        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+            provider = NBADataProvider()
+            df = provider.get_standings()
+
+        assert call_count == 2
+        assert mock_sleep.call_count == 1
+        assert not df.empty
+        assert df.iloc[0]["team"] == "Boston Celtics"
+
+    def test_box_score_retries_transient_error_and_succeeds(self):
+        box_df = pd.DataFrame([
+            {
+                "TEAM_ID": 1610612755,
+                "PLAYER_NAME": "Joel Embiid",
+                "MIN": "35:00",
+                "PTS": 35,
+                "REB": 11,
+                "AST": 4,
+                "FGM": 12,
+                "FGA": 20,
+                "FG3M": 1,
+                "FG3A": 3,
+                "FTM": 10,
+                "FTA": 11,
+                "STL": 1,
+                "BLK": 2,
+            }
+        ])
+        mock_instance = MagicMock()
+        mock_instance.get_data_frames.return_value = [box_df]
+
+        call_count = 0
+
+        def flaky_box(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectionResetError("flaky")
+            return mock_instance
+
+        provider = NBADataProvider()
+        provider._game_id_cache[(1610612755, "2026-05-03")] = "0022500001"
+
+        with patch(
+            "screamsheet.providers.nba_provider.boxscoretraditionalv2.BoxScoreTraditionalV2",
+            side_effect=flaky_box,
+        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+            result = provider.get_box_score(1610612755, datetime(2026, 5, 3))
+
+        assert call_count == 2
+        assert mock_sleep.call_count == 1
+        assert result is not None
+        assert result["player_stats"][0]["name"] == "Joel Embiid"
+
+    def test_nba_screamsheet_suppressed_when_all_sections_empty(self, tmp_path):
+        from screamsheet.sports.nba import NBAScreamsheet
+        from screamsheet.base.errors import EmptyScreamsheetError
+
+        out_pdf = tmp_path / "nba_empty.pdf"
+        sheet = NBAScreamsheet(
+            output_filename=str(out_pdf),
+            favorite_teams=[(1610612755, "Philadelphia 76ers")],
+            date=datetime(2026, 5, 3),
+        )
+        with patch.object(sheet.provider, "get_game_scores", return_value=[]), \
+             patch.object(sheet.provider, "get_standings", return_value=pd.DataFrame()), \
+             patch.object(sheet.provider, "has_game", return_value=False), \
+             patch.object(sheet.provider, "get_all_teams_for_date", return_value=[]):
+            assert sheet.has_content() is False
+            with pytest.raises(EmptyScreamsheetError, match="has no content to display"):
+                sheet.generate()
+        assert not out_pdf.exists()
+
+
+

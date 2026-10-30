@@ -233,3 +233,38 @@ def test_run_order_generates_custom_component_screamsheets(tmp_path, mlb_standin
     assert "daily_standings_20261021.pdf" in res.sheets_generated
     assert res.options_summary["daily_standings"] == ["mlb_game_scores", "mlb_standings"]
     assert (tmp_path / "daily_standings_20261021.pdf").exists()
+
+
+def test_run_order_suppresses_empty_custom_sheet_and_records_error(tmp_path):
+    today = datetime(2026, 10, 21)
+    custom_opts = CustomSheetOrderOptions(
+        sheet_key="nba",
+        screamsheet_title="NBA Screamsheet",
+        components=[
+            ComponentSpec(type="mlb_game_scores", teams=["Philadelphia Phillies"]),
+            ComponentSpec(type="mlb_standings"),
+        ],
+    )
+    order = ScreamsheetOrder(
+        output=OutputOrderOptions(directory=str(tmp_path)),
+        custom_sheets=[custom_opts],
+    )
+
+    with patch.object(
+        MLBGameScoresComponent,
+        "fetch_data",
+        autospec=True,
+        side_effect=lambda self: setattr(self, "data", []),
+    ), patch.object(
+        MLBStandingsComponent,
+        "fetch_data",
+        autospec=True,
+        side_effect=lambda self: setattr(self, "data", pd.DataFrame()),
+    ):
+        res = run_order(order, today=today, subscriber_name="Peter Martinson")
+
+    assert res.sheets_generated == []
+    assert len(res.errors) == 1
+    assert "nba: Screamsheet 'NBA Screamsheet' has no content to display" in res.errors[0]
+    assert list(tmp_path.glob("*.pdf")) == []
+

@@ -11,6 +11,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
+from ..base.errors import EmptyScreamsheetError
 from ..base.screamsheet import BaseScreamsheet
 from ..base.section import Section
 from .base import ComponentLayoutSpec, ScreamsheetComponent
@@ -466,6 +467,12 @@ class CustomScreamsheet(BaseScreamsheet):
         flowables.extend(comp_elements)
         return flowables
 
+    def has_content(self) -> bool:
+        """Check if any components in this screamsheet have content."""
+        if not self.components:
+            return False
+        return any(comp.has_content() for comp in self.components)
+
     def generate(self) -> str:
         """Pack components into pages, render the multi-page PDF, and write Markdown."""
         logger.info("Building CustomScreamsheet '%s'", self.get_title())
@@ -473,6 +480,11 @@ class CustomScreamsheet(BaseScreamsheet):
         pages_of_components = (
             self.packed_pages if self.packed_pages else self.pack_components_into_pages()
         )
+
+        if not pages_of_components:
+            raise EmptyScreamsheetError(
+                f"Screamsheet '{self.get_title()}' has no content to display (all components were empty or unavailable)"
+            )
 
         rendered_pages: List[List[Any]] = []
 
@@ -486,15 +498,20 @@ class CustomScreamsheet(BaseScreamsheet):
         masthead.append(Paragraph(self.get_date_string(), self.subtitle_style))
         masthead.append(Spacer(1, 12))
 
-        if not pages_of_components:
-            rendered_pages.append(masthead)
-        else:
-            for page_idx, comp_list in enumerate(pages_of_components):
-                page_flowables: List[Any] = []
-                if page_idx == 0:
-                    page_flowables.extend(masthead)
-                page_flowables.extend(self._render_page_components(comp_list))
-                rendered_pages.append(page_flowables)
+        total_content_elements = 0
+        for page_idx, comp_list in enumerate(pages_of_components):
+            page_flowables: List[Any] = []
+            if page_idx == 0:
+                page_flowables.extend(masthead)
+            content_elements = self._render_page_components(comp_list)
+            total_content_elements += len(content_elements)
+            page_flowables.extend(content_elements)
+            rendered_pages.append(page_flowables)
+
+        if total_content_elements == 0:
+            raise EmptyScreamsheetError(
+                f"Screamsheet '{self.get_title()}' has no content to display (all components were empty or unavailable)"
+            )
 
         pdf_path = self._build_multi_page_pdf(rendered_pages)
 

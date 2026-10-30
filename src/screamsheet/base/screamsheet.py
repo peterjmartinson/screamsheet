@@ -15,6 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
 
+from .errors import EmptyScreamsheetError
 from .markdown_output import is_markdown_cached, resolve_markdown_path
 from .section import Section
 
@@ -30,7 +31,13 @@ class BaseScreamsheet(ABC):
     to define its specific sections and generate the PDF.
     """
     
-    def __init__(self, output_filename: str, date: Optional[datetime] = None, display_date: Optional[datetime] = None):
+    def __init__(
+        self,
+        output_filename: str,
+        date: Optional[datetime] = None,
+        display_date: Optional[datetime] = None,
+        suppress_empty: bool = False,
+    ):
         """
         Initialize the screamsheet.
         
@@ -38,10 +45,12 @@ class BaseScreamsheet(ABC):
             output_filename: Path to save the generated PDF
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
+            suppress_empty: Whether to suppress generation when all sections are empty
         """
         self.output_filename = output_filename
         self.date = date or (datetime.now() - timedelta(days=1))
         self.display_date: datetime = display_date if display_date is not None else self.date
+        self.suppress_empty = suppress_empty
         self.sections: List[Section] = []
         self.styles = getSampleStyleSheet()
         self.branding: str = self._load_branding()
@@ -229,6 +238,12 @@ class BaseScreamsheet(ABC):
         """Return the formatted date string (uses display_date for the subtitle)."""
         return self.display_date.strftime("%B %d, %Y")
     
+    def has_content(self) -> bool:
+        """Check if any sections in this screamsheet have content."""
+        if not self.sections:
+            self.sections = self.build_sections()
+        return any(section.has_content() for section in self.sections)
+
     def generate(self) -> str:
         """
         Generate the complete screamsheet PDF, distributing sections between
@@ -254,9 +269,13 @@ class BaseScreamsheet(ABC):
         front_content.append(Spacer(1, 12))
 
         # Render and distribute sections
+        total_content_elements = 0
         for section in self.sections:
             if section.has_content():
                 elements = section.render()
+                if not elements:
+                    continue
+                total_content_elements += len(elements)
                 if getattr(section, "page_slot", "front") == "back":
                     back_content.extend(elements)
                     back_content.append(Spacer(1, 20))
@@ -265,6 +284,11 @@ class BaseScreamsheet(ABC):
                     front_content.extend(elements)
                     front_content.append(Spacer(1, 20))
                     logger.info("Section '%s' → front page (%d flowables)", section.title, len(elements))
+
+        if self.suppress_empty and not self.has_content():
+            raise EmptyScreamsheetError(
+                f"Screamsheet '{self.get_title()}' has no content to display (all sections were empty or unavailable)"
+            )
 
         pdf_path = self._build_two_page_pdf(front_content, back_content)
 

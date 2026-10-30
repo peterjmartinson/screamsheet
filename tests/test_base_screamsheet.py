@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from screamsheet.base.errors import EmptyScreamsheetError
 from screamsheet.base.screamsheet import BaseScreamsheet
 from screamsheet.base.section import Section
 
@@ -128,3 +129,49 @@ class TestBrandingFooter:
         canvas_mock.drawCentredString.assert_called_once()
         drawn_text = canvas_mock.drawCentredString.call_args[0][2]
         assert drawn_text == "DISTRACTEDFORTUNE.COM"
+
+
+# ---------------------------------------------------------------------------
+# Content check & empty suppression
+# ---------------------------------------------------------------------------
+
+class _ContentSection(Section):
+    def fetch_data(self):
+        self.data = ["item1", "item2"]
+
+    def render(self):
+        from reportlab.platypus import Paragraph
+        from reportlab.lib.styles import getSampleStyleSheet
+        return [Paragraph("Hello World", getSampleStyleSheet()["Normal"])]
+
+
+class _ConcreteScreamsheetWithContent(BaseScreamsheet):
+    def build_sections(self):
+        return [_ContentSection("content")]
+
+    def get_title(self):
+        return "Content Screamsheet"
+
+
+class TestBaseScreamsheetContentSuppression:
+    def test_has_content_returns_false_when_all_sections_empty(self):
+        s = _ConcreteScreamsheet("output.pdf")
+        assert s.has_content() is False
+
+    def test_has_content_returns_true_when_section_has_data(self):
+        s = _ConcreteScreamsheetWithContent("output.pdf")
+        assert s.has_content() is True
+
+    def test_generate_raises_empty_screamsheet_error_when_no_content(self, tmp_path):
+        s = _ConcreteScreamsheet(str(tmp_path / "empty.pdf"), suppress_empty=True)
+        with pytest.raises(EmptyScreamsheetError, match="has no content to display"):
+            s.generate()
+        assert not (tmp_path / "empty.pdf").exists()
+
+    def test_generate_succeeds_when_content_present(self, tmp_path):
+        out_file = tmp_path / "valid.pdf"
+        s = _ConcreteScreamsheetWithContent(str(out_file))
+        res_path = s.generate()
+        assert out_file.exists()
+        assert res_path == str(out_file)
+

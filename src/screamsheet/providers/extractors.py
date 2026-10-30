@@ -302,9 +302,12 @@ class NBAGameExtractor:
 
         # ---- boxscore (required) ----
         try:
-            box_df = boxscoretraditionalv2.BoxScoreTraditionalV2(
-                game_id=game_id
-            ).get_data_frames()[0]
+            from .nba_provider import (
+                _call_box_score_traditional_v2,
+                _call_play_by_play_v3,
+                _call_play_by_play_v2,
+            )
+            box_df = _call_box_score_traditional_v2(game_id=game_id)[0]
         except Exception:
             logger.exception("BoxScoreTraditionalV2 failed for game_id=%s", game_id)
             return None
@@ -314,10 +317,9 @@ class NBAGameExtractor:
 
         # ---- play-by-play V3 (preferred — works for playoffs) ----
         try:
-            from nba_api.stats.endpoints import playbyplayv3
-            pbp_df = playbyplayv3.PlayByPlayV3(
+            pbp_df = _call_play_by_play_v3(
                 game_id=game_id, start_period=0, end_period=14
-            ).get_data_frames()[0]
+            )[0]
             logger.info("PlayByPlayV3: %d events for game_id=%s", len(pbp_df), game_id)
             return {"play_by_play": pbp_df, "boxscore": box_df, "pbp_version": 3}
         except Exception:
@@ -329,8 +331,7 @@ class NBAGameExtractor:
 
         # ---- play-by-play V2 (fallback — regular season only) ----
         try:
-            from nba_api.stats.endpoints import playbyplayv2
-            pbp_df = playbyplayv2.PlayByPlayV2(game_id=game_id).get_data_frames()[0]
+            pbp_df = _call_play_by_play_v2(game_id=game_id)[0]
             logger.info("PlayByPlayV2: %d events for game_id=%s", len(pbp_df), game_id)
             return {"play_by_play": pbp_df, "boxscore": box_df, "pbp_version": 2}
         except Exception:

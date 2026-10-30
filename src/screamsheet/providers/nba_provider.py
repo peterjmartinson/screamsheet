@@ -5,6 +5,14 @@ import pandas as pd
 from datetime import datetime
 from typing import Any, Optional, List, Dict, Tuple
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+
 from ..base import SportsDataProvider
 
 logger = logging.getLogger(__name__)
@@ -13,6 +21,54 @@ try:
     from nba_api.stats.endpoints import leaguegamefinder, leaguestandings, boxscoretraditionalv2
 except ImportError:
     logger.warning("nba_api package not installed — NBA provider will have limited functionality.")
+
+DEFAULT_REQUEST_TIMEOUT: int = 30
+DEFAULT_RETRY_ATTEMPTS: int = 3
+DEFAULT_RETRY_MIN_WAIT: float = 1.0
+DEFAULT_RETRY_MAX_WAIT: float = 10.0
+
+
+def _nba_api_retry():
+    """Build a standard tenacity retry decorator for NBA API calls."""
+    return retry(
+        stop=stop_after_attempt(DEFAULT_RETRY_ATTEMPTS),
+        wait=wait_exponential(multiplier=1.0, min=DEFAULT_RETRY_MIN_WAIT, max=DEFAULT_RETRY_MAX_WAIT),
+        retry=retry_if_exception_type(Exception),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+
+
+@_nba_api_retry()
+def _call_league_game_finder(timeout: int = DEFAULT_REQUEST_TIMEOUT, **kwargs: Any) -> List[pd.DataFrame]:
+    finder = leaguegamefinder.LeagueGameFinder(timeout=timeout, **kwargs)
+    return finder.get_data_frames()
+
+
+@_nba_api_retry()
+def _call_league_standings(timeout: int = DEFAULT_REQUEST_TIMEOUT, **kwargs: Any) -> List[pd.DataFrame]:
+    standings = leaguestandings.LeagueStandings(timeout=timeout, **kwargs)
+    return standings.get_data_frames()
+
+
+@_nba_api_retry()
+def _call_box_score_traditional_v2(timeout: int = DEFAULT_REQUEST_TIMEOUT, **kwargs: Any) -> List[pd.DataFrame]:
+    box = boxscoretraditionalv2.BoxScoreTraditionalV2(timeout=timeout, **kwargs)
+    return box.get_data_frames()
+
+
+@_nba_api_retry()
+def _call_play_by_play_v3(timeout: int = DEFAULT_REQUEST_TIMEOUT, **kwargs: Any) -> List[pd.DataFrame]:
+    from nba_api.stats.endpoints import playbyplayv3
+    pbp = playbyplayv3.PlayByPlayV3(timeout=timeout, **kwargs)
+    return pbp.get_data_frames()
+
+
+@_nba_api_retry()
+def _call_play_by_play_v2(timeout: int = DEFAULT_REQUEST_TIMEOUT, **kwargs: Any) -> List[pd.DataFrame]:
+    from nba_api.stats.endpoints import playbyplayv2
+    pbp = playbyplayv2.PlayByPlayV2(timeout=timeout, **kwargs)
+    return pbp.get_data_frames()
 
 
 class NBADataProvider(SportsDataProvider):
@@ -28,6 +84,7 @@ class NBADataProvider(SportsDataProvider):
 
     def __init__(self, **config: Any) -> None:
         super().__init__(**config)
+        self._request_timeout = int(config.get("request_timeout", DEFAULT_REQUEST_TIMEOUT))
         # Cache game_id lookups to avoid redundant API calls within one run.
         # Key: (team_id, date_str)  Value: game_id or None
         self._game_id_cache: Dict[tuple, Optional[str]] = {}
@@ -61,12 +118,13 @@ class NBADataProvider(SportsDataProvider):
 
         logger.info("Looking up game_id for team_id=%s on %s", team_id, date_str)
         try:
-            finder = leaguegamefinder.LeagueGameFinder(
+            dfs = _call_league_game_finder(
+                timeout=self._request_timeout,
                 team_id_nullable=team_id,
                 date_from_nullable=date_str,
                 date_to_nullable=date_str,
             )
-            df = finder.get_data_frames()[0]
+            df = dfs[0]
             if df.empty:
                 logger.warning("No game found for team_id=%s on %s", team_id, date_str)
                 self._game_id_cache[cache_key] = None
@@ -94,11 +152,12 @@ class NBADataProvider(SportsDataProvider):
         """
         date_str = date.strftime("%Y-%m-%d")
         try:
-            finder = leaguegamefinder.LeagueGameFinder(
+            dfs = _call_league_game_finder(
+                timeout=self._request_timeout,
                 date_from_nullable=date_str,
                 date_to_nullable=date_str,
             )
-            games_df = finder.get_data_frames()[0]
+            games_df = dfs[0]
 
             if games_df.empty:
                 return []
@@ -152,8 +211,8 @@ class NBADataProvider(SportsDataProvider):
             conf_record, division_rank — sorted by conference then win pct desc.
         """
         try:
-            standings = leaguestandings.LeagueStandings()
-            df = standings.get_data_frames()[0]
+            dfs = _call_league_standings(timeout=self._request_timeout)
+            df = dfs[0]
 
             if df.empty:
                 return pd.DataFrame()
@@ -203,11 +262,12 @@ class NBADataProvider(SportsDataProvider):
         """Return (team_id, team_name) for all completed games on date."""
         date_str = date.strftime("%Y-%m-%d")
         try:
-            finder = leaguegamefinder.LeagueGameFinder(
+            dfs = _call_league_game_finder(
+                timeout=self._request_timeout,
                 date_from_nullable=date_str,
                 date_to_nullable=date_str,
             )
-            df = finder.get_data_frames()[0]
+            df = dfs[0]
             if df.empty:
                 return []
             return [
@@ -231,8 +291,11 @@ class NBADataProvider(SportsDataProvider):
             return None
 
         try:
-            box = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id)
-            df = box.get_data_frames()[0]  # PlayerStats DataFrame
+            dfs = _call_box_score_traditional_v2(
+                timeout=self._request_timeout,
+                game_id=game_id,
+            )
+            df = dfs[0]  # PlayerStats DataFrame
 
             team_df = df[df["TEAM_ID"] == team_id].copy()
             if team_df.empty:

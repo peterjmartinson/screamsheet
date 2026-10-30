@@ -5,8 +5,10 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
+import pytest
 from reportlab.platypus import HRFlowable
 
+from screamsheet.base.errors import EmptyScreamsheetError
 from screamsheet.components import (
     CustomScreamsheet,
     MLBBoxScoreComponent,
@@ -316,3 +318,43 @@ def test_two_independent_horoscopes_and_horoscope_plus_news_flow_into_columns(tm
 
     sheet.generate()
     assert _count_pdf_pages(out_pdf) == 4
+
+
+def test_custom_screamsheet_has_content_and_empty_suppression(tmp_path):
+    """When all components are empty, CustomScreamsheet suppresses PDF and raises EmptyScreamsheetError."""
+    empty_provider = MagicMock()
+    empty_provider.get_game_scores.return_value = []
+    empty_provider.get_standings.return_value = pd.DataFrame()
+
+    scores = MLBGameScoresComponent(provider=empty_provider)
+    standings = MLBStandingsComponent(provider=empty_provider)
+
+    out_pdf = tmp_path / "empty_sheet.pdf"
+    sheet = CustomScreamsheet(
+        output_filename=str(out_pdf),
+        components=[scores, standings],
+        screamsheet_title="Empty Sports Screamsheet",
+        date=datetime(2026, 10, 21),
+    )
+
+    assert sheet.has_content() is False
+    with pytest.raises(EmptyScreamsheetError, match="has no content to display"):
+        sheet.generate()
+
+    assert not out_pdf.exists()
+
+
+def test_custom_screamsheet_raises_empty_error_when_no_components_configured(tmp_path):
+    out_pdf = tmp_path / "no_components.pdf"
+    sheet = CustomScreamsheet(
+        output_filename=str(out_pdf),
+        components=[],
+        screamsheet_title="Zero Components",
+        date=datetime(2026, 10, 21),
+    )
+    assert sheet.has_content() is False
+    with pytest.raises(EmptyScreamsheetError, match="has no content to display"):
+        sheet.generate()
+
+    assert not out_pdf.exists()
+

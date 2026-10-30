@@ -64,7 +64,7 @@ class SportsScreamsheet(BaseScreamsheet):
             mad_fan: If True, generate an enraged hometown-fan recap when the primary
                 favorite team loses. Defaults to False.
         """
-        super().__init__(output_filename, date, display_date)
+        super().__init__(output_filename, date, display_date, suppress_empty=True)
         self.sport_name = sport_name
         self.mad_fan = mad_fan
 

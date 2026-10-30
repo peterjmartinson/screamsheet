@@ -14,7 +14,7 @@ Extract as much substance as the narrative snippets allow to deliver a rich, det
 - Exceptional defensive plays or critical moments that defined the margin of victory.
 
 FORMAT:
-One or two well-structured paragraphs of plain text, expanded to roughly 450-500 words. No markdown, no bullet points, no bolding, no special formatting.
+One or two well-structured paragraphs of plain text, 200-300 words. No markdown, no bullet points, no bolding, no special formatting.
 
 Game details:
 Home Team: {home_team}

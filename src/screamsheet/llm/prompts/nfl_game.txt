@@ -19,7 +19,7 @@ FORMAT:
 1. Provide a sharp 2-paragraph narrative recap of the matchup.
 2. Add a section header on its own line: "3 Key Takeaways:"
 3. List each of the 3 takeaways as a separate paragraph with a blank line between them. Begin each takeaway with a bold lead-in phrase (e.g., <b>Ground Control:</b> Details...).
-4. Keep the entire response under 400 words total so it fits the printed page. Do not output markdown asterisks (**) or bullet dots.
+4. Keep the entire response between 200-300 words total so it fits the printed page. Do not output markdown asterisks (**) or bullet dots.
 
 
 Game Data:

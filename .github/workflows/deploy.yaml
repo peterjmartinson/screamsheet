@@ -43,7 +43,7 @@ jobs:
           uv sync --frozen
 
           # 4. Generate minimal config for branding
-          echo 'branding: "DISTRACTEDFORTUNE.COM"' > "$RELEASE_DIR/config.yaml"
+          echo 'branding: "DISTRACTEDFORTUNE.COM/SCREAMSHEET"' > "$RELEASE_DIR/config.yaml"
 
           # 5. Set Permissions
           chmod +x "$RELEASE_DIR/screamsheet.sh"

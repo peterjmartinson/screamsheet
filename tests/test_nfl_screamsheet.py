@@ -9,6 +9,37 @@ from screamsheet.sports.nfl import NFLScreamsheet
 from screamsheet.sports.nfl_router import NFLDayStrategy
 
 
+@pytest.fixture(autouse=True)
+def mock_llm_summaries():
+    """Prevent live LLM calls during NFL screamsheet tests."""
+    with patch("screamsheet.llm.summary.NewsSummarizer.generate_summary", return_value="Mock summary of the news article."), \
+         patch("screamsheet.llm.summary.NFLGameSummarizer.generate_summary", return_value="Mock summary of the game."):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_nfl_news_provider_for_screamsheet(request):
+    """Prevent live HTTP news calls during NFL screamsheet generation tests."""
+    if "test_nfl_news_provider" in request.node.name:
+        yield
+        return
+    mock_prov = MagicMock()
+    mock_prov.get_articles.return_value = [
+        {
+            "slot": "Section 1",
+            "entry": {
+                "title": "NFL Update",
+                "summary": "Sample summary text.",
+                "link": "https://espn.com/story/1",
+                "source": "ESPN"
+            }
+        }
+    ]
+    mock_prov.sanitize_articles.side_effect = lambda arts: arts
+    with patch("screamsheet.sports.nfl.NFLNewsProvider", return_value=mock_prov):
+        yield
+
+
 @pytest.fixture
 def mock_nfl_provider():
     provider = MagicMock()
@@ -175,6 +206,7 @@ def test_nfl_screamsheet_postseason_superbowl(tmp_path, mock_nfl_provider):
 
 
 def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
     pdf_path = str(tmp_path / "nfl_tuesday.pdf")
     tuesday_date = datetime(2024, 9, 10)  # Tuesday
     
@@ -186,8 +218,38 @@ def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
         )
         assert sheet.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES
         sections = sheet.build_sections()
-        assert len(sections) >= 2
+        assert len(sections) == 3
+        injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
+        assert "Pittsburgh Steelers Injury Report" in injury_sec.title
+        assert injury_sec.team_id == 23
         
+        sheet.generate()
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0
+
+
+def test_nfl_screamsheet_friday_keys_to_victory_with_injuries(tmp_path, mock_nfl_provider):
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+    pdf_path = str(tmp_path / "nfl_friday.pdf")
+    friday_date = datetime(2024, 9, 13)  # Friday (after TNF)
+
+    # Completed teams contains Thursday night participants
+    mock_nfl_provider.get_all_teams_for_date.return_value = [(10, "Bills"), (15, "Dolphins")]
+
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
+        sheet = NFLScreamsheet(
+            output_filename=pdf_path,
+            favorite_teams=[(21, "Philadelphia Eagles")],
+            date=friday_date,
+        )
+        assert sheet.strategy == NFLDayStrategy.KEYS_TO_VICTORY
+        sections = sheet.build_sections()
+        assert len(sections) == 3
+        injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
+        assert "Philadelphia Eagles Final Injury Designations" in injury_sec.title
+        assert injury_sec.team_id == 21
+        assert injury_sec.team_name == "Philadelphia Eagles"
+
         sheet.generate()
         assert os.path.exists(pdf_path)
         assert os.path.getsize(pdf_path) > 0

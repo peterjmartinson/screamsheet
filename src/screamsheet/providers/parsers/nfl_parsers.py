@@ -379,10 +379,19 @@ def extract_standings(raw_json: Dict[str, Any], division_name: Optional[str] = N
     return standings
 
 
-def extract_injuries(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
+def extract_injuries(
+    raw_json: Dict[str, Any],
+    team_id: Optional[int] = None,
+    team_name: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """
-    Extract injury reports for a team from ESPN team injuries endpoint.
+    Extract injury reports for a team from ESPN injuries endpoint or team-level payload.
     
+    Args:
+        raw_json: ESPN injuries payload (either league-wide with team objects, or single-team items).
+        team_id: Optional team ID to filter by.
+        team_name: Optional team name/fragment to filter by.
+
     Returns:
         List of dicts: [
             {
@@ -401,16 +410,104 @@ def extract_injuries(raw_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     items = raw_json.get("injuries", [])
     if not isinstance(items, list):
         items = raw_json.get("items", [])
+    if not isinstance(items, list):
+        return []
 
-    for item in items:
+    # Check if items contains team containers (e.g. ESPN league-wide /injuries endpoint)
+    # A team container has 'displayName' or 'id' without 'athlete', and contains a nested 'injuries' list.
+    is_team_containers = (
+        len(items) > 0
+        and isinstance(items[0], dict)
+        and ("injuries" in items[0] or ("displayName" in items[0] and "athlete" not in items[0]))
+    )
+
+    player_items: List[Dict[str, Any]] = []
+    if is_team_containers:
+        target_name_clean = team_name.strip().lower() if team_name else ""
+        target_id_str = str(team_id).strip() if team_id is not None else ""
+
+        matched_team_injuries: Optional[List[Dict[str, Any]]] = None
+
+        # Pass 1: Try match on team_name (prioritized so mismatched team_id from config still finds the team)
+        if target_name_clean:
+            for team_entry in items:
+                if not isinstance(team_entry, dict):
+                    continue
+                display_name = str(team_entry.get("displayName", "")).strip().lower()
+                name = str(team_entry.get("name", "")).strip().lower()
+                if (
+                    target_name_clean == display_name
+                    or target_name_clean in display_name
+                    or display_name in target_name_clean
+                    or target_name_clean == name
+                    or target_name_clean in name
+                ):
+                    matched_team_injuries = team_entry.get("injuries", [])
+                    break
+
+        # Pass 2: Try match on team_id if not matched yet
+        if matched_team_injuries is None and target_id_str:
+            for team_entry in items:
+                if not isinstance(team_entry, dict):
+                    continue
+                entry_id = str(team_entry.get("id", "")).strip()
+                if entry_id == target_id_str:
+                    matched_team_injuries = team_entry.get("injuries", [])
+                    break
+
+        if matched_team_injuries is not None:
+            player_items = matched_team_injuries
+        elif not target_id_str and not target_name_clean:
+            # If neither team_id nor team_name specified, flatten all teams' injuries
+            player_items = []
+            for team_entry in items:
+                if isinstance(team_entry, dict) and isinstance(team_entry.get("injuries"), list):
+                    player_items.extend(team_entry["injuries"])
+    else:
+        player_items = items
+
+    for item in player_items:
         if not isinstance(item, dict):
             continue
         athlete = item.get("athlete", {})
+        if not isinstance(athlete, dict):
+            athlete = {}
         athlete_name = athlete.get("displayName", athlete.get("name", "Unknown Player"))
-        position = athlete.get("position", {}).get("abbreviation", athlete.get("position", {}).get("name", ""))
-        status = item.get("status", item.get("type", {}).get("description", ""))
+        pos_obj = athlete.get("position", {})
+        if isinstance(pos_obj, dict):
+            position = pos_obj.get("abbreviation", pos_obj.get("name", ""))
+        else:
+            position = str(pos_obj) if pos_obj else ""
+
+        status_obj = item.get("status", item.get("type", {}))
+        if isinstance(status_obj, dict):
+            status = status_obj.get("description", status_obj.get("name", ""))
+        else:
+            status = str(status_obj) if status_obj else ""
+
         injury_date = item.get("date", "")
-        description = item.get("details", {}).get("detail", item.get("shortComment", item.get("description", "")))
+
+        # Detail extraction: avoid literal "Not Specified"
+        details = item.get("details", {})
+        if not isinstance(details, dict):
+            details = {}
+        inj_type = details.get("type")
+        inj_detail = details.get("detail")
+        if inj_detail and str(inj_detail).strip().lower() == "not specified":
+            inj_detail = None
+
+        if inj_type and inj_detail:
+            description = f"{inj_type} - {inj_detail}"
+        elif inj_type:
+            description = str(inj_type)
+        elif inj_detail:
+            description = str(inj_detail)
+        else:
+            raw_desc = item.get("shortComment") or item.get("description") or ""
+            if str(raw_desc).strip().lower() in ("questionable", "out", "doubtful", "probable", "active"):
+                description = ""
+            else:
+                description = str(raw_desc).strip()
 
         injuries.append({
             "athlete": athlete_name,

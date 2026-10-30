@@ -53,7 +53,7 @@ nba:
 nfl:
   mad_fan: false
   favorite_teams:
-    - id: 4
+    - id: 21
       name: "Philadelphia Eagles"
 
 # Weather locations for each screamsheet type.

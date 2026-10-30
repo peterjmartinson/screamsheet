@@ -110,14 +110,19 @@ class NFLScreamsheet(SportsScreamsheet):
             sec.page_slot = "back"
             return sec
         
-        completed_teams = self.provider.get_all_teams_for_date(self.date)
-        has_games_played = len(completed_teams) > 0
+        fav_team = self.favorite_teams[0] if self.favorite_teams else None
+        fav_id = fav_team[0] if fav_team else 0
+        fav_name = fav_team[1] if fav_team else ""
 
         featured = self._resolve_featured_team()
-        featured_id = featured[0] if featured else (self.favorite_teams[0][0] if self.favorite_teams else 0)
-        featured_name = featured[1] if featured else (self.favorite_teams[0][1] if self.favorite_teams else "NFL")
+        featured_id = featured[0] if featured else fav_id
+        featured_name = featured[1] if featured else (fav_name or "NFL")
 
-        if has_games_played or self.strategy == NFLDayStrategy.RECAP:
+        # Prioritize primary favorite team for injury sections; fall back to featured/first available
+        injury_team_id = fav_id or featured_id
+        injury_team_name = fav_name or featured_name
+
+        if self.strategy == NFLDayStrategy.RECAP:
             sections.append(NFLGameScoresComponent(
                 title="NFL Game Scores",
                 provider=self.provider,
@@ -142,38 +147,68 @@ class NFLScreamsheet(SportsScreamsheet):
 
         elif self.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES:
             sections.append(self.create_standings_component("NFL Standings & Division Check"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Injury Report", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Injury Report",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("NFL News & Injury Analysis"))
 
         elif self.strategy == NFLDayStrategy.FILM_ROOM:
             sections.append(self.create_standings_component("NFL Standings & Power Metrics"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Practice & Roster Notes", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Practice & Roster Notes",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("NFL Film Room & League Intel"))
 
         elif self.strategy == NFLDayStrategy.TNF_SCOUTING:
             sections.append(self.create_standings_component("NFL Standings"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Injury & Depth Report", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Injury & Depth Report",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("Thursday Night Football Scouting & News"))
 
         elif self.strategy == NFLDayStrategy.KEYS_TO_VICTORY:
             sections.append(self.create_standings_component("NFL Standings & Playoff Picture"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Final Injury Designations", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Final Injury Designations",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("Weekend Keys to Victory & News"))
 
         elif self.strategy == NFLDayStrategy.WEEKEND_PREP:
             sections.append(self.create_standings_component("NFL Standings"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Gameday Status Report", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Gameday Status Report",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("Weekend Matchup Previews & Headlines"))
 
         else:
             sections.append(self.create_standings_component("NFL Standings"))
-            if featured_id:
-                sections.append(NFLInjuriesComponent(title=f"{featured_name} Inactives & Lineup Notes", provider=self.provider, team_id=featured_id))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Inactives & Lineup Notes",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
             sections.append(create_news_section("Sunday Gameday News & Roster Updates"))
 
         return sections

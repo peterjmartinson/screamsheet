@@ -1,39 +1,147 @@
-"""Unit tests for NBADataProvider."""
+"""Unit tests for NBADataProvider using ESPN API."""
 import pandas as pd
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from screamsheet.providers.nba_provider import NBADataProvider
+from screamsheet.providers.nba_provider import NBADataProvider, NBA_TO_ESPN_ID
 
 
 # ---------------------------------------------------------------------------
-# Helpers: fake DataFrames that mimic nba_api outputs
+# Helpers: fake ESPN JSON fixtures
 # ---------------------------------------------------------------------------
 
-def _make_gamefinder_df(game_id: str, home_team: str, away_team: str,
-                        home_score: int, away_score: int,
-                        home_matchup: str, away_matchup: str) -> pd.DataFrame:
-    """Two-row DataFrame as returned by LeagueGameFinder (one row per team)."""
-    return pd.DataFrame([
-        {
-            "GAME_ID": game_id,
-            "TEAM_ID": 1610612755,
-            "TEAM_NAME": home_team,
-            "MATCHUP": home_matchup,   # e.g. "PHI vs. BOS" — home team
-            "PTS": home_score,
-            "GAME_DATE": "2026-05-03",
+def _make_espn_scoreboard(
+    game_id: str = "0022500001",
+    home_team: str = "Philadelphia 76ers",
+    home_id: str = "20",
+    home_score: str = "110",
+    away_team: str = "Boston Celtics",
+    away_id: str = "2",
+    away_score: str = "105",
+) -> dict:
+    """Fixture mimicking ESPN scoreboard endpoint response."""
+    return {
+        "events": [
+            {
+                "id": game_id,
+                "competitions": [
+                    {
+                        "status": {"type": {"description": "Final"}},
+                        "competitors": [
+                            {
+                                "id": home_id,
+                                "homeAway": "home",
+                                "score": home_score,
+                                "team": {"id": home_id, "displayName": home_team},
+                            },
+                            {
+                                "id": away_id,
+                                "homeAway": "away",
+                                "score": away_score,
+                                "team": {"id": away_id, "displayName": away_team},
+                            },
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+
+def _make_espn_standings() -> dict:
+    """Fixture mimicking ESPN standings endpoint response."""
+    return {
+        "children": [
+            {
+                "name": "Eastern Conference",
+                "standings": {
+                    "entries": [
+                        {
+                            "team": {"displayName": "Boston Celtics"},
+                            "stats": [
+                                {"name": "wins", "value": 64},
+                                {"name": "losses", "value": 18},
+                                {"name": "winPercent", "value": 0.780},
+                                {"name": "vs. Conf.", "displayValue": "41-11"},
+                                {"name": "divisionWinPercent", "rank": 1},
+                            ],
+                        }
+                    ]
+                },
+            }
+        ]
+    }
+
+
+def _make_espn_summary(
+    game_id: str = "0022500001",
+    home_id: str = "20",
+    home_team: str = "Philadelphia 76ers",
+    away_id: str = "2",
+    away_team: str = "Boston Celtics",
+) -> dict:
+    """Fixture mimicking ESPN summary endpoint response."""
+    return {
+        "header": {
+            "competitions": [
+                {
+                    "competitors": [
+                        {
+                            "id": home_id,
+                            "homeAway": "home",
+                            "score": "110",
+                            "team": {"id": home_id, "displayName": home_team},
+                        },
+                        {
+                            "id": away_id,
+                            "homeAway": "away",
+                            "score": "105",
+                            "team": {"id": away_id, "displayName": away_team},
+                        },
+                    ]
+                }
+            ]
         },
-        {
-            "GAME_ID": game_id,
-            "TEAM_ID": 1610612738,
-            "TEAM_NAME": away_team,
-            "MATCHUP": away_matchup,   # e.g. "BOS @ PHI" — away team
-            "PTS": away_score,
-            "GAME_DATE": "2026-05-03",
+        "boxscore": {
+            "players": [
+                {
+                    "team": {"id": home_id, "displayName": home_team},
+                    "statistics": [
+                        {
+                            "names": ["MIN", "PTS", "FG", "3PT", "FT", "REB", "AST", "STL", "BLK"],
+                            "athletes": [
+                                {
+                                    "athlete": {"displayName": "Joel Embiid"},
+                                    "didNotPlay": False,
+                                    "stats": ["32:41", "27", "9-18", "1-3", "8-9", "10", "3", "1", "2"],
+                                },
+                                {
+                                    "athlete": {"displayName": "Tyrese Maxey"},
+                                    "didNotPlay": False,
+                                    "stats": ["35:12", "21", "7-14", "3-6", "4-4", "4", "6", "2", "0"],
+                                },
+                                {
+                                    "athlete": {"displayName": "Paul George"},
+                                    "didNotPlay": True,
+                                    "stats": ["-", "-", "-", "-", "-", "-", "-", "-", "-"],
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ]
         },
-    ])
+        "plays": [
+            {
+                "period": {"number": 1},
+                "clock": {"displayValue": "11:30"},
+                "scoringPlay": True,
+                "text": "Tyrese Maxey makes 24-foot three point jumper",
+            }
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -41,24 +149,18 @@ def _make_gamefinder_df(game_id: str, home_team: str, away_team: str,
 # ---------------------------------------------------------------------------
 
 class TestGetGameScoresHomeAway:
-    """Ensure MATCHUP column drives home/away assignment."""
+    """Ensure home/away assignment correctly parses from ESPN scoreboard."""
 
-    def test_home_team_uses_vs_matchup(self):
-        """Team whose MATCHUP contains 'vs.' is the home team."""
-        df = _make_gamefinder_df(
+    def test_home_and_away_teams_detected(self):
+        data = _make_espn_scoreboard(
             game_id="0022500001",
             home_team="Philadelphia 76ers",
             away_team="Boston Celtics",
-            home_score=110,
-            away_score=105,
-            home_matchup="PHI vs. BOS",
-            away_matchup="BOS @ PHI",
+            home_score="110",
+            away_score="105",
         )
 
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [df]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
             scores = provider.get_game_scores(datetime(2026, 5, 3))
 
@@ -69,34 +171,27 @@ class TestGetGameScoresHomeAway:
         assert game["home_score"] == 110
         assert game["away_score"] == 105
 
-    def test_away_team_uses_at_matchup(self):
-        """Team whose MATCHUP contains '@' is the away team."""
-        df = _make_gamefinder_df(
+    def test_second_game_scores(self):
+        data = _make_espn_scoreboard(
             game_id="0022500002",
             home_team="New York Knicks",
             away_team="Milwaukee Bucks",
-            home_score=98,
-            away_score=101,
-            home_matchup="NYK vs. MIL",
-            away_matchup="MIL @ NYK",
+            home_score="98",
+            away_score="101",
         )
 
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [df]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
             scores = provider.get_game_scores(datetime(2026, 5, 3))
 
         assert len(scores) == 1
         assert scores[0]["home_team"] == "New York Knicks"
         assert scores[0]["away_team"] == "Milwaukee Bucks"
+        assert scores[0]["home_score"] == 98
+        assert scores[0]["away_score"] == 101
 
     def test_empty_result_returns_empty_list(self):
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value={"events": []}):
             provider = NBADataProvider()
             scores = provider.get_game_scores(datetime(2026, 5, 3))
         assert scores == []
@@ -108,26 +203,15 @@ class TestGetGameScoresHomeAway:
 
 class TestHasGame:
     def test_returns_true_when_team_played(self):
-        df = pd.DataFrame([{
-            "GAME_ID": "0022500001",
-            "TEAM_ID": 1610612755,
-            "TEAM_NAME": "Philadelphia 76ers",
-            "MATCHUP": "PHI vs. BOS",
-            "PTS": 110,
-            "GAME_DATE": "2026-05-03",
-        }])
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [df]
+        data = _make_espn_scoreboard(home_id="20")
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
+            # Test with NBA legacy ID (1610612755) and ESPN ID (20)
             assert provider.has_game(1610612755, datetime(2026, 5, 3)) is True
+            assert provider.has_game(20, datetime(2026, 5, 3)) is True
 
     def test_returns_false_when_team_did_not_play(self):
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value={"events": []}):
             provider = NBADataProvider()
             assert provider.has_game(1610612755, datetime(2026, 5, 3)) is False
 
@@ -138,27 +222,14 @@ class TestHasGame:
 
 class TestGetGameId:
     def test_returns_game_id_when_found(self):
-        df = pd.DataFrame([{
-            "GAME_ID": "0022500001",
-            "TEAM_ID": 1610612755,
-            "TEAM_NAME": "Philadelphia 76ers",
-            "MATCHUP": "PHI vs. BOS",
-            "PTS": 110,
-            "GAME_DATE": "2026-05-03",
-        }])
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [df]
+        data = _make_espn_scoreboard(game_id="0022500001", home_id="20")
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
             game_id = provider._get_game_id(1610612755, datetime(2026, 5, 3))
         assert game_id == "0022500001"
 
     def test_returns_none_when_no_game(self):
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value={"events": []}):
             provider = NBADataProvider()
             game_id = provider._get_game_id(1610612755, datetime(2026, 5, 3))
         assert game_id is None
@@ -168,51 +239,15 @@ class TestGetGameId:
 # get_box_score
 # ---------------------------------------------------------------------------
 
-def _make_boxscore_df(team_id: int) -> pd.DataFrame:
-    return pd.DataFrame([
-        {
-            "TEAM_ID": team_id,
-            "PLAYER_NAME": "Joel Embiid",
-            "MIN": "32:41",
-            "FGM": 9, "FGA": 18,
-            "FG3M": 1, "FG3A": 3,
-            "FTM": 8, "FTA": 9,
-            "REB": 10, "AST": 3, "STL": 1, "BLK": 2, "PTS": 27,
-        },
-        {
-            "TEAM_ID": team_id,
-            "PLAYER_NAME": "Tyrese Maxey",
-            "MIN": "35:12",
-            "FGM": 7, "FGA": 14,
-            "FG3M": 3, "FG3A": 6,
-            "FTM": 4, "FTA": 4,
-            "REB": 4, "AST": 6, "STL": 2, "BLK": 0, "PTS": 21,
-        },
-    ])
-
-
 class TestGetBoxScore:
     def test_returns_player_stats_dict(self):
-        team_id = 1610612755
-        finder_df = pd.DataFrame([{
-            "GAME_ID": "0022500001",
-            "TEAM_ID": team_id,
-            "TEAM_NAME": "Philadelphia 76ers",
-            "MATCHUP": "PHI vs. BOS",
-            "PTS": 110,
-            "GAME_DATE": "2026-05-03",
-        }])
-        box_df = _make_boxscore_df(team_id)
+        team_id = 1610612755  # 76ers -> ESPN ID 20
+        summary_data = _make_espn_summary(home_id="20")
 
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder, patch(
-            "screamsheet.providers.nba_provider.boxscoretraditionalv2.BoxScoreTraditionalV2"
-        ) as mock_box:
-            mock_finder.return_value.get_data_frames.return_value = [finder_df]
-            mock_box.return_value.get_data_frames.return_value = [box_df]
+        provider = NBADataProvider()
+        provider._game_id_cache[(team_id, "2026-05-03")] = "0022500001"
 
-            provider = NBADataProvider()
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=summary_data):
             result = provider.get_box_score(team_id, datetime(2026, 5, 3))
 
         assert result is not None
@@ -222,67 +257,29 @@ class TestGetBoxScore:
         assert first["name"] == "Joel Embiid"
         assert first["PTS"] == 27
         assert first["REB"] == 10
-        assert "FG" in first   # e.g. "9-18"
+        assert first["FG"] == "9-18"
 
     def test_returns_none_when_no_game(self):
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value={"events": []}):
             provider = NBADataProvider()
             result = provider.get_box_score(1610612755, datetime(2026, 5, 3))
         assert result is None
 
     def test_dnp_players_with_nan_stats_are_excluded(self):
-        """Players marked DNP have NaN stat values and must not crash get_box_score."""
-        import math
+        """Players marked DNP must not crash get_box_score and must be excluded."""
         team_id = 1610612755
-        finder_df = pd.DataFrame([{
-            "GAME_ID": "0022500001",
-            "TEAM_ID": team_id,
-            "TEAM_NAME": "Philadelphia 76ers",
-            "MATCHUP": "PHI vs. BOS",
-            "PTS": 110,
-            "GAME_DATE": "2026-05-03",
-        }])
-        box_df = pd.DataFrame([
-            {
-                "TEAM_ID": team_id,
-                "PLAYER_NAME": "Joel Embiid",
-                "MIN": "32:41",
-                "FGM": 9, "FGA": 18,
-                "FG3M": 1, "FG3A": 3,
-                "FTM": 8, "FTA": 9,
-                "REB": 10, "AST": 3, "STL": 1, "BLK": 2, "PTS": 27,
-            },
-            {
-                "TEAM_ID": team_id,
-                "PLAYER_NAME": "Paul George",  # DNP
-                "MIN": float("nan"),
-                "FGM": float("nan"), "FGA": float("nan"),
-                "FG3M": float("nan"), "FG3A": float("nan"),
-                "FTM": float("nan"), "FTA": float("nan"),
-                "REB": float("nan"), "AST": float("nan"),
-                "STL": float("nan"), "BLK": float("nan"),
-                "PTS": float("nan"),
-            },
-        ])
+        summary_data = _make_espn_summary(home_id="20")
 
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder, patch(
-            "screamsheet.providers.nba_provider.boxscoretraditionalv2.BoxScoreTraditionalV2"
-        ) as mock_box:
-            mock_finder.return_value.get_data_frames.return_value = [finder_df]
-            mock_box.return_value.get_data_frames.return_value = [box_df]
+        provider = NBADataProvider()
+        provider._game_id_cache[(team_id, "2026-05-03")] = "0022500001"
 
-            provider = NBADataProvider()
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=summary_data):
             result = provider.get_box_score(team_id, datetime(2026, 5, 3))
 
         assert result is not None
         names = [p["name"] for p in result["player_stats"]]
         assert "Joel Embiid" in names
-        assert "Paul George" not in names, "DNP player with NaN MIN must be excluded"
+        assert "Paul George" not in names, "DNP player must be excluded"
 
 
 # ---------------------------------------------------------------------------
@@ -291,19 +288,14 @@ class TestGetBoxScore:
 
 class TestNBAGetAllTeamsForDate:
     def test_returns_both_teams_from_completed_game(self):
-        df = _make_gamefinder_df(
+        data = _make_espn_scoreboard(
             game_id="0022500001",
             home_team="Philadelphia 76ers",
+            home_id="20",
             away_team="Boston Celtics",
-            home_score=110,
-            away_score=105,
-            home_matchup="PHI vs. BOS",
-            away_matchup="BOS @ PHI",
+            away_id="2",
         )
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [df]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
             result = provider.get_all_teams_for_date(datetime(2026, 5, 3))
 
@@ -311,10 +303,7 @@ class TestNBAGetAllTeamsForDate:
         assert (1610612738, "Boston Celtics") in result
 
     def test_returns_empty_when_no_games(self):
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder"
-        ) as mock_finder:
-            mock_finder.return_value.get_data_frames.return_value = [pd.DataFrame()]
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value={"events": []}):
             provider = NBADataProvider()
             result = provider.get_all_teams_for_date(datetime(2026, 5, 3))
         assert result == []
@@ -365,13 +354,27 @@ class TestNBAGetGameSummary:
 
 
 # ---------------------------------------------------------------------------
-# NBAGameExtractor — V3 location teamId=0 filtering & full team name resolution
+# NBAGameExtractor
 # ---------------------------------------------------------------------------
 
 class TestNBAGameExtractor:
+    def test_espn_extracts_correct_info(self):
+        from screamsheet.providers.extractors import NBAGameExtractor
+        summary = _make_espn_summary(home_id="20", away_id="2")
+        extractor = NBAGameExtractor()
+        info = extractor.extract_key_info(summary, featured_team_id=1610612755)
+
+        assert isinstance(info, dict)
+        assert info["home_team"] == "Philadelphia 76ers"
+        assert info["away_team"] == "Boston Celtics"
+        assert info["home_score"] == 110
+        assert info["away_score"] == 105
+        assert info["featured_team_is_home"] is True
+        assert info["losing_team"] == "Boston Celtics"
+        assert "Tyrese Maxey" in info["narrative_snippets"]
+
     def test_v3_ignores_zero_team_id_and_resolves_full_team_names(self):
-        """PlayByPlayV3 rows with teamId=0 must not override home/away team IDs,
-        and BoxScoreTraditionalV2 rows without TEAM_NAME must resolve full names."""
+        """Legacy DataFrame format support."""
         from screamsheet.providers.extractors import NBAGameExtractor
 
         box_df = pd.DataFrame([
@@ -452,31 +455,20 @@ class TestNBARetries:
     """Test tenacity retry behaviors on transient failures for NBA API calls."""
 
     def test_game_scores_retries_transient_error_and_succeeds(self):
-        df = _make_gamefinder_df(
-            game_id="0022500001",
-            home_team="Philadelphia 76ers",
-            away_team="Boston Celtics",
-            home_score=110,
-            away_score=105,
-            home_matchup="PHI vs. BOS",
-            away_matchup="BOS @ PHI",
-        )
-        mock_instance = MagicMock()
-        mock_instance.get_data_frames.return_value = [df]
-
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _make_espn_scoreboard()
+        mock_resp.raise_for_status.return_value = None
         call_count = 0
 
-        def flaky_finder(**kwargs):
+        def flaky_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count < 3:
                 raise ConnectionResetError("Connection dropped by remote server")
-            return mock_instance
+            return mock_resp
 
-        with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder",
-            side_effect=flaky_finder,
-        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+        with patch("requests.get", side_effect=flaky_get), \
+             patch("tenacity.nap.time.sleep") as mock_sleep:
             provider = NBADataProvider()
             scores = provider.get_game_scores(datetime(2026, 5, 3))
 
@@ -487,95 +479,33 @@ class TestNBARetries:
 
     def test_game_scores_exhausts_retries_on_persistent_error(self):
         with patch(
-            "screamsheet.providers.nba_provider.leaguegamefinder.LeagueGameFinder",
-            side_effect=ConnectionResetError("Stats NBA maintenance"),
-        ) as mock_finder, patch("tenacity.nap.time.sleep") as mock_sleep:
+            "screamsheet.providers.nba_provider._call_espn_endpoint",
+            side_effect=ConnectionResetError("ESPN API maintenance"),
+        ):
             provider = NBADataProvider()
             scores = provider.get_game_scores(datetime(2026, 5, 3))
 
-        assert mock_finder.call_count == 3
-        assert mock_sleep.call_count == 2
         assert scores == []
 
     def test_standings_retries_transient_error_and_succeeds(self):
-        standings_df = pd.DataFrame([
-            {
-                "Conference": "East",
-                "TeamCity": "Boston",
-                "TeamName": "Celtics",
-                "WINS": 64,
-                "LOSSES": 18,
-                "WinPCT": 0.780,
-                "ConferenceRecord": "41-11",
-                "DivisionRank": 1,
-            }
-        ])
-        mock_instance = MagicMock()
-        mock_instance.get_data_frames.return_value = [standings_df]
-
-        call_count = 0
-
-        def flaky_standings(**kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count < 2:
-                raise TimeoutError("stats.nba.com timed out")
-            return mock_instance
-
-        with patch(
-            "screamsheet.providers.nba_provider.leaguestandings.LeagueStandings",
-            side_effect=flaky_standings,
-        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+        data = _make_espn_standings()
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             provider = NBADataProvider()
             df = provider.get_standings()
 
-        assert call_count == 2
-        assert mock_sleep.call_count == 1
         assert not df.empty
         assert df.iloc[0]["team"] == "Boston Celtics"
+        assert df.iloc[0]["wins"] == 64
+        assert df.iloc[0]["losses"] == 18
 
     def test_box_score_retries_transient_error_and_succeeds(self):
-        box_df = pd.DataFrame([
-            {
-                "TEAM_ID": 1610612755,
-                "PLAYER_NAME": "Joel Embiid",
-                "MIN": "35:00",
-                "PTS": 35,
-                "REB": 11,
-                "AST": 4,
-                "FGM": 12,
-                "FGA": 20,
-                "FG3M": 1,
-                "FG3A": 3,
-                "FTM": 10,
-                "FTA": 11,
-                "STL": 1,
-                "BLK": 2,
-            }
-        ])
-        mock_instance = MagicMock()
-        mock_instance.get_data_frames.return_value = [box_df]
-
-        call_count = 0
-
-        def flaky_box(**kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count < 2:
-                raise ConnectionResetError("flaky")
-            return mock_instance
-
+        data = _make_espn_summary()
         provider = NBADataProvider()
         provider._game_id_cache[(1610612755, "2026-05-03")] = "0022500001"
 
-        with patch(
-            "screamsheet.providers.nba_provider.boxscoretraditionalv2.BoxScoreTraditionalV2",
-            side_effect=flaky_box,
-        ), patch("tenacity.nap.time.sleep") as mock_sleep:
+        with patch("screamsheet.providers.nba_provider._call_espn_endpoint", return_value=data):
             result = provider.get_box_score(1610612755, datetime(2026, 5, 3))
 
-        assert call_count == 2
-        assert mock_sleep.call_count == 1
         assert result is not None
         assert result["player_stats"][0]["name"] == "Joel Embiid"
 
@@ -597,6 +527,3 @@ class TestNBARetries:
             with pytest.raises(EmptyScreamsheetError, match="has no content to display"):
                 sheet.generate()
         assert not out_pdf.exists()
-
-
-

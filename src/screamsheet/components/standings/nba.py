@@ -64,10 +64,15 @@ class NBAStandingsComponent(StandingsComponent):
         for conf_data in [eastern, western]:
             if not conf_data.empty:
                 header = ["Team", "W", "L", "%"]
-                table_data = (
-                    [header]
-                    + conf_data[["team", "wins", "losses", "pct"]].values.tolist()
-                )
+                formatted_rows: List[List[Any]] = []
+                for _, row in conf_data.iterrows():
+                    pct_val = row.get("pct", 0)
+                    try:
+                        pct_str = f"{float(pct_val):.3f}"
+                    except (ValueError, TypeError):
+                        pct_str = str(pct_val)
+                    formatted_rows.append([row["team"], row["wins"], row["losses"], pct_str])
+                table_data = [header] + formatted_rows
 
                 table_style = TableStyle(
                     [

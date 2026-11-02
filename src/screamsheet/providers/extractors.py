@@ -283,21 +283,29 @@ class NBAGameExtractor:
         return clock
 
     def fetch_raw_data(self, game_id: str) -> Optional[Dict[str, Any]]:
-        """Return a dict with ``play_by_play`` DataFrame, ``boxscore`` DataFrame,
-        and ``pbp_version`` (3, 2, or 0).
+        """Return raw game data for *game_id*.
 
-        Strategy:
-        1. Fetch BoxScoreTraditionalV2 (always reliable).
-        2. Try PlayByPlayV3 first — handles regular-season *and* playoff games.
-        3. Fall back to PlayByPlayV2 if V3 fails.
-        4. If both fail, return an empty DataFrame (box-score-only summary).
+        Tries ESPN's summary endpoint first (fast, reliable, no datacenter blocks).
+        Falls back to nba_api endpoints if ESPN does not return data.
         """
+        # ---- 1. ESPN NBA summary (preferred) ----
+        try:
+            url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event={game_id}"
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "header" in data or "boxscore" in data:
+                    return data
+        except Exception:
+            logger.debug("ESPN summary fetch failed for %s, trying nba_api", game_id, exc_info=True)
+
+        # ---- 2. nba_api fallback ----
         import pandas as pd
 
         try:
             from nba_api.stats.endpoints import boxscoretraditionalv2
         except ImportError:
-            logger.error("nba_api not installed — cannot fetch NBA game data")
+            logger.warning("nba_api not installed and ESPN failed for game_id=%s", game_id)
             return None
 
         # ---- boxscore (required) ----
@@ -350,13 +358,78 @@ class NBAGameExtractor:
     ) -> Union[ExtractedInfo, str]:
         """Extract team names, final score, and play-by-play narrative.
 
-        Handles V3 columns (``scoreHome``/``scoreAway``, ``actionType``,
-        ``description``), V2 columns (``SCORE``, ``EVENTMSGTYPE``,
-        ``HOMEDESCRIPTION``/``VISITORDESCRIPTION``), and an empty play-by-play
-        DataFrame (box-score-only fallback for both score and narrative).
+        Supports both ESPN JSON structures and legacy nba_api DataFrame structures.
         """
         if not raw_data:
             return "No game data available."
+
+        # ESPN structure branch
+        if "header" in raw_data or ("plays" in raw_data and "boxscore" in raw_data and isinstance(raw_data.get("boxscore"), dict)):
+            try:
+                header = raw_data.get("header", {})
+                comp = header.get("competitions", [{}])[0]
+                competitors = comp.get("competitors", [])
+                if len(competitors) < 2:
+                    return "Could not identify teams in NBA game data."
+
+                home_c = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
+                away_c = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+
+                home_team_name = str(home_c.get("team", {}).get("displayName", "Home Team"))
+                away_team_name = str(away_c.get("team", {}).get("displayName", "Away Team"))
+                home_score = int(float(home_c.get("score", 0)))
+                away_score = int(float(away_c.get("score", 0)))
+                home_team_id = int(float(home_c.get("team", {}).get("id", 0)))
+
+                from .nba_provider import NBA_TO_ESPN_ID
+                target_espn_id = NBA_TO_ESPN_ID.get(featured_team_id, featured_team_id)
+                featured_team_is_home = (target_espn_id == home_team_id)
+                losing_team = home_team_name if home_score < away_score else away_team_name
+
+                narrative_parts: List[str] = []
+                plays = raw_data.get("plays", [])
+                scoring_plays = [p for p in plays if p.get("scoringPlay")]
+                for p in (scoring_plays or plays):
+                    per = p.get("period", {}).get("number")
+                    clock = p.get("clock", {}).get("displayValue", "")
+                    text = p.get("text", "").strip()
+                    if not text:
+                        continue
+                    prefix = f"[Q{per} {clock}]" if per and clock else ""
+                    narrative_parts.append(f"{prefix} {text}".strip())
+
+                if not narrative_parts:
+                    article = raw_data.get("article", {})
+                    story = article.get("story", "") or article.get("description", "")
+                    if story:
+                        narrative_parts.append(str(story))
+                    else:
+                        for p_group in raw_data.get("boxscore", {}).get("players", []):
+                            t_name = str(p_group.get("team", {}).get("displayName", "Team"))
+                            for stat_cat in p_group.get("statistics", []):
+                                names = stat_cat.get("names", [])
+                                pts_idx = names.index("PTS") if "PTS" in names else -1
+                                if pts_idx != -1:
+                                    for ath in stat_cat.get("athletes", [])[:3]:
+                                        p_name = str(ath.get("athlete", {}).get("displayName", ""))
+                                        st = ath.get("stats", [])
+                                        if st and len(st) > pts_idx:
+                                            narrative_parts.append(f"{p_name} ({t_name}): {st[pts_idx]} pts")
+
+                return {
+                    "home_team": home_team_name,
+                    "away_team": away_team_name,
+                    "home_score": home_score,
+                    "away_score": away_score,
+                    "featured_team_is_home": featured_team_is_home,
+                    "losing_team": losing_team,
+                    "narrative_snippets": " ".join(narrative_parts),
+                }
+            except Exception:
+                logger.exception("Error parsing ESPN NBA game data")
+                return "Could not parse NBA game details for summary generation."
+
+        # Legacy DataFrame structure branch
 
         try:
             import pandas as pd

@@ -6,9 +6,9 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import Paragraph, Table, TableStyle
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from ...base.data_provider import DataProvider
 from ...providers.soccer_provider import SoccerDataProvider, AL_NASSR_TEAM_ID
@@ -99,10 +99,10 @@ class SoccerStandingsComponent(StandingsComponent):
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]
 
-            # Highlight Al-Nassr with Gold Accent
+            # Highlight Al-Nassr with clean grayscale accent
             if al_nassr_row_idx != -1:
                 table_style_commands.append(
-                    ("BACKGROUND", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), colors.HexColor("#FEF08A"))
+                    ("BACKGROUND", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), colors.HexColor("#E2E8F0"))
                 )
                 table_style_commands.append(
                     ("FONTNAME", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), "Helvetica-Bold")
@@ -114,6 +114,8 @@ class SoccerStandingsComponent(StandingsComponent):
 
         if not sub_tables:
             return []
+
+        elements: List[Any] = []
 
         # If we have 2 tables, render side by side
         if len(sub_tables) >= 2:
@@ -128,6 +130,42 @@ class SoccerStandingsComponent(StandingsComponent):
                     ]
                 )
             )
-            return [master]
+            elements.append(master)
+        else:
+            elements.extend([item for sub in sub_tables for item in sub])
 
-        return [item for sub in sub_tables for item in sub]
+        # Legend explaining columns and form guide
+        legend_style = ParagraphStyle(
+            "SoccerStandingsLegend",
+            parent=self.styles["Normal"],
+            fontName="Helvetica",
+            fontSize=7,
+            leading=9,
+            textColor=colors.dimgrey,
+            alignment=TA_LEFT,
+        )
+        legend_html = (
+            "<b>STANDINGS & FORM LEGEND:</b>  "
+            "<b>MP</b> = Matches Played  |  <b>GD</b> = Goal Difference (Goals Scored minus Allowed)  |  "
+            "<b>Pts</b> = Points (Win: 3, Draw: 1, Loss: 0)<br/>"
+            "<b>Form Guide (Last 5 Games):</b> Read left-to-right from oldest to newest match.  "
+            "<b>W</b> = Win, <b>D</b> = Draw / Tie, <b>L</b> = Loss.  "
+            "<i>(Example: 'WWWDW' = 3 wins, followed by a draw, and a win in their most recent fixture).</i>"
+        )
+        legend_table = Table([[Paragraph(legend_html, legend_style)]], colWidths=[530])
+        legend_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        elements.append(Spacer(1, 4))
+        elements.append(legend_table)
+
+        return elements

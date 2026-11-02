@@ -71,25 +71,42 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             fontName="Helvetica-Bold",
             fontSize=9,
             alignment=TA_CENTER,
-            textColor=colors.HexColor("#713F12"),
+            textColor=colors.black,
         )
         self.narrative_style = ParagraphStyle(
             "SoccerNarrative",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=8.5,
-            leading=11,
+            fontSize=8,
+            leading=10.5,
             alignment=TA_LEFT,
-            spaceAfter=6,
+            spaceAfter=4,
         )
         self.section_h_style = ParagraphStyle(
             "SoccerSectionHeader",
             parent=styles["h4"],
             fontName="Helvetica-Bold",
-            fontSize=9,
+            fontSize=8.5,
             alignment=TA_LEFT,
             spaceBefore=2,
             spaceAfter=3,
+        )
+        self.lineup_header_style = ParagraphStyle(
+            "SoccerLineupHeader",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=7.5,
+            alignment=TA_CENTER,
+            spaceAfter=2,
+        )
+        self.legend_style = ParagraphStyle(
+            "SoccerMatchLegend",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=6.5,
+            leading=8.5,
+            textColor=colors.dimgrey,
+            alignment=TA_LEFT,
         )
 
     def create_default_provider(self) -> DataProvider:
@@ -161,7 +178,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         elements.append(Paragraph(header_text, self.match_title_style))
         elements.append(Paragraph(f"{comp_info}  •  {venue_info}", self.match_subtitle_style))
 
-        # 2. CR7 Spotlight Banner
+        # 2. CR7 Spotlight Banner (Grayscale)
         spotlight = box.get("ronaldo_spotlight")
         if spotlight and spotlight.get("featured"):
             rating = spotlight.get("rating", "8.5")
@@ -170,7 +187,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             spot_table = Table(
                 [[
                     Paragraph(
-                        f"★ <b>CR7 SPOTLIGHT:</b> Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b>  |  Career Goals: <b>{total}</b>",
+                        f"★ <b>CR7 SPOTLIGHT:</b> Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b>  |  Career Goals: <b>{total}</b> (Road to 1,000)",
                         self.spotlight_style,
                     )
                 ]],
@@ -179,8 +196,8 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             spot_table.setStyle(
                 TableStyle(
                     [
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF9C3")),
-                        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#EAB308")),
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                        ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
                         ("TOPPADDING", (0, 0), (-1, -1), 3),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -188,50 +205,115 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                 )
             )
             elements.append(spot_table)
-            elements.append(Spacer(1, 6))
+            elements.append(Spacer(1, 4))
 
-        # 3. Two-Column Layout (Left: Lineups, Right: Summary, Stats, Timeline)
+        # 3. Two-Column Layout (Left: Summary & Legend, Right: Lineups, Stats, Timeline)
         left_col: List[Any] = []
         right_col: List[Any] = []
 
-        # Left Column: Starting Formations & Lineups
-        left_col.append(Paragraph("<b>STARTING LINEUPS & RATINGS</b>", self.section_h_style))
-        xi = box.get("starting_xi", {})
-        for team_label, team_dict, roster in [
-            (f"{h_name} ({home.get('formation', '4-3-3')})", home, xi.get("home", [])),
-            (f"{a_name} ({away.get('formation', '4-3-3')})", away, xi.get("away", [])),
-        ]:
-            left_col.append(Paragraph(f"<b>{team_label}</b>", self.section_h_style))
-            rows = [["#", "Player", "Pos", "★"]]
-            for p in roster[:11]:
-                num = str(p.get("number", ""))
-                name = str(p.get("name", ""))
-                pos = str(p.get("pos", ""))
-                rat = str(p.get("rating", "7.0"))
-                rows.append([num, name, pos, rat])
+        # Left Column: In-Depth Narrative (200-300 words)
+        left_col.append(Paragraph("<b>GAME RECAP</b>", self.section_h_style))
+        for para in summary.strip().split("\n\n"):
+            clean_p = para.strip().replace("\n", " ")
+            if clean_p:
+                left_col.append(Paragraph(clean_p, self.narrative_style))
 
-            t = Table(rows, colWidths=[18, 150, 24, 28])
-            t.setStyle(
-                TableStyle(
-                    [
-                        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
-                        ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                        ("ALIGN", (1, 0), (1, -1), "LEFT"),
-                        ("ALIGN", (2, 0), (-1, -1), "CENTER"),
-                        ("TOPPADDING", (0, 0), (-1, -1), 1),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-                    ]
-                )
+        left_col.append(Spacer(1, 4))
+
+        # Left Column: Soccer Terminology & Stats Legend
+        legend_html = (
+            "<b>SOCCER STATS & RULES LEGEND:</b><br/>"
+            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance (e.g. 1.8 xG means typical chances produce ~2 goals).<br/>"
+            "• <b>Rating (★):</b> Match performance (1–10 scale; 6.0 is average, 8.0+ is outstanding).<br/>"
+            "• <b>Positions:</b> G = Goalkeeper | D = Defender | M = Midfielder | F = Forward.<br/>"
+            "• <b>Status:</b> FT = Full Time (90m) | AET = After Extra Time | PEN = Penalty Shootout."
+        )
+        legend_t = Table([[Paragraph(legend_html, self.legend_style)]], colWidths=[258])
+        legend_t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
             )
-            left_col.append(t)
-            left_col.append(Spacer(1, 4))
+        )
+        left_col.append(legend_t)
 
-        # Right Column: Narrative
-        right_col.append(Paragraph("<b>THE MATCH IN 60 SECONDS</b>", self.section_h_style))
-        right_col.append(Paragraph(summary, self.narrative_style))
+        # Right Column: Side-by-Side Starting Formations & Lineups
+        right_col.append(Paragraph("<b>STARTING FORMATIONS & RATINGS</b>", self.section_h_style))
+        xi = box.get("starting_xi", {})
+
+        home_label = Paragraph(f"<b>{h_name[:14]}</b> <i>({home.get('formation', '4-3-3')})</i>", self.lineup_header_style)
+        home_rows = [["#", "Player", "P", "★"]]
+        for p in xi.get("home", [])[:11]:
+            home_rows.append([
+                str(p.get("number", "")),
+                str(p.get("name", ""))[:13],
+                str(p.get("pos", ""))[:1],
+                str(p.get("rating", "7.0")),
+            ])
+        ht = Table(home_rows, colWidths=[14, 76, 16, 22])
+        ht.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+                    ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                    ("ALIGN", (1, 0), (1, -1), "LEFT"),
+                    ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 1),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                ]
+            )
+        )
+
+        away_label = Paragraph(f"<b>{a_name[:14]}</b> <i>({away.get('formation', '4-3-3')})</i>", self.lineup_header_style)
+        away_rows = [["#", "Player", "P", "★"]]
+        for p in xi.get("away", [])[:11]:
+            away_rows.append([
+                str(p.get("number", "")),
+                str(p.get("name", ""))[:13],
+                str(p.get("pos", ""))[:1],
+                str(p.get("rating", "7.0")),
+            ])
+        at = Table(away_rows, colWidths=[14, 76, 16, 22])
+        at.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+                    ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                    ("ALIGN", (1, 0), (1, -1), "LEFT"),
+                    ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 1),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                ]
+            )
+        )
+
+        lineups_master = Table(
+            [[[home_label, ht], [away_label, at]]],
+            colWidths=[130, 130],
+        )
+        lineups_master.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
+        right_col.append(lineups_master)
+        right_col.append(Spacer(1, 4))
 
         # Right Column: Match Metrics
         right_col.append(Paragraph("<b>TEAM COMPARISON</b>", self.section_h_style))
@@ -240,60 +322,60 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             metric_rows = [["Metric", h_name[:12], a_name[:12]]]
             for m in metrics:
                 metric_rows.append([m.get("label", ""), str(m.get("home", "")), str(m.get("away", ""))])
-            mt = Table(metric_rows, colWidths=[130, 75, 75])
+            mt = Table(metric_rows, colWidths=[120, 70, 70])
             mt.setStyle(
                 TableStyle(
                     [
                         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                        ("FONTSIZE", (0, 0), (-1, -1), 7),
                         ("ALIGN", (0, 0), (0, -1), "LEFT"),
                         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-                        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                        ("TOPPADDING", (0, 0), (-1, -1), 1),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                     ]
                 )
             )
             right_col.append(mt)
-            right_col.append(Spacer(1, 6))
+            right_col.append(Spacer(1, 4))
 
         # Right Column: Timeline
         right_col.append(Paragraph("<b>KEY MATCH EVENTS</b>", self.section_h_style))
         events = box.get("key_events", [])
         if events:
             ev_rows = [["Min", "Event", "Player / Detail"]]
-            for ev in events[:7]:
+            for ev in events[:6]:
                 ev_rows.append([
                     str(ev.get("minute", "")),
                     str(ev.get("type", "")),
                     f"{ev.get('player', '')} ({ev.get('detail', '')})".strip(),
                 ])
-            et = Table(ev_rows, colWidths=[28, 60, 192])
+            et = Table(ev_rows, colWidths=[26, 44, 190])
             et.setStyle(
                 TableStyle(
                     [
                         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                        ("FONTSIZE", (0, 0), (-1, -1), 7),
                         ("ALIGN", (0, 0), (0, -1), "CENTER"),
                         ("ALIGN", (1, 0), (1, -1), "CENTER"),
                         ("ALIGN", (2, 0), (2, -1), "LEFT"),
-                        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                        ("TOPPADDING", (0, 0), (-1, -1), 1),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                     ]
                 )
             )
             right_col.append(et)
 
-        two_col_table = Table([[left_col, right_col]], colWidths=[240, 290])
+        two_col_table = Table([[left_col, right_col]], colWidths=[265, 265])
         two_col_table.setStyle(
             TableStyle(
                 [
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 2),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
                 ]
             )
         )
@@ -331,7 +413,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                     ("FONTSIZE", (0, 0), (-1, -1), 8.5),
                     ("ALIGN", (0, 0), (0, -1), "LEFT"),
                     ("ALIGN", (1, 0), (2, -1), "CENTER"),
-                    ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FEF08A")),
+                    ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
                     ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
                     ("TOPPADDING", (0, 0), (-1, -1), 3),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -339,7 +421,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             )
         )
         elements.append(ct)
-        elements.append(Spacer(1, 14))
+        elements.append(Spacer(1, 10))
 
         elements.append(Paragraph("<b>NEXT AL-NASSR FIXTURE</b>", self.section_h_style))
         preview_p = Paragraph(
@@ -349,4 +431,28 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             self.narrative_style,
         )
         elements.append(preview_p)
+        elements.append(Spacer(1, 8))
+
+        # Offday Terminology Legend
+        legend_html = (
+            "<b>SOCCER STATS & RULES LEGEND:</b><br/>"
+            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance (e.g. 1.8 xG means typical chances produce ~2 goals).<br/>"
+            "• <b>Rating (★):</b> Match performance (1–10 scale; 6.0 is average, 8.0+ is outstanding).<br/>"
+            "• <b>Positions:</b> G = Goalkeeper | D = Defender | M = Midfielder | F = Forward.<br/>"
+            "• <b>Status:</b> FT = Full Time (90m) | AET = After Extra Time | PEN = Penalty Shootout."
+        )
+        legend_t = Table([[Paragraph(legend_html, self.legend_style)]], colWidths=[530])
+        legend_t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        elements.append(legend_t)
         return elements

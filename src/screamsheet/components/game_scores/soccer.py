@@ -34,7 +34,7 @@ class SoccerGameScoresComponent(GameScoresComponent):
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
             fontSize=8,
-            textColor=colors.HexColor("#0F172A"),
+            textColor=colors.black,
             spaceBefore=4,
             spaceAfter=2,
         )

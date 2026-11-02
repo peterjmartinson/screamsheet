@@ -357,17 +357,112 @@ class SoccerDataProvider(SportsDataProvider):
         mad_fan: bool = False,
         **kwargs: Any,
     ) -> Optional[str]:
-        """Generate a short 2-3 sentence engaging game narrative."""
+        """Generate a 200-300 word engaging newspaper-style game narrative."""
         box = self.get_box_score(fixture_id, date)
         if not box:
             return "No match details available."
-        home = box.get("home_team", {}).get("name", "Home")
-        away = box.get("away_team", {}).get("name", "Away")
-        return (
-            f"In an electric clash between {home} and {away}, both sides traded fierce counterattacks "
-            "from the opening whistle. Clinical finishing and commanding defense decided the outcome in front "
-            "of a packed, roaring stadium."
+
+        fallback_text = self._build_rich_summary(box)
+
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        grok_key = os.getenv("GROK_API_KEY")
+        if not (gemini_key or grok_key):
+            return fallback_text
+
+        try:
+            from ..llm.summarizers import SoccerGameSummarizer
+
+            home_team = box.get("home_team", {}).get("name", "Home")
+            away_team = box.get("away_team", {}).get("name", "Away")
+            h_score = str(box.get("home_team", {}).get("score", 0))
+            a_score = str(box.get("away_team", {}).get("score", 0))
+            comp = box.get("competition", "International Football Match")
+
+            events_timeline = "\n".join(
+                f"- {e.get('minute')}: {e.get('type')} by {e.get('player')} ({e.get('detail')})"
+                for e in box.get("key_events", [])
+            ) or "- No major events recorded"
+
+            stats_summary = "\n".join(
+                f"- {m.get('label')}: {home_team} {m.get('home')} vs {m.get('away')} {away_team}"
+                for m in box.get("team_metrics", [])
+            ) or "- Possession: 50% vs 50%"
+
+            extracted_info = {
+                "competition": comp,
+                "home_team": home_team,
+                "away_team": away_team,
+                "home_score": h_score,
+                "away_score": a_score,
+                "status_label": "",
+                "events_timeline": events_timeline,
+                "stats_summary": stats_summary,
+            }
+
+            summarizer = SoccerGameSummarizer(gemini_api_key=gemini_key, grok_api_key=grok_key)
+            return summarizer.generate_summary(llm_choice="gemini", data=extracted_info)
+        except Exception as exc:
+            logger.warning("Soccer LLM summary failed, using rich text: %s", exc)
+            return fallback_text
+
+    def _build_rich_summary(self, box: Dict[str, Any]) -> str:
+        """Construct a high-quality 200-250 word game recap from box score data."""
+        home_team = box.get("home_team", {}).get("name", "Home")
+        away_team = box.get("away_team", {}).get("name", "Away")
+        comp = box.get("competition", "International Match")
+        h_score = box.get("home_team", {}).get("score", 0)
+        a_score = box.get("away_team", {}).get("score", 0)
+
+        events = box.get("key_events", [])
+        goal_events = [e for e in events if e.get("type") in ("GOAL", "PEN")]
+
+        if h_score > a_score:
+            result_phrase = f"{home_team} claimed a thrilling {h_score}–{a_score} victory over {away_team}"
+            victor = home_team
+        elif a_score > h_score:
+            result_phrase = f"{away_team} secured an emphatic {a_score}–{h_score} triumph over {home_team}"
+            victor = away_team
+        else:
+            result_phrase = f"{home_team} and {away_team} shared the spoils in an intense {h_score}–{a_score} draw"
+            victor = None
+
+        spotlight = box.get("ronaldo_spotlight", {})
+        cr7_clause = ""
+        if spotlight.get("featured"):
+            cr7_total = spotlight.get("career_total", 916)
+            cr7_clause = (
+                f" Cristiano Ronaldo served as the attacking spearhead, showcasing his signature movement and instincts inside "
+                f"the box. His clinical execution pushed his historic career tally to {cr7_total} goals, fueling his quest "
+                f"toward the elusive 1,000-goal milestone."
+            )
+
+        goals_narrative = ""
+        if goal_events:
+            goal_strs = [f"{g.get('player', 'A striker')} ({g.get('minute', '')})" for g in goal_events]
+            goals_narrative = (
+                f" The breakthrough moments arrived through strikes from {', followed by '.join(goal_strs)}. "
+                f"Each goal altered the tactical landscape, prompting urgent adjustments and high-tempo pressing."
+            )
+
+        para1 = (
+            f"In a captivating {comp} encounter, {result_phrase} before an electric atmosphere. "
+            f"Both squads embraced an attacking mentality from the opening whistle, testing the backlines with "
+            f"quick vertical transitions and stretching play out wide.{cr7_clause}"
         )
+
+        para2 = (
+            f"The contest intensified across the second half with fierce battles in central midfield.{goals_narrative} "
+            f"Goalkeepers on both ends produced crucial stops in high-leverage sequences, maintaining suspense as the "
+            f"game stretched into its closing moments."
+        )
+
+        para3 = (
+            f"When the final whistle sounded, the outcome reverberated across the league standings. "
+            f"{f'The hard-earned three points provide {victor} with major momentum in the championship race.' if victor else 'The shared point leaves both clubs eager to build on their collective grit in upcoming fixtures.'} "
+            f"Supporters enjoyed an exceptional display of skill, tactical discipline, and unrelenting competitive drive."
+        )
+
+        return f"{para1}\n\n{para2}\n\n{para3}"
 
     # ------------------------------------------------------------------
     # Sample Mock Fallbacks (for testing and offline operation)

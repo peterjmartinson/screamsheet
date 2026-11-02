@@ -587,6 +587,38 @@ class WorldCupGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+class SoccerGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a 200-300 word newspaper-style international soccer match recap.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``competition``     str  — tournament or league name
+    - ``home_team``       str  — full team name
+    - ``away_team``       str  — full team name
+    - ``home_score``      str  — goals scored
+    - ``away_score``      str
+    - ``status_label``    str  — e.g. " (AET)" or " (on penalties)"
+    - ``events_timeline`` str  — formatted goal and card event lines
+    - ``stats_summary``   str  — comparative team metrics (shots, possession, xG)
+    """
+
+    _PROMPT_FILE = Path("soccer_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
 class NFLGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates an NFL game recap and drive breakdown.

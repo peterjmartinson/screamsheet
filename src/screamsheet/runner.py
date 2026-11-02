@@ -32,6 +32,7 @@ from .order import (
     ScreamsheetOrder,
     ScreamsheetResult,
     SkyOrderOptions,
+    SoccerOrderOptions,
     TeamEntry,
     WeatherLocationOptions,
     WorldCupOrderOptions,
@@ -56,7 +57,7 @@ def _output_path(output_dir: str, basename: str) -> str:
 
 def _options_summary_entry(field_name: str, options: Any) -> list[str]:
     """Extract a human-readable summary list from a sheet options object."""
-    if field_name in ("nhl", "mlb", "nba", "nfl"):
+    if field_name in ("nhl", "mlb", "nba", "nfl", "soccer", "worldcup"):
         return [t.name for t in getattr(options, "favorite_teams", [])]
     if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "french_mlb_news", "presidential"):
         weather = getattr(options, "weather", None)
@@ -227,6 +228,21 @@ def _run_sky(options: SkyOrderOptions, today: datetime, today_str: str, output_d
     return sheet.generate()
 
 
+def _run_soccer(
+    options: SoccerOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    game_date = today - timedelta(days=1)
+    teams = [(t.id, t.name) for t in options.favorite_teams] if options.favorite_teams else None
+    sheet = ScreamsheetFactory.create_soccer_screamsheet(
+        output_filename=_output_path(output_dir, f"SOCCER_gamescores_{today_str}.pdf"),
+        favorite_teams=teams,
+        date=game_date,
+        display_date=today,
+        mad_fan=options.mad_fan,
+    )
+    return sheet.generate()
+
+
 def _run_worldcup(
     options: WorldCupOrderOptions, today: datetime, today_str: str, output_dir: str
 ) -> str:
@@ -350,7 +366,7 @@ def _build_component_from_spec(
         kwargs["title"] = spec.title
 
     sport = ""
-    for prefix in ("mlb", "nhl", "nba", "nfl", "worldcup"):
+    for prefix in ("mlb", "nhl", "nba", "nfl", "soccer", "worldcup"):
         if comp_type.startswith(f"{prefix}_"):
             sport = prefix
             break
@@ -438,6 +454,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "french_mlb_news":  _run_french_mlb_news,
     "presidential":     _run_presidential,
     "sky":              _run_sky,
+    "soccer":           _run_soccer,
     "worldcup":         _run_worldcup,
     "home_run_derby":   _run_home_run_derby,
 }

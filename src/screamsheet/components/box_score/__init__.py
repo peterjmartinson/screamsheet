@@ -5,6 +5,7 @@ from .mlb import MLBBoxScoreComponent
 from .nba import NBABoxScoreComponent
 from .nfl import NFLBoxScoreComponent
 from .nhl import NHLBoxScoreComponent
+from .soccer import SoccerBoxScoreComponent
 from .worldcup import WorldCupBoxScoreComponent, _card_symbol
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "NHLBoxScoreComponent",
     "NBABoxScoreComponent",
     "NFLBoxScoreComponent",
+    "SoccerBoxScoreComponent",
     "WorldCupBoxScoreComponent",
     "MLBAllStarBoxScoreComponent",
     "MLBAllStarGameSummaryComponent",

@@ -3,7 +3,7 @@ from .base.errors import EmptyScreamsheetError
 from .factory import ScreamsheetFactory
 from .order import ScreamsheetOrder
 from .runner import run_order
-from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, FIFAWorldCupScreamsheet
+from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamsheet, SoccerScreamsheet, FIFAWorldCupScreamsheet
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
@@ -17,6 +17,7 @@ __all__ = [
     'NHLScreamsheet',
     'NFLScreamsheet',
     'NBAScreamsheet',
+    'SoccerScreamsheet',
     'FIFAWorldCupScreamsheet',
     'MLBTradeRumorsScreamsheet',
     'MLBNewsScreamsheet',

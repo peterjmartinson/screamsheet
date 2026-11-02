@@ -1,0 +1,11 @@
+Write a compelling, newspaper-style international soccer match recap between 200 and 300 words.
+Focus on key moments, goals, tactical shifts, and individual performances (especially Cristiano Ronaldo or standout stars if mentioned).
+End with the match's significance in the league table or cup competition. Do not use generic filler; make it feel like authentic sports reporting.
+
+Match: {competition} — {home_team} {home_score} – {away_score} {away_team}{status_label}
+
+Match Events:
+{events_timeline}
+
+Team Stats:
+{stats_summary}

@@ -5,6 +5,7 @@ from .mlb import MLBGameScoresComponent
 from .nba import NBAGameScoresComponent
 from .nfl import NFLGameScoresComponent
 from .nhl import NHLGameScoresComponent
+from .soccer import SoccerGameScoresComponent
 from .worldcup import WorldCupGameScoresComponent
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "NHLGameScoresComponent",
     "NBAGameScoresComponent",
     "NFLGameScoresComponent",
+    "SoccerGameScoresComponent",
     "WorldCupGameScoresComponent",
     "MLBAllStarGameScoresComponent",
 ]

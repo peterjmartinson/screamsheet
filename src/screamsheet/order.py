@@ -154,6 +154,14 @@ class WorldCupOrderOptions:
 
 
 @dataclass
+class SoccerOrderOptions:
+    """Options for the International Soccer sheet."""
+
+    favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
+
+
+@dataclass
 class HomeRunDerbyOrderOptions:
     """Options for the MLB Home Run Derby sheet."""
 
@@ -239,6 +247,7 @@ class ScreamsheetOrder:
     presidential: PresidentialOrderOptions | None = None
     sky: SkyOrderOptions | None = None
     # --- inactive / on-demand sheets (set to None in batch, available via --single) ---
+    soccer: SoccerOrderOptions | None = None
     worldcup: WorldCupOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None

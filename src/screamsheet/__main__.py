@@ -221,6 +221,14 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
             ),
         ),
         (
+            "International Soccer",
+            lambda: ScreamsheetFactory.create_soccer_screamsheet(
+                output_filename=f'Files/SOCCER_scores_{today_str}.pdf',
+                date=game_date,
+                display_date=today,
+            ),
+        ),
+        (
             "Morning Briefing",
             lambda: ScreamsheetFactory.create_briefing_screamsheet(
                 output_filename=f'Files/BRIEFING_{today_str}.pdf',

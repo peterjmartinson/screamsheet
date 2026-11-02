@@ -278,7 +278,7 @@ class NBADataProvider(SportsDataProvider):
 
                     raw_pct = stats_dict.get("winPercent", {}).get("value")
                     try:
-                        pct = float(raw_pct) if raw_pct is not None else 0.0
+                        pct = round(float(raw_pct), 3) if raw_pct is not None else 0.0
                     except (ValueError, TypeError):
                         pct = 0.0
 

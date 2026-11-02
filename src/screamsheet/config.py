@@ -49,6 +49,12 @@ class WorldCupConfig(SportConfig):
 
 
 @dataclass
+class SoccerConfig(SportConfig):
+    """International Soccer configuration."""
+    pass
+
+
+@dataclass
 class FrenchMLBConfig:
     """French MLB news-filter names."""
     news_names: List[str] = field(default_factory=list)
@@ -161,6 +167,7 @@ class ScreamsheetConfig:
     nhl: NHLConfig = field(default_factory=NHLConfig)
     mlb: MLBConfig = field(default_factory=MLBConfig)
     worldcup: WorldCupConfig = field(default_factory=WorldCupConfig)
+    soccer: SoccerConfig = field(default_factory=SoccerConfig)
     french_mlb: FrenchMLBConfig = field(default_factory=FrenchMLBConfig)
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
@@ -200,6 +207,12 @@ def _parse_worldcup(raw: dict) -> WorldCupConfig:
     teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
     mad_fan = bool(raw.get("mad_fan", False))
     return WorldCupConfig(favorite_teams=teams, mad_fan=mad_fan)
+
+
+def _parse_soccer(raw: dict) -> SoccerConfig:
+    teams = [TeamEntry(id=t["id"], name=t["name"]) for t in raw.get("favorite_teams", [])]
+    mad_fan = bool(raw.get("mad_fan", False))
+    return SoccerConfig(favorite_teams=teams, mad_fan=mad_fan)
 
 
 def _parse_nhl(raw: dict) -> NHLConfig:
@@ -369,6 +382,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         nba=_parse_sport(raw.get("nba", {})),
         nfl=_parse_sport(raw.get("nfl", {})),
         worldcup=_parse_worldcup(raw.get("worldcup", {})),
+        soccer=_parse_soccer(raw.get("soccer", {})),
         weather=weather,
         sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),
         briefing=_parse_briefing(raw.get("briefing") or raw.get("morning_briefing") or {}, weather),

@@ -9,6 +9,7 @@ from .box_score import (
     NBABoxScoreComponent,
     NFLBoxScoreComponent,
     NHLBoxScoreComponent,
+    SoccerBoxScoreComponent,
     WorldCupBoxScoreComponent,
 )
 from .briefing import (
@@ -26,6 +27,7 @@ from .game_scores import (
     NBAGameScoresComponent,
     NFLGameScoresComponent,
     NHLGameScoresComponent,
+    SoccerGameScoresComponent,
     WorldCupGameScoresComponent,
 )
 from .home_run_derby import HomeRunDerbyComponent
@@ -52,6 +54,7 @@ from .standings import (
     NBAStandingsComponent,
     NFLStandingsComponent,
     NHLStandingsComponent,
+    SoccerStandingsComponent,
     StandingsComponent,
     WorldCupStandingsComponent,
 )
@@ -68,12 +71,14 @@ __all__ = [
     "NHLStandingsComponent",
     "NBAStandingsComponent",
     "NFLStandingsComponent",
+    "SoccerStandingsComponent",
     "WorldCupStandingsComponent",
     "GameScoresComponent",
     "MLBGameScoresComponent",
     "NHLGameScoresComponent",
     "NBAGameScoresComponent",
     "NFLGameScoresComponent",
+    "SoccerGameScoresComponent",
     "WorldCupGameScoresComponent",
     "MLBAllStarGameScoresComponent",
     "BoxScoreComponent",
@@ -82,6 +87,7 @@ __all__ = [
     "NHLBoxScoreComponent",
     "NBABoxScoreComponent",
     "NFLBoxScoreComponent",
+    "SoccerBoxScoreComponent",
     "WorldCupBoxScoreComponent",
     "MLBAllStarBoxScoreComponent",
     "MLBAllStarGameSummaryComponent",

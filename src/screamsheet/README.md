@@ -25,7 +25,8 @@ src/screamsheet/
 │   ├── mlb.py                # MLB implementation
 │   ├── nhl.py                # NHL implementation
 │   ├── nfl.py                # NFL implementation
-│   └── nba.py                # NBA implementation
+│   ├── nba.py                # NBA implementation
+│   └── soccer.py             # International soccer implementation
 ├── news/                      # News screamsheet implementations
 │   ├── base_news.py          # NewsScreamsheet base class
 │   └── mlb_trade_rumors.py   # MLB Trade Rumors implementation
@@ -34,6 +35,7 @@ src/screamsheet/
 │   ├── nhl_provider.py       # NHL API
 │   ├── nfl_provider.py       # ESPN API (NFL)
 │   ├── nba_provider.py       # nba_api package
+│   ├── soccer_provider.py    # API-Football v3
 │   └── mlb_trade_rumors_provider.py  # RSS feed
 ├── renderers/                 # Section renderers for PDF generation
 │   ├── game_scores.py        # Game scores section

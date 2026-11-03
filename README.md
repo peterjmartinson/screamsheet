@@ -40,6 +40,7 @@ Each screamsheet is a self-contained PDF covering one topic: sports scores, spor
 | NHL game scores | `Files/NHL_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
 | NBA game scores | `Files/NBA_gamescores_YYYYMMDD.pdf` | Scores, standings, favourite team box score |
 | NFL game scores | `Files/NFL_gamescores_YYYYMMDD.pdf` | Scores, standings |
+| International Soccer | `Files/SOCCER_gamescores_YYYYMMDD.pdf` | Scores across top leagues, dual standings, Match of the Day deep dive + CR7 spotlight (or off-day milestone tracker) |
 | Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political stories from 7 RSS feeds + WhiteHouse.gov |
 | Sky Tonight | `Files/SKY_YYYYMMDD.pdf` | Tonight's sky highlights + horoscopes |
 

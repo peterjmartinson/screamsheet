@@ -106,11 +106,15 @@ class SoccerDataProvider(SportsDataProvider):
 
     def __init__(self, **config: Any) -> None:
         super().__init__(**config)
-        self.api_key: str = (
-            config.get("api_key")
-            or os.environ.get("APISPORTS_KEY")
-            or os.environ.get("FOOTBALL_API_KEY", "")
-        )
+        if "api_key" in config:
+            self.api_key: str = config.get("api_key") or ""
+        else:
+            self.api_key = (
+                os.environ.get("APISPORTS_KEY")
+                or os.environ.get("FOOTBALL_API_KEY")
+                or os.environ.get("FIFA_API_KEY")
+                or ""
+            )
         self.base_url: str = config.get("base_url", "https://v3.football.api-sports.io")
         self.timeout: int = int(config.get("request_timeout", 15))
         self._fixtures_cache: Dict[str, List[Dict[str, Any]]] = {}
@@ -145,7 +149,7 @@ class SoccerDataProvider(SportsDataProvider):
             return self._fixtures_cache[date_str]
 
         if not self.api_key:
-            logger.info("No APISPORTS_KEY found; returning sample soccer scores for %s", date_str)
+            logger.info("No API key found (APISPORTS_KEY / FOOTBALL_API_KEY / FIFA_API_KEY); returning sample soccer scores for %s", date_str)
             return self._sample_scores(date_str)
 
         data = self._get("fixtures", {"date": date_str, "timezone": "America/New_York"})

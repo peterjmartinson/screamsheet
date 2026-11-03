@@ -9,11 +9,16 @@ A double-sided daily print publication (8.5" x 11") tailored for an 11-year-old 
 
 ### 1.1 API-Sports Free-Tier Budget Management
 * **Budget**: 100 requests / day (free tier on `https://v3.football.api-sports.io/`).
-* **Strategy**: Minimize daily requests to **4–6 calls per morning** using targeted queries, persistent SQLite caching, and bulk date filtering.
+* **Environment Keys**: Checked in priority order:
+  1. `APISPORTS_KEY`
+  2. `FOOTBALL_API_KEY`
+  3. `FIFA_API_KEY`
+  4. Options / config `api_key`
+* **Strategy**: Minimize daily requests to **4–6 calls per morning** using targeted queries, persistent SQLite caching, and bulk date filtering. Free-tier accounts allow real-time window queries (`date={YYYY-MM-DD}`) and deep fixture detail endpoints (`lineups`, `statistics`, `events`, `standings`), but disallow the `last` parameter.
 
 ```
 Daily Morning Pipeline:
-  Step 1: Check yesterday's fixtures for target leagues   (1-2 requests)
+  Step 1: Check yesterday's fixtures for target leagues   (1 request)
   Step 2: Fetch MOTD Lineups, Statistics, & Events       (3 requests)
   Step 3: Fetch Standings if cache expired (24h TTL)     (0-2 requests)
   Total: 4 to 6 requests / day (Leaves >90 calls for buffer/dev)
@@ -295,15 +300,36 @@ When `completed_fixtures` is empty:
 
 ## 4. Print Layout & Typography Specification (8.5" x 11")
 
-### Page Dimensions & Grid Setup
+### Page Dimensions & Grayscale Standards
 - **Page Size**: Standard Letter (8.5" x 11.0" / 612pt x 792pt).
-- **Margins**: Top/Bottom: 24pt (0.33"), Left/Right: 24pt (0.33").
-- **Printable Area**: 564pt width x 744pt height.
-- **Color Palette**:
-  * Primary Accent: Dark Navy (`#0A192F` or `#1E293B`)
-  * Affinity Gold (Al-Nassr): Vibrant Gold/Amber (`#EAB308` / `#F59E0B`)
-  * Table Header Fill: Light Cool Gray (`#F1F5F9`)
-  * Border Stroke: 0.5pt subtle gray (`#CBD5E1`)
+- **Margins**: Top/Bottom: 36pt (0.5"), Left/Right: 36pt (0.5").
+- **Printable Area**: 540pt width x 720pt height.
+- **Grayscale Palette**:
+  * Strict Black-and-White / Grayscale typography and layout.
+  * Gray Shading Rule: Background gray shading (`lightgrey` / `#E5E7EB`) is reserved strictly for table headers (`#`, `Club`, `MP`, `GD`, `Pts`, `Form`, metrics, events, lineups).
+  * Data Rows & Callout Boxes: No background fills. Data rows use transparent/white backgrounds; callout boxes (CR7 Spotlight banner and Legends) use clean 0.4–0.5pt borders with no background fills.
+  * Text Color: All text colors are pure black (`colors.black`). No gray or dimgrey text.
+
+### Standardized Font Sizes (Screamsheet Standards)
+- **Scores Section**:
+  * League header: 10pt bold.
+  * Team name & score: 10pt standard (matching baseball/basketball screamsheet standard).
+  * Match status: 8pt centered.
+- **Standings Section**:
+  * Table titles: 10.5pt bold.
+  * Table rows: 9pt standard (matching NBA standings standard).
+  * Highlighted teams (Al-Nassr): Bold font weighting (no background row shading).
+  * Standings Legend: 8pt font with 11pt leading, bordered container, itemized definition list format.
+- **Match of the Day (Back Page)**:
+  * Match title: 14pt bold centered.
+  * Match subtitle (competition, venue, attendance): 9pt centered.
+  * CR7 Spotlight banner: 9.5pt bold centered with 0.5pt border.
+  * Section headers: 10pt bold.
+  * Game Recap narrative: 9.5pt font with 12.5pt leading (200–300 words).
+  * Starting Formations & Lineups: 9pt bold headers, 8pt player rows with lightgrey header shading only.
+  * Team Comparison Metrics: 8.5pt text with lightgrey header shading only.
+  * Key Match Events: 8.5pt text with lightgrey header shading only.
+  * Match Stats Legend: 8pt font with 10.5pt leading, bordered container, itemized definition list format positioned directly beneath the tables in the right column.
 
 ---
 
@@ -311,32 +337,30 @@ When `completed_fixtures` is empty:
 
 ```
 +-------------------------------------------------------------------------+
-| [LOGO]              INTERNATIONAL FOOTBALL SCREAMSHEET                  |
-|                        Sunday, November 1, 2026                         |
+| [HEADER]             INTERNATIONAL FOOTBALL SCREAMSHEET                 |
+|                            Monday, November 2, 2026                     |
 +-------------------------------------------------------------------------+
-|  YESTERDAY'S MATCH SCORES                                               |
-|  +-- SAUDI PRO LEAGUE ------------------------------------------------+ |
-|  | Al-Nassr               3   FINAL  | Al-Ittihad            2  FINAL | |
-|  | @ Al-Hilal             1          | @ Al-Shabab           0        | |
-|  |   [Ronaldo 14', 78'(P), Talisca]  |   [Benzema 34', 68']           | |
-|  +-- UEFA CHAMPIONS LEAGUE -------------------------------------------+ |
-|  | Real Madrid            3   FINAL  | Bayern Munich         2  FINAL | |
-|  | @ Dortmund             2          | @ Barcelona           4        | |
-|  |   [Vinicius 62', 86', Mbappe 71'] |   [Raphinha 36', 56', Lewa]    | |
-|  +-- PREMIER LEAGUE --------------------------------------------------+ |
-|  | Manchester City        2   FINAL  | Liverpool             2  FINAL | |
-|  | @ Bournemouth          1          | @ Arsenal             2        | |
+|  YESTERDAY'S MATCH SCORES (3-Column Grid)                               |
+|  SAUDI PRO LEAGUE          PREMIER LEAGUE         UEFA CHAMPIONS LEAGUE |
+|  Al-Hilal             1 FT Arsenal            2 FT Bayern Munich    2 FT|
+|  Al-Nassr             3    Liverpool          2    Real Madrid      3   |
 +-------------------------------------------------------------------------+
-|  LEAGUE STANDINGS                                                       |
+|  LEAGUE STANDINGS (Dual Side-by-Side Tables)                            |
 |  +-- SAUDI PRO LEAGUE --------------+ +-- PREMIER LEAGUE ---------------+ |
 |  | #  Club          MP  GD Pts Form | | #  Club          MP  GD Pts Form| |
 |  | 1  Al-Hilal      10 +21  28 WWWD | | 1  Liverpool     10 +11  25 WDWW| |
-|  | 2* Al-Nassr      10 +19  26 WWWW | | 2  Man City      10 +10  23 LWWW| |
+|  | 2  Al-Nassr      10 +19  26 WWWW | | 2  Man City      10 +10  23 LWWW| |
 |  | 3  Al-Ittihad    10 +14  24 LWWW | | 3  Arsenal       10  +6  18 LDWD| |
 |  | 4  Al-Shabab     10  +8  21 WLWL | | 4  Chelsea       10  +8  18 DWLD| |
 |  | 5  Al-Qadsiah    10  +5  19 DWLW | | 5  Nottm Forest  10  +4  19 WWDW| |
 |  +----------------------------------+ +---------------------------------+ |
-|  FOOTER: Screamsheet v2.1 • api-sports.io • DISTRACTEDFORTUNE.COM       |
+|  +-- STANDINGS & FORM DEFINITIONS ------------------------------------+ |
+|  | • MP: Matches Played in the current league season                  | |
+|  | • GD: Goal Difference (Total Goals Scored minus Goals Conceded)     | |
+|  | • Pts: Points (Win = 3, Draw = 1, Loss = 0)                        | |
+|  | • Form: Recent 5 league fixtures, oldest to newest (W/D/L)         | |
+|  +--------------------------------------------------------------------+ |
+|  FOOTER: DISTRACTEDFORTUNE.COM/SCREAMSHEET                              |
 +-------------------------------------------------------------------------+
 ```
 
@@ -346,37 +370,39 @@ When `completed_fixtures` is empty:
 
 ```
 +-------------------------------------------------------------------------+
-| MATCH OF THE DAY: RIYADH DERBY                                          |
-| Saudi Pro League • Matchday 10 • Al-Awwal Park (Att: 24,800)            |
+| MATCH TITLE: AL-NASSR  3  –  1  AL-HILAL                                |
+| Saudi Pro League • Matchday 10 • Al-Awwal Park, Riyadh (Att: 24,800)    |
 +-------------------------------------------------------------------------+
-|                       AL-NASSR  3  -  1  AL-HILAL                       |
-|          Scorers: Ronaldo 14', 78'(P), Talisca 90+3' | Mitrovic 42'     |
-+-------------------------------------------------------------------------+
-| [CR7 SPOTLIGHT] Rating: 8.8 ★ | 2 Goals | 5 Shots | Career Total: 916   |
-+-------------------------------------------------------------------------+
-| THE MATCH IN 60 SECONDS:                                                |
-| Cristiano Ronaldo electrified the home crowd with an opening volley     |
-| and a late penalty to claim derby bragging rights over Al-Hilal.        |
+| ★ CR7 SPOTLIGHT: Rating: 8.8 | Goals: 2 | Career Goals: 916 (Road to 1k)|
 +------------------------------------+------------------------------------+
-| STARTING LINEUPS & RATINGS         | MATCH STATS & EVENT TIMELINE       |
+| LEFT COLUMN: GAME RECAP (200-300w) | RIGHT COLUMN: MATCH TABLES & LEGEND|
 |                                    |                                    |
-| AL-NASSR (4-2-3-1)                 | STATISTIC        NASSR    HILAL    |
-| 24 Bento (GK)                7.2   | Possession         48%      52%    |
-| 2  S. Al-Ghannam (RB)        6.8   | Expected Goals    2.41     1.18    |
-| 27 A. Laporte (CB)           7.5   | Shots (On Target) 16(8)    11(4)   |
-| 20 A. Brozovic (CM)          7.7   | Corner Kicks         6        5    |
-| 94 Talisca (AM)              8.1   | Fouls Committed     12       15    |
-| 10 S. Mane (LW)              7.3   | Cards (Y/R)        1/0      3/0    |
-| 7* C. Ronaldo (ST, C)        8.8 ★ | Goalkeeper Saves     3        5    |
+| GAME RECAP                         | STARTING FORMATIONS & RATINGS      |
+|                                    | Al-Nassr (4-2-3-1) Al-Hilal (4-3-3)|
+| Riyadh, Saudi Arabia -- Al-Nassr   | #  Player   P ★    #  Player   P ★ |
+| delivered a commanding performance | 24 Bento    G 7.2  37 Y. Bono  G 6.5|
+| in the Riyadh derby, defeating     | 7  Ronaldo  F 8.8  9  Mitrovic F 7.3|
+| Al-Hilal 3-1. Cristiano Ronaldo    |                                    |
+| was the undisputed star, netting   | TEAM COMPARISON                    |
+| twice to snap their rivals'        | Metric            Al-Nassr Al-Hilal|
+| unbeaten streak.                   | Possession             48%      52%|
+|                                    | Expected Goals (xG)   2.41     1.18|
+| The match ignited early with an    | Total Shots             16       11|
+| opening volley from Ronaldo in     |                                    |
+| the 14th minute...                 | KEY MATCH EVENTS                   |
+|                                    | Min  Event  Player / Detail        |
+|                                    | 14'  GOAL   C. Ronaldo (Volley)    |
+|                                    | 78'  GOAL   C. Ronaldo (P) (Pen)   |
+|                                    | 90+3'GOAL   Talisca (Breakaway)    |
 |                                    |                                    |
-| AL-HILAL (4-3-3)                   | TIMELINE HIGHLIGHTS                |
-| 37 Y. Bono (GK)              6.5   | 14'  [GOAL] Ronaldo (Volley)       |
-| 3  K. Koulibaly (CB)         6.2   | 31'  [CARD] Al-Bulaihi (Yellow)    |
-| 8  R. Neves (CM)             7.1   | 42'  [GOAL] Mitrovic (Header)      |
-| 29 S. Al-Dawsari (LW, C)     6.7   | 78'  [GOAL] Ronaldo (Penalty)      |
-| 9  A. Mitrovic (ST)          7.3   | 90+3'[GOAL] Talisca (Counter)      |
+|                                    | +-- MATCH STATS DEFINITIONS -----+ |
+|                                    | | • xG: Expected Goals prob.     | |
+|                                    | | • Rating (★): 1-10 performance | |
+|                                    | | • Positions: G, D, M, F        | |
+|                                    | | • Status: FT, AET, PEN         | |
+|                                    | +--------------------------------+ |
 +------------------------------------+------------------------------------+
-| FOOTER: Screamsheet v2.1 • Produced for Leo                             |
+| FOOTER: DISTRACTEDFORTUNE.COM/SCREAMSHEET                               |
 +-------------------------------------------------------------------------+
 ```
 

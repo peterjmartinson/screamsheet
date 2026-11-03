@@ -7,6 +7,8 @@
 # MLB team IDs: https://statsapi.mlb.com/api/v1/teams?sportId=1
 # NBA team IDs: use nba_api  (e.g. nba_api.stats.static.teams.get_teams())
 # NFL team IDs: confirm via your NFL data provider
+# Soccer team IDs: use API-Football v3 IDs (e.g. Al-Nassr: 1005, Portugal: 27)
+# API key for soccer: set FIFA_API_KEY, APISPORTS_KEY, or FOOTBALL_API_KEY in .env
 
 # Branding footer — printed at the bottom of every screamsheet page.
 branding: "DISTRACTEDFORTUNE.COM/SCREAMSHEET"
@@ -55,6 +57,14 @@ nfl:
   favorite_teams:
     - id: 21
       name: "Philadelphia Eagles"
+
+soccer:
+  mad_fan: false
+  favorite_teams:
+    - id: 1005
+      name: "Al-Nassr"
+    - id: 27
+      name: "Portugal"
 
 # Weather locations for each screamsheet type.
 # Uses the National Weather Service API (US locations only).

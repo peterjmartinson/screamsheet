@@ -22,6 +22,14 @@ def sample_date():
     return datetime(2026, 11, 1)
 
 
+@pytest.fixture(autouse=True)
+def disable_live_api(monkeypatch):
+    """Ensure unit tests run in offline sample mode without consuming API quota."""
+    monkeypatch.delenv("APISPORTS_KEY", raising=False)
+    monkeypatch.delenv("FOOTBALL_API_KEY", raising=False)
+    monkeypatch.delenv("FIFA_API_KEY", raising=False)
+
+
 class TestSoccerScreamsheet:
     def test_init_defaults(self, tmp_path, sample_date):
         out_file = str(tmp_path / "soccer.pdf")

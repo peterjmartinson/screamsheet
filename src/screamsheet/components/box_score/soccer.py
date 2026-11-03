@@ -54,14 +54,15 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             fontName="Helvetica-Bold",
             fontSize=14,
             alignment=TA_CENTER,
+            textColor=colors.black,
             spaceAfter=2,
         )
         self.match_subtitle_style = ParagraphStyle(
             "SoccerMatchSubtitle",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=8,
-            textColor=colors.dimgrey,
+            fontSize=9,
+            textColor=colors.black,
             alignment=TA_CENTER,
             spaceAfter=6,
         )
@@ -69,7 +70,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             "SoccerSpotlight",
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
-            fontSize=9,
+            fontSize=9.5,
             alignment=TA_CENTER,
             textColor=colors.black,
         )
@@ -77,8 +78,9 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             "SoccerNarrative",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=8,
-            leading=10.5,
+            fontSize=9.5,
+            leading=12.5,
+            textColor=colors.black,
             alignment=TA_LEFT,
             spaceAfter=4,
         )
@@ -86,16 +88,18 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             "SoccerSectionHeader",
             parent=styles["h4"],
             fontName="Helvetica-Bold",
-            fontSize=8.5,
+            fontSize=10,
+            textColor=colors.black,
             alignment=TA_LEFT,
-            spaceBefore=2,
+            spaceBefore=3,
             spaceAfter=3,
         )
         self.lineup_header_style = ParagraphStyle(
             "SoccerLineupHeader",
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
-            fontSize=7.5,
+            fontSize=9,
+            textColor=colors.black,
             alignment=TA_CENTER,
             spaceAfter=2,
         )
@@ -103,9 +107,9 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             "SoccerMatchLegend",
             parent=styles["Normal"],
             fontName="Helvetica",
-            fontSize=6.5,
-            leading=8.5,
-            textColor=colors.dimgrey,
+            fontSize=8,
+            leading=10.5,
+            textColor=colors.black,
             alignment=TA_LEFT,
         )
 
@@ -178,7 +182,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         elements.append(Paragraph(header_text, self.match_title_style))
         elements.append(Paragraph(f"{comp_info}  •  {venue_info}", self.match_subtitle_style))
 
-        # 2. CR7 Spotlight Banner (Grayscale)
+        # 2. CR7 Spotlight Banner (Grayscale, no gray background fill)
         spotlight = box.get("ronaldo_spotlight")
         if spotlight and spotlight.get("featured"):
             rating = spotlight.get("rating", "8.5")
@@ -196,7 +200,6 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             spot_table.setStyle(
                 TableStyle(
                     [
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
                         ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
                         ("TOPPADDING", (0, 0), (-1, -1), 3),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -207,7 +210,7 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             elements.append(spot_table)
             elements.append(Spacer(1, 4))
 
-        # 3. Two-Column Layout (Left: Summary & Legend, Right: Lineups, Stats, Timeline)
+        # 3. Two-Column Layout (Left: Summary, Right: Lineups, Stats, Timeline, Legend)
         left_col: List[Any] = []
         right_col: List[Any] = []
 
@@ -217,31 +220,6 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             clean_p = para.strip().replace("\n", " ")
             if clean_p:
                 left_col.append(Paragraph(clean_p, self.narrative_style))
-
-        left_col.append(Spacer(1, 4))
-
-        # Left Column: Soccer Terminology & Stats Legend
-        legend_html = (
-            "<b>SOCCER STATS & RULES LEGEND:</b><br/>"
-            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance (e.g. 1.8 xG means typical chances produce ~2 goals).<br/>"
-            "• <b>Rating (★):</b> Match performance (1–10 scale; 6.0 is average, 8.0+ is outstanding).<br/>"
-            "• <b>Positions:</b> G = Goalkeeper | D = Defender | M = Midfielder | F = Forward.<br/>"
-            "• <b>Status:</b> FT = Full Time (90m) | AET = After Extra Time | PEN = Penalty Shootout."
-        )
-        legend_t = Table([[Paragraph(legend_html, self.legend_style)]], colWidths=[258])
-        legend_t.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-                    ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-                    ("TOPPADDING", (0, 0), (-1, -1), 3),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                ]
-            )
-        )
-        left_col.append(legend_t)
 
         # Right Column: Side-by-Side Starting Formations & Lineups
         right_col.append(Paragraph("<b>STARTING FORMATIONS & RATINGS</b>", self.section_h_style))
@@ -263,7 +241,8 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                     ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                     ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                     ("ALIGN", (0, 0), (0, -1), "CENTER"),
                     ("ALIGN", (1, 0), (1, -1), "LEFT"),
                     ("ALIGN", (2, 0), (-1, -1), "CENTER"),
@@ -289,7 +268,8 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                     ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                     ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                     ("ALIGN", (0, 0), (0, -1), "CENTER"),
                     ("ALIGN", (1, 0), (1, -1), "LEFT"),
                     ("ALIGN", (2, 0), (-1, -1), "CENTER"),
@@ -329,7 +309,8 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7),
+                        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                         ("ALIGN", (0, 0), (0, -1), "LEFT"),
                         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
                         ("TOPPADDING", (0, 0), (-1, -1), 1),
@@ -358,7 +339,8 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7),
+                        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                         ("ALIGN", (0, 0), (0, -1), "CENTER"),
                         ("ALIGN", (1, 0), (1, -1), "CENTER"),
                         ("ALIGN", (2, 0), (2, -1), "LEFT"),
@@ -368,6 +350,30 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                 )
             )
             right_col.append(et)
+
+        # Match Stats & Rules Legend placed below the tables in right column
+        legend_lines = [
+            "<b>MATCH STATS & SOCCER DEFINITIONS:</b>",
+            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance based on distance and angle.",
+            "• <b>Rating (★):</b> Match performance on a 1.0–10.0 scale (6.0 average, 8.0+ outstanding).",
+            "• <b>Positions:</b> G = Goalkeeper, D = Defender, M = Midfielder, F = Forward.",
+            "• <b>Status:</b> FT = Full Time (90m), AET = Extra Time (120m), PEN = Penalty Shootout.",
+        ]
+        legend_html = "<br/>".join(legend_lines)
+        legend_t = Table([[Paragraph(legend_html, self.legend_style)]], colWidths=[258])
+        legend_t.setStyle(
+            TableStyle(
+                [
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        right_col.append(Spacer(1, 6))
+        right_col.append(legend_t)
 
         two_col_table = Table([[left_col, right_col]], colWidths=[265, 265])
         two_col_table.setStyle(
@@ -410,10 +416,10 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                     ("ALIGN", (0, 0), (0, -1), "LEFT"),
                     ("ALIGN", (1, 0), (2, -1), "CENTER"),
-                    ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
                     ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
                     ("TOPPADDING", (0, 0), (-1, -1), 3),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -433,19 +439,19 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         elements.append(preview_p)
         elements.append(Spacer(1, 8))
 
-        # Offday Terminology Legend
-        legend_html = (
-            "<b>SOCCER STATS & RULES LEGEND:</b><br/>"
-            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance (e.g. 1.8 xG means typical chances produce ~2 goals).<br/>"
-            "• <b>Rating (★):</b> Match performance (1–10 scale; 6.0 is average, 8.0+ is outstanding).<br/>"
-            "• <b>Positions:</b> G = Goalkeeper | D = Defender | M = Midfielder | F = Forward.<br/>"
-            "• <b>Status:</b> FT = Full Time (90m) | AET = After Extra Time | PEN = Penalty Shootout."
-        )
+        # Offday Terminology Legend (definitions formatted as a clean list)
+        legend_lines = [
+            "<b>SOCCER STATS & RULES DEFINITIONS:</b>",
+            "• <b>xG (Expected Goals):</b> Probability of scoring from a chance based on shot distance and angle.",
+            "• <b>Rating (★):</b> Match performance rating from 1.0 to 10.0 (6.0 average, 8.0+ outstanding).",
+            "• <b>Positions:</b> G = Goalkeeper, D = Defender, M = Midfielder, F = Forward.",
+            "• <b>Status:</b> FT = Full Time (90m), AET = Extra Time (120m), PEN = Penalty Shootout.",
+        ]
+        legend_html = "<br/>".join(legend_lines)
         legend_t = Table([[Paragraph(legend_html, self.legend_style)]], colWidths=[530])
         legend_t.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
                     ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 6),

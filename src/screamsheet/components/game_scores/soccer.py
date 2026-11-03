@@ -33,10 +33,10 @@ class SoccerGameScoresComponent(GameScoresComponent):
             "SoccerLeagueHeader",
             parent=styles["Normal"],
             fontName="Helvetica-Bold",
-            fontSize=8,
+            fontSize=10,
             textColor=colors.black,
-            spaceBefore=4,
-            spaceAfter=2,
+            spaceBefore=6,
+            spaceAfter=3,
         )
 
     def create_default_provider(self) -> DataProvider:
@@ -83,17 +83,17 @@ class SoccerGameScoresComponent(GameScoresComponent):
                     [away, a_score, status],
                     [home, h_score, ""],
                 ]
-                col_widths = [110, 25, 35]
+                col_widths = [105, 25, 40]
                 t = Table(table_data, colWidths=col_widths)
                 t.setStyle(
                     TableStyle(
                         [
                             ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                            ("FONTSIZE", (0, 0), (-1, -1), 9),
+                            ("FONTSIZE", (0, 0), (1, -1), 10),
+                            ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                             ("ALIGN", (1, 0), (1, -1), "RIGHT"),
                             ("ALIGN", (2, 0), (2, -1), "CENTER"),
-                            ("TEXTCOLOR", (2, 0), (2, -1), colors.dimgrey),
-                            ("FONTSIZE", (2, 0), (2, -1), 7),
+                            ("FONTSIZE", (2, 0), (2, -1), 8),
                             ("LEFTPADDING", (0, 0), (-1, -1), 0),
                             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                             ("TOPPADDING", (0, 0), (-1, -1), 1),

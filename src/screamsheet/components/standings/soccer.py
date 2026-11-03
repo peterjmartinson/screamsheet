@@ -44,7 +44,8 @@ class SoccerStandingsComponent(StandingsComponent):
             "SoccerTableTitle",
             parent=self.styles["h4"],
             fontName="Helvetica-Bold",
-            fontSize=9,
+            fontSize=10.5,
+            textColor=colors.black,
             spaceAfter=4,
             alignment=TA_CENTER,
         )
@@ -89,7 +90,8 @@ class SoccerStandingsComponent(StandingsComponent):
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
                 ("ALIGN", (0, 0), (0, -1), "CENTER"),
                 ("ALIGN", (1, 0), (1, -1), "LEFT"),
                 ("ALIGN", (2, 0), (-1, -1), "CENTER"),
@@ -99,16 +101,13 @@ class SoccerStandingsComponent(StandingsComponent):
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]
 
-            # Highlight Al-Nassr with clean grayscale accent
+            # Highlight Al-Nassr with bold font (gray shading reserved strictly for table headers)
             if al_nassr_row_idx != -1:
-                table_style_commands.append(
-                    ("BACKGROUND", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), colors.HexColor("#E2E8F0"))
-                )
                 table_style_commands.append(
                     ("FONTNAME", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), "Helvetica-Bold")
                 )
 
-            t = Table(rows, colWidths=[18, 110, 24, 26, 26, 44])
+            t = Table(rows, colWidths=[18, 108, 24, 26, 26, 48])
             t.setStyle(TableStyle(table_style_commands))
             sub_tables.append([header_p, t])
 
@@ -134,29 +133,28 @@ class SoccerStandingsComponent(StandingsComponent):
         else:
             elements.extend([item for sub in sub_tables for item in sub])
 
-        # Legend explaining columns and form guide
+        # Legend explaining columns and form guide (definitions formatted as a clean list)
         legend_style = ParagraphStyle(
             "SoccerStandingsLegend",
             parent=self.styles["Normal"],
             fontName="Helvetica",
-            fontSize=7,
-            leading=9,
-            textColor=colors.dimgrey,
+            fontSize=8,
+            leading=11,
+            textColor=colors.black,
             alignment=TA_LEFT,
         )
-        legend_html = (
-            "<b>STANDINGS & FORM LEGEND:</b>  "
-            "<b>MP</b> = Matches Played  |  <b>GD</b> = Goal Difference (Goals Scored minus Allowed)  |  "
-            "<b>Pts</b> = Points (Win: 3, Draw: 1, Loss: 0)<br/>"
-            "<b>Form Guide (Last 5 Games):</b> Read left-to-right from oldest to newest match.  "
-            "<b>W</b> = Win, <b>D</b> = Draw / Tie, <b>L</b> = Loss.  "
-            "<i>(Example: 'WWWDW' = 3 wins, followed by a draw, and a win in their most recent fixture).</i>"
-        )
+        legend_lines = [
+            "<b>STANDINGS & FORM DEFINITIONS:</b>",
+            "• <b>MP:</b> Matches Played in the current league season",
+            "• <b>GD:</b> Goal Difference (Total Goals Scored minus Goals Conceded)",
+            "• <b>Pts:</b> Points (Win = 3, Draw = 1, Loss = 0)",
+            "• <b>Form:</b> Recent 5 league fixtures, from oldest to newest (W = Win, D = Draw, L = Loss)",
+        ]
+        legend_html = "<br/>".join(legend_lines)
         legend_table = Table([[Paragraph(legend_html, legend_style)]], colWidths=[530])
         legend_table.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
                     ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 6),

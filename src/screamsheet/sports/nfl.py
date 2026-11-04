@@ -48,7 +48,11 @@ class NFLScreamsheet(SportsScreamsheet):
         self.router = ScreamSheetRouter(override_date=self.display_date or self.date)
         self.strategy = self.router.get_strategy(self.display_date or self.date)
         fav_team_names = [t[1] for t in self.favorite_teams] if self.favorite_teams else []
-        self.news_provider = NFLNewsProvider(favorite_teams=fav_team_names, max_articles=4)
+        self.news_provider = NFLNewsProvider(
+            favorite_teams=fav_team_names,
+            max_articles=4,
+            injury_focus=(self.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES),
+        )
     
     def create_provider(self) -> NFLDataProvider:
         """Create NFL data provider."""
@@ -154,61 +158,33 @@ class NFLScreamsheet(SportsScreamsheet):
                     team_id=injury_team_id,
                     team_name=injury_team_name,
                 ))
-            sections.append(create_news_section("NFL News & Injury Analysis"))
+            sections.append(create_news_section("NFL Injury & Roster News"))
 
         elif self.strategy == NFLDayStrategy.FILM_ROOM:
             sections.append(self.create_standings_component("NFL Standings & Power Metrics"))
-            if injury_team_id:
-                sections.append(NFLInjuriesComponent(
-                    title=f"{injury_team_name} Practice & Roster Notes",
-                    provider=self.provider,
-                    team_id=injury_team_id,
-                    team_name=injury_team_name,
-                ))
             sections.append(create_news_section("NFL Film Room & League Intel"))
 
         elif self.strategy == NFLDayStrategy.TNF_SCOUTING:
             sections.append(self.create_standings_component("NFL Standings"))
-            if injury_team_id:
-                sections.append(NFLInjuriesComponent(
-                    title=f"{injury_team_name} Injury & Depth Report",
-                    provider=self.provider,
-                    team_id=injury_team_id,
-                    team_name=injury_team_name,
-                ))
             sections.append(create_news_section("Thursday Night Football Scouting & News"))
 
         elif self.strategy == NFLDayStrategy.KEYS_TO_VICTORY:
-            sections.append(self.create_standings_component("NFL Standings & Playoff Picture"))
-            if injury_team_id:
-                sections.append(NFLInjuriesComponent(
-                    title=f"{injury_team_name} Final Injury Designations",
+            # Show Thursday Night Football score on Friday if played yesterday
+            if self.provider.get_all_teams_for_date(self.date):
+                sections.append(NFLGameScoresComponent(
+                    title="Thursday Night Football",
                     provider=self.provider,
-                    team_id=injury_team_id,
-                    team_name=injury_team_name,
+                    date=self.date,
                 ))
+            sections.append(self.create_standings_component("NFL Standings & Playoff Picture"))
             sections.append(create_news_section("Weekend Keys to Victory & News"))
 
         elif self.strategy == NFLDayStrategy.WEEKEND_PREP:
             sections.append(self.create_standings_component("NFL Standings"))
-            if injury_team_id:
-                sections.append(NFLInjuriesComponent(
-                    title=f"{injury_team_name} Gameday Status Report",
-                    provider=self.provider,
-                    team_id=injury_team_id,
-                    team_name=injury_team_name,
-                ))
             sections.append(create_news_section("Weekend Matchup Previews & Headlines"))
 
         else:
             sections.append(self.create_standings_component("NFL Standings"))
-            if injury_team_id:
-                sections.append(NFLInjuriesComponent(
-                    title=f"{injury_team_name} Inactives & Lineup Notes",
-                    provider=self.provider,
-                    team_id=injury_team_id,
-                    team_name=injury_team_name,
-                ))
             sections.append(create_news_section("Sunday Gameday News & Roster Updates"))
 
         return sections

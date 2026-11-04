@@ -7,6 +7,7 @@ from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamshe
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
+from .weather_patterns import WeatherPatternsScreamsheet
 
 __all__ = [
     'EmptyScreamsheetError',
@@ -25,4 +26,5 @@ __all__ = [
     'FrenchMLBNewsScreamsheet',
     'PresidentialScreamsheet',
     'SkyTonightScreamsheet',
+    'WeatherPatternsScreamsheet',
 ]

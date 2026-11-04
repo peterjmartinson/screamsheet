@@ -37,6 +37,7 @@ from .sports import MLBScreamsheet, NHLScreamsheet, NFLScreamsheet, NBAScreamshe
 from .news import MLBTradeRumorsScreamsheet, MLBNewsScreamsheet, NHLNewsScreamsheet, FrenchMLBNewsScreamsheet
 from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
+from .weather_patterns import WeatherPatternsScreamsheet
 
 __all__ = [
     'ScreamsheetFactory',
@@ -52,6 +53,7 @@ __all__ = [
     'PresidentialScreamsheet',
     'SkyTonightScreamsheet',
     'HomeRunDerbyScreamsheet',
+    'WeatherPatternsScreamsheet',
 ]
 
 
@@ -250,6 +252,14 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
             "MLB Home Run Derby",
             lambda: ScreamsheetFactory.create_home_run_derby_screamsheet(
                 output_filename=f'Files/Home_Run_Derby_{today_str}.pdf',
+                date=today,
+            ),
+        ),
+        (
+            "Weather Patterns",
+            lambda: ScreamsheetFactory.create_weather_patterns_screamsheet(
+                output_filename=f'Files/WEATHER_PATTERNS_{today_str}.pdf',
+                weather_patterns_config=cfg.weather_patterns,
                 date=today,
             ),
         ),

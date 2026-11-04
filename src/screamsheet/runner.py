@@ -35,7 +35,14 @@ from .order import (
     SoccerOrderOptions,
     TeamEntry,
     WeatherLocationOptions,
+    WeatherPatternsOrderOptions,
     WorldCupOrderOptions,
+)
+from .config import (
+    WeatherPatternsChartsConfig,
+    WeatherPatternsConfig,
+    WeatherPatternsLocationConfig,
+    WeatherPatternsNarrativeConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +71,12 @@ def _options_summary_entry(field_name: str, options: Any) -> list[str]:
         if weather:
             return [weather.location_name]
         return getattr(options, "news_names", [])
+    if field_name == "weather_patterns":
+        weather = getattr(options, "weather", None)
+        if weather:
+            return [weather.location_name]
+        locs = getattr(options, "locations", []) or []
+        return [str(loc.get("name", "My Location")) for loc in locs[:1] if isinstance(loc, dict)]
     return []
 
 
@@ -265,6 +278,59 @@ def _run_home_run_derby(
     return sheet.generate()
 
 
+def _run_weather_patterns(
+    options: WeatherPatternsOrderOptions, today: datetime, today_str: str, output_dir: str
+) -> str:
+    locs: list[WeatherPatternsLocationConfig] = []
+    if options.weather is not None:
+        locs.append(
+            WeatherPatternsLocationConfig(
+                name=options.weather.location_name,
+                lat=float(options.weather.lat),
+                lon=float(options.weather.lon),
+            )
+        )
+    else:
+        for item in (options.locations or [])[:1]:
+            if isinstance(item, dict) and "lat" in item and "lon" in item:
+                locs.append(
+                    WeatherPatternsLocationConfig(
+                        name=str(item.get("name") or item.get("location_name") or "My Location"),
+                        lat=float(item["lat"]),
+                        lon=float(item["lon"]),
+                        station=str(item["station"]).strip() if item.get("station") else None,
+                        snow_station=str(item["snow_station"]).strip() if item.get("snow_station") else None,
+                    )
+                )
+    c_raw = options.charts or {}
+    charts_cfg = WeatherPatternsChartsConfig(
+        teleconnections=bool(c_raw.get("teleconnections", True)),
+        polar_vortex=bool(c_raw.get("polar_vortex", True)),
+        mjo=bool(c_raw.get("mjo", True)),
+        enso=bool(c_raw.get("enso", True)),
+        local_pressure=bool(c_raw.get("local_pressure", True)),
+        local_temperature=bool(c_raw.get("local_temperature", True)),
+        snow=bool(c_raw.get("snow", True)),
+    )
+    wp_cfg = WeatherPatternsConfig(
+        locations=locs,
+        history_days=options.history_days,
+        forecast_days=options.forecast_days,
+        charts=charts_cfg,
+        narrative=WeatherPatternsNarrativeConfig(
+            enabled=options.narrative_enabled,
+            max_words=options.narrative_max_words,
+        ),
+    )
+    sheet = ScreamsheetFactory.create_weather_patterns_screamsheet(
+        output_filename=_output_path(output_dir, f"WEATHER_PATTERNS_{today_str}.pdf"),
+        weather_patterns_config=wp_cfg if locs else None,
+        date=today,
+    )
+    return sheet.generate()
+
+
+
 def _run_briefing(
     options: BriefingOrderOptions, today: datetime, today_str: str, output_dir: str
 ) -> str:
@@ -457,6 +523,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "soccer":           _run_soccer,
     "worldcup":         _run_worldcup,
     "home_run_derby":   _run_home_run_derby,
+    "weather_patterns": _run_weather_patterns,
 }
 
 

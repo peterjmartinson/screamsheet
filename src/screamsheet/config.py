@@ -83,6 +83,9 @@ class WeatherConfig:
     briefing: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
+    weather_patterns: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
 
 
 @dataclass
@@ -162,6 +165,57 @@ class NewsConfig:
 
 
 @dataclass
+class WeatherPatternsLocationConfig:
+    """Configured location for the Weather Patterns screamsheet."""
+    name: str
+    lat: float
+    lon: float
+    station: Optional[str] = None
+    snow_station: Optional[str] = None
+
+
+@dataclass
+class WeatherPatternsChartsConfig:
+    """Toggle individual charts on the Weather Patterns screamsheet."""
+    teleconnections: bool = True
+    polar_vortex: bool = True
+    mjo: bool = True
+    enso: bool = True
+    local_pressure: bool = True
+    local_temperature: bool = True
+    snow: bool = True
+
+
+@dataclass
+class WeatherPatternsNarrativeConfig:
+    """LLM narrative configuration for the Weather Patterns screamsheet."""
+    enabled: bool = True
+    max_words: int = 160
+    include_afd: bool = True
+
+
+@dataclass
+class WeatherPatternsConfig:
+    """Configuration for the Climate / Weather Patterns screamsheet."""
+    weather: WeatherLocationConfig = field(
+        default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
+    locations: List[WeatherPatternsLocationConfig] = field(
+        default_factory=lambda: [
+            WeatherPatternsLocationConfig(
+                name="Bryn Mawr, PA",
+                lat=40.02,
+                lon=-75.34,
+            ),
+        ]
+    )
+    history_days: int = 60
+    forecast_days: int = 14
+    charts: WeatherPatternsChartsConfig = field(default_factory=WeatherPatternsChartsConfig)
+    narrative: WeatherPatternsNarrativeConfig = field(default_factory=WeatherPatternsNarrativeConfig)
+
+
+@dataclass
 class ScreamsheetConfig:
     """Top-level config object, one SportConfig per sport."""
     nhl: NHLConfig = field(default_factory=NHLConfig)
@@ -172,6 +226,7 @@ class ScreamsheetConfig:
     nba: SportConfig = field(default_factory=SportConfig)
     nfl: SportConfig = field(default_factory=SportConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
+    weather_patterns: WeatherPatternsConfig = field(default_factory=WeatherPatternsConfig)
     sky: SkyConfig = field(default_factory=SkyConfig)
     briefing: BriefingConfig = field(default_factory=BriefingConfig)
     news: NewsConfig = field(default_factory=NewsConfig)
@@ -253,6 +308,9 @@ def _parse_weather(raw: dict) -> WeatherConfig:
         ),
         briefing=_parse_weather_location(
             raw.get("briefing", {}), 40.02, -75.34, "Bryn Mawr, PA"
+        ),
+        weather_patterns=_parse_weather_location(
+            raw.get("weather_patterns", raw.get("climate", {})), 40.02, -75.34, "Bryn Mawr, PA"
         ),
     )
 
@@ -349,6 +407,91 @@ def _parse_news(raw: dict) -> NewsConfig:
     )
 
 
+def _parse_weather_patterns(
+    raw: dict, weather_cfg: Optional[WeatherConfig] = None
+) -> WeatherPatternsConfig:
+    raw = raw or {}
+    default_w = (
+        weather_cfg.weather_patterns
+        if weather_cfg is not None
+        else WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
+    )
+
+    weather_raw = raw.get("weather") or raw.get("location") or {}
+    if isinstance(weather_raw, dict) and ("lat" in weather_raw or "lon" in weather_raw):
+        weather_loc = _parse_weather_location(
+            weather_raw, default_w.lat, default_w.lon, default_w.location_name
+        )
+    elif "lat" in raw and "lon" in raw:
+        weather_loc = WeatherLocationConfig(
+            lat=float(raw["lat"]),
+            lon=float(raw["lon"]),
+            location_name=str(
+                raw.get("location_name") or raw.get("name") or default_w.location_name
+            ),
+        )
+    else:
+        weather_loc = default_w
+
+    locs_raw = raw.get("locations")
+    locations: List[WeatherPatternsLocationConfig] = []
+    if isinstance(locs_raw, list) and locs_raw:
+        for item in locs_raw:
+            if not isinstance(item, dict) or "lat" not in item or "lon" not in item:
+                continue
+            name = str(item.get("name") or item.get("location_name") or "Location")
+            station_val = item.get("station")
+            snow_station_val = item.get("snow_station")
+            locations.append(
+                WeatherPatternsLocationConfig(
+                    name=name,
+                    lat=float(item["lat"]),
+                    lon=float(item["lon"]),
+                    station=str(station_val).strip() if station_val else None,
+                    snow_station=str(snow_station_val).strip() if snow_station_val else None,
+                )
+            )
+    if not locations:
+        station_val = raw.get("station")
+        snow_station_val = raw.get("snow_station")
+        locations = [
+            WeatherPatternsLocationConfig(
+                name=weather_loc.location_name,
+                lat=weather_loc.lat,
+                lon=weather_loc.lon,
+                station=str(station_val).strip() if station_val else None,
+                snow_station=str(snow_station_val).strip() if snow_station_val else None,
+            )
+        ]
+
+    charts_raw = raw.get("charts") or {}
+    charts = WeatherPatternsChartsConfig(
+        teleconnections=bool(charts_raw.get("teleconnections", True)),
+        polar_vortex=bool(charts_raw.get("polar_vortex", True)),
+        mjo=bool(charts_raw.get("mjo", True)),
+        enso=bool(charts_raw.get("enso", True)),
+        local_pressure=bool(charts_raw.get("local_pressure", True)),
+        local_temperature=bool(charts_raw.get("local_temperature", True)),
+        snow=bool(charts_raw.get("snow", True)),
+    )
+
+    narr_raw = raw.get("narrative") or {}
+    narrative = WeatherPatternsNarrativeConfig(
+        enabled=bool(narr_raw.get("enabled", True)),
+        max_words=int(narr_raw.get("max_words", 160)),
+        include_afd=bool(narr_raw.get("include_afd", True)),
+    )
+
+    return WeatherPatternsConfig(
+        weather=weather_loc,
+        locations=locations,
+        history_days=int(raw.get("history_days", 60)),
+        forecast_days=int(raw.get("forecast_days", 14)),
+        charts=charts,
+        narrative=narrative,
+    )
+
+
 def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
     """Load and parse config.yaml.
 
@@ -384,6 +527,7 @@ def load_config(path: Path = _CONFIG_PATH) -> ScreamsheetConfig:
         worldcup=_parse_worldcup(raw.get("worldcup", {})),
         soccer=_parse_soccer(raw.get("soccer", {})),
         weather=weather,
+        weather_patterns=_parse_weather_patterns(raw.get("weather_patterns", {}), weather),
         sky=_parse_sky(raw.get("sky") or raw.get("sky_tonight") or {}),
         briefing=_parse_briefing(raw.get("briefing") or raw.get("morning_briefing") or {}, weather),
         news=_parse_news(raw.get("news", {})),

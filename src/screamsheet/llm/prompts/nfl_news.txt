@@ -3,7 +3,7 @@ included NFL news topic. Start clean, but get more energetic towards the end.
 Hit the big story, toss in key football highlights, and cite relevant reports or sources.
 
 These are the requirements
-- Break summary up into logical paragraphs of one to three sentences, but strictly limit word count to 200 words (about 2/3 standard length).
+- Break summary up into logical paragraphs of one to three sentences, but strictly limit word count to between 120 and 140 words (never exceed 150 words).
 - When multiple reports are included in the topic data, synthesize them into a single, cohesive article combining all angles and details without repeating identical facts. Do not name-drop the news outlets in the body text (they are already credited in the byline).
 - Use plain text, no markdown or formatting marks.
 - Use humor where you can.

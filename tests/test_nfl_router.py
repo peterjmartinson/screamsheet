@@ -12,7 +12,7 @@ from screamsheet.sports.nfl_router import (
     "dt,expected_strategy",
     [
         (datetime(2024, 9, 9), NFLDayStrategy.RECAP),                  # Monday
-        (datetime(2024, 9, 10), NFLDayStrategy.STANDINGS_AND_INJURIES), # Tuesday
+        (datetime(2024, 9, 10), NFLDayStrategy.MNF_RECAP),              # Tuesday
         (datetime(2024, 9, 11), NFLDayStrategy.FILM_ROOM),              # Wednesday
         (datetime(2024, 9, 12), NFLDayStrategy.TNF_SCOUTING),           # Thursday
         (datetime(2024, 9, 13), NFLDayStrategy.KEYS_TO_VICTORY),        # Friday

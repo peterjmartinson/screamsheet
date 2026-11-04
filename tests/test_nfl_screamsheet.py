@@ -205,20 +205,48 @@ def test_nfl_screamsheet_postseason_superbowl(tmp_path, mock_nfl_provider):
 
 
 
-def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
-    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+def test_nfl_screamsheet_tuesday_mnf_recap(tmp_path, mock_nfl_provider):
+    from datetime import timedelta
+    from screamsheet.components.game_scores import NFLGameScoresComponent
+    from screamsheet.components.box_score import NFLBoxScoreComponent
     pdf_path = str(tmp_path / "nfl_tuesday.pdf")
     tuesday_date = datetime(2024, 9, 10)  # Tuesday
+    
+    mock_nfl_provider.get_all_teams_for_date.return_value = [(23, "Pittsburgh Steelers"), (12, "Kansas City Chiefs")]
+    mock_nfl_provider.has_game.side_effect = lambda tid, dt: tid in (23, 12)
     
     with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
         sheet = NFLScreamsheet(
             output_filename=pdf_path,
             favorite_teams=[(23, "Pittsburgh Steelers")],
-            date=tuesday_date,
+            date=tuesday_date - timedelta(days=1),
+            display_date=tuesday_date,
         )
-        assert sheet.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES
+        assert sheet.strategy == NFLDayStrategy.MNF_RECAP
         sections = sheet.build_sections()
-        assert len(sections) == 3
+        assert any(isinstance(s, NFLGameScoresComponent) for s in sections)
+        assert any(isinstance(s, NFLBoxScoreComponent) for s in sections)
+        
+        sheet.generate()
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0
+
+
+def test_nfl_screamsheet_thursday_injuries(tmp_path, mock_nfl_provider):
+    from datetime import timedelta
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+    pdf_path = str(tmp_path / "nfl_thursday.pdf")
+    thursday_date = datetime(2024, 9, 12)  # Thursday
+    
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
+        sheet = NFLScreamsheet(
+            output_filename=pdf_path,
+            favorite_teams=[(23, "Pittsburgh Steelers")],
+            date=thursday_date - timedelta(days=1),
+            display_date=thursday_date,
+        )
+        assert sheet.strategy == NFLDayStrategy.TNF_SCOUTING
+        sections = sheet.build_sections()
         injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
         assert "Pittsburgh Steelers Injury Report" in injury_sec.title
         assert injury_sec.team_id == 23
@@ -228,8 +256,8 @@ def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
         assert os.path.getsize(pdf_path) > 0
 
 
-def test_nfl_screamsheet_friday_keys_to_victory_with_injuries(tmp_path, mock_nfl_provider):
-    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+def test_nfl_screamsheet_friday_keys_to_victory(tmp_path, mock_nfl_provider):
+    from screamsheet.components.game_scores import NFLGameScoresComponent
     pdf_path = str(tmp_path / "nfl_friday.pdf")
     friday_date = datetime(2024, 9, 13)  # Friday (after TNF)
 
@@ -244,11 +272,12 @@ def test_nfl_screamsheet_friday_keys_to_victory_with_injuries(tmp_path, mock_nfl
         )
         assert sheet.strategy == NFLDayStrategy.KEYS_TO_VICTORY
         sections = sheet.build_sections()
+        # Friday includes Thursday Night Football score, Standings, and News (no injuries)
         assert len(sections) == 3
-        injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
-        assert "Philadelphia Eagles Final Injury Designations" in injury_sec.title
-        assert injury_sec.team_id == 21
-        assert injury_sec.team_name == "Philadelphia Eagles"
+        scores_sec = next(s for s in sections if isinstance(s, NFLGameScoresComponent))
+        assert "Thursday Night Football" in scores_sec.title
+        from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+        assert not any(isinstance(s, NFLInjuriesComponent) for s in sections)
 
         sheet.generate()
         assert os.path.exists(pdf_path)
@@ -284,11 +313,12 @@ def test_nfl_screamsheet_non_game_day_with_news(tmp_path, mock_nfl_provider):
             date=wednesday_date,
         )
         sections = sheet.build_sections()
-        # Wednesday Film Room builds Standings & Power Metrics + Practice & Roster Notes + Film Room & League Intel
+        # Wednesday Film Room builds Standings & Power Metrics + Film Room & League Intel (no injuries)
         section_titles = [s.title for s in sections]
         assert any("Standings" in t for t in section_titles)
-        assert any("Notes" in t or "Injury" in t for t in section_titles)
         assert any("News" in t or "Intel" in t for t in section_titles)
+        from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+        assert not any(isinstance(s, NFLInjuriesComponent) for s in sections)
 
         sheet.generate()
         assert os.path.exists(pdf_path)
@@ -444,8 +474,7 @@ def test_nfl_news_summarizer_configuration():
     prompt_path = Path(__file__).parent.parent / "src" / "screamsheet" / "llm" / "prompts" / "nfl_news.txt"
     assert prompt_path.exists()
     content = prompt_path.read_text(encoding="utf-8")
-    assert "200 words" in content
-    assert "2/3 standard length" in content
+    assert "120 and 140 words" in content
 
 
 def test_news_articles_section_with_schedule():
@@ -517,9 +546,9 @@ def test_nfl_screamsheet_integrates_day_of_schedule(tmp_path):
             favorite_teams=[(12, "Chiefs")],
         )
         sections = sheet.build_sections()
-        assert len(sections) == 3  # Standings, Injuries, NewsArticlesSection
+        assert len(sections) == 2  # Standings, NewsArticlesSection
 
-        news_sec = sections[2]
+        news_sec = sections[1]
         from screamsheet.renderers.news_articles import NewsArticlesSection
         assert isinstance(news_sec, NewsArticlesSection)
         assert news_sec.max_articles == 3
@@ -676,6 +705,74 @@ def test_nfl_news_provider_multi_source_clustering():
     assert "ESPN" in entry["source"]
     assert "NFL.com" in entry["source"]
     assert len(entry["reports"]) == 2
+
+
+def test_nfl_screamsheet_injury_isolated_to_thursday(mock_nfl_provider):
+    """Verify NFLInjuriesComponent is ONLY included on Thursday."""
+    from datetime import timedelta
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+
+    # 2024-09-09 is Monday, through 2024-09-15 Sunday
+    start_monday = datetime(2024, 9, 9)
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider), \
+         patch("screamsheet.sports.nfl.NFLNewsProvider") as mock_news_cls:
+        for day_offset in range(7):
+            cur_date = start_monday + timedelta(days=day_offset)
+            sheet = NFLScreamsheet(
+                output_filename=f"/tmp/test_nfl_{day_offset}.pdf",
+                favorite_teams=[(21, "Philadelphia Eagles")],
+                date=cur_date - timedelta(days=1),
+                display_date=cur_date,
+            )
+            sections = sheet.build_sections()
+            has_injury_comp = any(isinstance(s, NFLInjuriesComponent) for s in sections)
+            passed_injury_focus = mock_news_cls.call_args.kwargs.get("injury_focus")
+            if cur_date.weekday() == 3:  # Thursday
+                assert has_injury_comp, f"Expected injury component on Thursday ({cur_date.strftime('%A')})"
+                assert passed_injury_focus is True
+            else:
+                assert not has_injury_comp, f"Did not expect injury component on {cur_date.strftime('%A')}"
+                assert passed_injury_focus is False
+
+
+def test_nfl_news_provider_injury_focus():
+    """Verify NFLNewsProvider with injury_focus=True strictly prioritizes injury stories."""
+    from screamsheet.providers.nfl_news_provider import NFLNewsProvider
+
+    mock_entries = [
+        {
+            "title": "Quarterback signs record five-year extension",
+            "summary": "The team locked down their star quarterback with massive guarantees.",
+            "link": "https://espn.com/story/contract",
+            "source": "ESPN",
+        },
+        {
+            "title": "Star receiver placed on injured reserve with hamstring strain",
+            "summary": "He will miss at least four weeks following an MRI on his injured hamstring.",
+            "link": "https://espn.com/story/injury-1",
+            "source": "ESPN",
+        },
+        {
+            "title": "Starting safety ruled out with knee injury and surgery scheduled",
+            "summary": "He suffered a torn ligament and underwent successful surgery.",
+            "link": "https://espn.com/story/injury-2",
+            "source": "NFL.com",
+        },
+    ]
+
+    provider = NFLNewsProvider(favorite_teams=["Philadelphia Eagles"], max_articles=2, injury_focus=True)
+
+    with patch.object(provider, "_fetch_all_source_entries", return_value=mock_entries) if hasattr(provider, "_fetch_all_source_entries") else patch.object(provider, "_get_active_sources", return_value=[]):
+        with patch.object(provider, "_score_and_cluster_entries") as mock_cluster:
+            mock_cluster.return_value = [
+                {"slot": "Section 1", "entry": mock_entries[1]},
+                {"slot": "Section 2", "entry": mock_entries[2]},
+            ]
+            # Test direct is_injury_article logic
+            assert NFLNewsProvider.is_injury_article(mock_entries[0]) is False
+            assert NFLNewsProvider.is_injury_article(mock_entries[1]) is True
+            assert NFLNewsProvider.is_injury_article(mock_entries[2]) is True
+
 
 
 

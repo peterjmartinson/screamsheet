@@ -51,7 +51,7 @@ class NFLScreamsheet(SportsScreamsheet):
         self.news_provider = NFLNewsProvider(
             favorite_teams=fav_team_names,
             max_articles=4,
-            injury_focus=(self.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES),
+            injury_focus=(self.strategy in (NFLDayStrategy.TNF_SCOUTING, NFLDayStrategy.STANDINGS_AND_INJURIES)),
         )
     
     def create_provider(self) -> NFLDataProvider:
@@ -149,6 +149,31 @@ class NFLScreamsheet(SportsScreamsheet):
             else:
                 sections.append(create_news_section("NFL Headlines & Recap"))
 
+        elif self.strategy == NFLDayStrategy.MNF_RECAP:
+            # Tuesday: Monday Night Football Recap
+            if self.provider.get_all_teams_for_date(self.date):
+                sections.append(NFLGameScoresComponent(
+                    title="Monday Night Football",
+                    provider=self.provider,
+                    date=self.date,
+                ))
+            sections.append(self.create_standings_component("NFL Standings & Division Check"))
+            if featured and featured_id:
+                is_primary = bool(self.favorite_teams) and featured == self.favorite_teams[0]
+                box_title = f"{featured_name} Box Score" if (self.favorite_teams and featured in self.favorite_teams) else "Monday Night Football Box Score"
+                box_section = NFLBoxScoreComponent(
+                    title=box_title,
+                    provider=self.provider,
+                    team_id=featured_id,
+                    date=self.date,
+                    is_primary_favorite=is_primary,
+                    mad_fan=self.mad_fan,
+                )
+                box_section.page_slot = "back"
+                sections.append(box_section)
+            else:
+                sections.append(create_news_section("NFL Headlines & News"))
+
         elif self.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES:
             sections.append(self.create_standings_component("NFL Standings & Division Check"))
             if injury_team_id:
@@ -166,7 +191,14 @@ class NFLScreamsheet(SportsScreamsheet):
 
         elif self.strategy == NFLDayStrategy.TNF_SCOUTING:
             sections.append(self.create_standings_component("NFL Standings"))
-            sections.append(create_news_section("Thursday Night Football Scouting & News"))
+            if injury_team_id:
+                sections.append(NFLInjuriesComponent(
+                    title=f"{injury_team_name} Injury Report",
+                    provider=self.provider,
+                    team_id=injury_team_id,
+                    team_name=injury_team_name,
+                ))
+            sections.append(create_news_section("Thursday Night Football Preview & News"))
 
         elif self.strategy == NFLDayStrategy.KEYS_TO_VICTORY:
             # Show Thursday Night Football score on Friday if played yesterday

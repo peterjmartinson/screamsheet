@@ -205,20 +205,48 @@ def test_nfl_screamsheet_postseason_superbowl(tmp_path, mock_nfl_provider):
 
 
 
-def test_nfl_screamsheet_tuesday_injuries(tmp_path, mock_nfl_provider):
-    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+def test_nfl_screamsheet_tuesday_mnf_recap(tmp_path, mock_nfl_provider):
+    from datetime import timedelta
+    from screamsheet.components.game_scores import NFLGameScoresComponent
+    from screamsheet.components.box_score import NFLBoxScoreComponent
     pdf_path = str(tmp_path / "nfl_tuesday.pdf")
     tuesday_date = datetime(2024, 9, 10)  # Tuesday
+    
+    mock_nfl_provider.get_all_teams_for_date.return_value = [(23, "Pittsburgh Steelers"), (12, "Kansas City Chiefs")]
+    mock_nfl_provider.has_game.side_effect = lambda tid, dt: tid in (23, 12)
     
     with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
         sheet = NFLScreamsheet(
             output_filename=pdf_path,
             favorite_teams=[(23, "Pittsburgh Steelers")],
-            date=tuesday_date,
+            date=tuesday_date - timedelta(days=1),
+            display_date=tuesday_date,
         )
-        assert sheet.strategy == NFLDayStrategy.STANDINGS_AND_INJURIES
+        assert sheet.strategy == NFLDayStrategy.MNF_RECAP
         sections = sheet.build_sections()
-        assert len(sections) == 3
+        assert any(isinstance(s, NFLGameScoresComponent) for s in sections)
+        assert any(isinstance(s, NFLBoxScoreComponent) for s in sections)
+        
+        sheet.generate()
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0
+
+
+def test_nfl_screamsheet_thursday_injuries(tmp_path, mock_nfl_provider):
+    from datetime import timedelta
+    from screamsheet.components.nfl_injuries import NFLInjuriesComponent
+    pdf_path = str(tmp_path / "nfl_thursday.pdf")
+    thursday_date = datetime(2024, 9, 12)  # Thursday
+    
+    with patch("screamsheet.sports.nfl.NFLDataProvider", return_value=mock_nfl_provider):
+        sheet = NFLScreamsheet(
+            output_filename=pdf_path,
+            favorite_teams=[(23, "Pittsburgh Steelers")],
+            date=thursday_date - timedelta(days=1),
+            display_date=thursday_date,
+        )
+        assert sheet.strategy == NFLDayStrategy.TNF_SCOUTING
+        sections = sheet.build_sections()
         injury_sec = next(s for s in sections if isinstance(s, NFLInjuriesComponent))
         assert "Pittsburgh Steelers Injury Report" in injury_sec.title
         assert injury_sec.team_id == 23
@@ -679,8 +707,8 @@ def test_nfl_news_provider_multi_source_clustering():
     assert len(entry["reports"]) == 2
 
 
-def test_nfl_screamsheet_injury_isolated_to_tuesday(mock_nfl_provider):
-    """Verify NFLInjuriesComponent is ONLY included on Tuesday."""
+def test_nfl_screamsheet_injury_isolated_to_thursday(mock_nfl_provider):
+    """Verify NFLInjuriesComponent is ONLY included on Thursday."""
     from datetime import timedelta
     from screamsheet.components.nfl_injuries import NFLInjuriesComponent
 
@@ -699,8 +727,8 @@ def test_nfl_screamsheet_injury_isolated_to_tuesday(mock_nfl_provider):
             sections = sheet.build_sections()
             has_injury_comp = any(isinstance(s, NFLInjuriesComponent) for s in sections)
             passed_injury_focus = mock_news_cls.call_args.kwargs.get("injury_focus")
-            if cur_date.weekday() == 1:  # Tuesday
-                assert has_injury_comp, f"Expected injury component on Tuesday ({cur_date.strftime('%A')})"
+            if cur_date.weekday() == 3:  # Thursday
+                assert has_injury_comp, f"Expected injury component on Thursday ({cur_date.strftime('%A')})"
                 assert passed_injury_focus is True
             else:
                 assert not has_injury_comp, f"Did not expect injury component on {cur_date.strftime('%A')}"

@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional
 
 class NFLDayStrategy(str, Enum):
     RECAP = "RECAP"
+    MNF_RECAP = "MNF_RECAP"
     STANDINGS_AND_INJURIES = "STANDINGS_AND_INJURIES"
     FILM_ROOM = "FILM_ROOM"
     TNF_SCOUTING = "TNF_SCOUTING"
@@ -26,7 +27,7 @@ class NFLDayStrategy(str, Enum):
 
 DAY_TO_STRATEGY_MAP = {
     0: NFLDayStrategy.RECAP,                   # Monday
-    1: NFLDayStrategy.STANDINGS_AND_INJURIES,  # Tuesday
+    1: NFLDayStrategy.MNF_RECAP,               # Tuesday
     2: NFLDayStrategy.FILM_ROOM,               # Wednesday
     3: NFLDayStrategy.TNF_SCOUTING,            # Thursday
     4: NFLDayStrategy.KEYS_TO_VICTORY,         # Friday
@@ -36,9 +37,10 @@ DAY_TO_STRATEGY_MAP = {
 
 DAY_SUBTITLE_MAP = {
     NFLDayStrategy.RECAP: "Sunday Game Recaps",
+    NFLDayStrategy.MNF_RECAP: "Monday Night Football Recap",
     NFLDayStrategy.STANDINGS_AND_INJURIES: "Monday Night Football Recap & Injury Report",
     NFLDayStrategy.FILM_ROOM: "Midweek Film Room & League Intel",
-    NFLDayStrategy.TNF_SCOUTING: "Thursday Night Football Preview & Scouting",
+    NFLDayStrategy.TNF_SCOUTING: "Thursday Night Football Preview & Injury Report",
     NFLDayStrategy.KEYS_TO_VICTORY: "Thursday Night Football Recap & Weekend Prep",
     NFLDayStrategy.WEEKEND_PREP: "Weekend Matchup Preview & Roster Moves",
     NFLDayStrategy.GAMEDAY_CARD: "Sunday Gameday Card & Inactives",
@@ -49,6 +51,11 @@ STRATEGY_CONFIG = {
         "description": "Monday recap featuring final scores, featured game summary, and drive chart.",
         "prompt_template_key": "nfl_recap",
         "data_loaders": ["scores", "game_summary"],
+    },
+    NFLDayStrategy.MNF_RECAP: {
+        "description": "Tuesday Monday Night Football recap featuring final score, standings, and game box score.",
+        "prompt_template_key": "nfl_recap",
+        "data_loaders": ["scores", "box_score", "standings"],
     },
     NFLDayStrategy.STANDINGS_AND_INJURIES: {
         "description": "Tuesday division standings, playoff bubble check, and injury reports.",
@@ -61,9 +68,9 @@ STRATEGY_CONFIG = {
         "data_loaders": ["standings", "team_stats"],
     },
     NFLDayStrategy.TNF_SCOUTING: {
-        "description": "Thursday night preview and opponent scouting.",
+        "description": "Thursday night preview, team injury report, and opponent scouting.",
         "prompt_template_key": "nfl_tnf_scouting",
-        "data_loaders": ["scores", "standings"],
+        "data_loaders": ["scores", "standings", "injuries"],
     },
     NFLDayStrategy.KEYS_TO_VICTORY: {
         "description": "Friday game prep, injury designations, and 3 keys to victory.",

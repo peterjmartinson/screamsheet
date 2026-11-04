@@ -730,3 +730,31 @@ class EmailImportantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
             config=config,
         )
 
+
+class WeatherPatternsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a structured 4-paragraph meteorological pattern briefing
+    grounded strictly in normalized application data.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``weather_packet_json`` str — JSON string of normalized weather pattern packet
+    - ``max_words``           int — Target word ceiling (default 220)
+    """
+
+    _PROMPT_FILE = Path("weather_patterns.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+

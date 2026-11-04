@@ -43,6 +43,14 @@ from .llm_cache_db import (
     purge_expired_cache as llm_cache_purge_expired,
     save_cached_response as llm_cache_save,
 )
+from .weather_cache_db import (
+    CachedFetchResult,
+    fetch_with_cache,
+    get_weather_cache,
+    init_weather_cache_db,
+    save_weather_cache,
+    weather_cache_fetch,
+)
 from .nhl_players_db import (
     get_db_path,
     init_db,
@@ -106,4 +114,10 @@ __all__ = [
     "llm_cache_purge_expired",
     "llm_cache_clear",
     "llm_cache_stats",
+    # Weather data cache
+    "CachedFetchResult",
+    "init_weather_cache_db",
+    "get_weather_cache",
+    "save_weather_cache",
+    "weather_cache_fetch",
 ]

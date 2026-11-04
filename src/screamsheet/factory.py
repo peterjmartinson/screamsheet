@@ -8,6 +8,8 @@ from .political import PresidentialScreamsheet
 from .sky.sky_tonight import SkyTonightScreamsheet
 from .briefing import MorningBriefingScreamsheet, DEFAULT_AGENDA_ENDPOINT
 from .components.custom_screamsheet import CustomScreamsheet
+from .weather_patterns import WeatherPatternsScreamsheet
+from .config import WeatherPatternsConfig
 
 
 class ScreamsheetFactory:
@@ -527,4 +529,51 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
         )
+
+    @staticmethod
+    def create_weather_patterns_screamsheet(
+        output_filename: str,
+        weather_patterns_config: Optional[WeatherPatternsConfig] = None,
+        weather_lat: Optional[float] = None,
+        weather_lon: Optional[float] = None,
+        weather_location_name: Optional[str] = None,
+        date: Optional[datetime] = None,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        use_cache: bool = True,
+        refresh_cache: bool = False,
+    ) -> WeatherPatternsScreamsheet:
+        """Create a Climate / Weather Patterns screamsheet."""
+        if (
+            weather_patterns_config is None
+            and weather_lat is not None
+            and weather_lon is not None
+        ):
+            from .config import WeatherLocationConfig, WeatherPatternsLocationConfig
+
+            loc_name = weather_location_name or "My Location"
+            weather_patterns_config = WeatherPatternsConfig(
+                weather=WeatherLocationConfig(
+                    lat=float(weather_lat),
+                    lon=float(weather_lon),
+                    location_name=loc_name,
+                ),
+                locations=[
+                    WeatherPatternsLocationConfig(
+                        name=loc_name,
+                        lat=float(weather_lat),
+                        lon=float(weather_lon),
+                    )
+                ],
+            )
+        return WeatherPatternsScreamsheet(
+            output_filename=output_filename,
+            target_date=date,
+            weather_patterns_config=weather_patterns_config,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            use_cache=use_cache,
+            refresh_cache=refresh_cache,
+        )
+
 

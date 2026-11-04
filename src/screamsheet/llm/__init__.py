@@ -22,6 +22,7 @@ from .summarizers import (
     NFLNewsSummarizer,
     EmailNewsSummarizer,
     EmailImportantSummarizer,
+    WeatherPatternsSummarizer,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     "NFLNewsSummarizer",
     "EmailNewsSummarizer",
     "EmailImportantSummarizer",
+    "WeatherPatternsSummarizer",
 ]

@@ -86,6 +86,33 @@ weather:
     lat: 40.02
     lon: -75.34
     location_name: "Bryn Mawr, PA"
+  weather_patterns:
+    lat: 40.02
+    lon: -75.34
+    location_name: "Bryn Mawr, PA"
+
+# Climate / Weather Patterns screamsheet.
+# Uses the location configured under weather.weather_patterns (or lat/lon below).
+# Combines NOAA CPC daily teleconnections (AO/NAO/PNA + GEFS ensemble forecasts),
+# stratospheric polar vortex (10 hPa 60°N zonal wind), NOAA PSL MJO (ROMI),
+# ENSO (Niño 3.4 / ONI / RONI / MEI.v2), and local NWS/ACIS observations & forecasts.
+weather_patterns:
+  history_days: 60
+  forecast_days: 14
+
+  charts:
+    teleconnections: true
+    polar_vortex: true
+    mjo: true
+    enso: true
+    local_pressure: true
+    local_temperature: true
+    snow: true
+
+  narrative:
+    enabled: true
+    max_words: 160
+    include_afd: true
 
 # Morning Briefing screamsheet.
 # Connects to random-task REST API endpoint to aggregate 6-day calendar & Trello tasks.

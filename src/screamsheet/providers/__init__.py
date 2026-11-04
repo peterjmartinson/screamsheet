@@ -21,6 +21,13 @@ from .news_sources import (
     resolve_news_sources,
 )
 from .weather_provider import WeatherProvider
+from .teleconnection_provider import TeleconnectionProvider
+from .mjo_provider import MJOProvider
+from .enso_provider import ENSOProvider
+from .stratosphere_provider import StratosphereProvider
+from .nws_patterns_provider import NWSWeatherPatternsProvider
+from .climate_history_provider import ClimateHistoryProvider
+from .snow_provider import SnowProvider
 
 __all__ = [
     "MLBDataProvider",
@@ -41,4 +48,11 @@ __all__ = [
     "DEFAULT_SHEET_SOURCES",
     "resolve_news_sources",
     "WeatherProvider",
+    "TeleconnectionProvider",
+    "MJOProvider",
+    "ENSOProvider",
+    "StratosphereProvider",
+    "NWSWeatherPatternsProvider",
+    "ClimateHistoryProvider",
+    "SnowProvider",
 ]

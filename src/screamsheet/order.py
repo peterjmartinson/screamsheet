@@ -192,6 +192,20 @@ class OutputOrderOptions:
 
 
 @dataclass
+class WeatherPatternsOrderOptions:
+    """Options for the Climate / Weather Patterns screamsheet."""
+
+    weather: WeatherLocationOptions | None = None
+    locations: list[dict[str, Any]] = field(default_factory=list)
+    history_days: int = 60
+    forecast_days: int = 14
+    charts: dict[str, bool] = field(default_factory=dict)
+    narrative_enabled: bool = True
+    narrative_max_words: int = 160
+
+
+
+@dataclass
 class ComponentSpec:
     """Specification for a single component in a custom component-based screamsheet."""
 
@@ -254,6 +268,7 @@ class ScreamsheetOrder:
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None
+    weather_patterns: WeatherPatternsOrderOptions | None = None
     # --- custom component-based screamsheets ---
     custom_sheets: list[CustomSheetOrderOptions] = field(default_factory=list)
 

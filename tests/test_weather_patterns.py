@@ -12,6 +12,21 @@ from reportlab.graphics.shapes import Drawing
 
 from screamsheet.config import load_config
 from screamsheet.db.weather_cache_db import weather_cache_fetch
+from screamsheet.db.weather_patterns_db import (
+    WEATHER_PATTERNS_SCHEMA_VERSION,
+    compute_teleconnection_verification_stats,
+    find_historical_teleconnection_analogs,
+    get_forecast_vintages_for_metric,
+    get_local_pressure_history,
+    get_stratosphere_obs_history,
+    get_teleconnection_obs_history,
+    get_weather_schema_version,
+    init_weather_patterns_db,
+    persist_weather_patterns_bundle,
+    save_stratosphere_forecast_vintage,
+    save_teleconnection_forecast_vintage,
+    save_teleconnection_observations,
+)
 from screamsheet.factory import ScreamsheetFactory
 from screamsheet.llm.summarizers import WeatherPatternsSummarizer
 from screamsheet.providers import (
@@ -41,6 +56,7 @@ from screamsheet.weather_patterns import (
     WeatherPatternsDataBundle,
     WeatherPatternsScreamsheet,
     build_enso_sparkline,
+    build_forecast_evolution_chart,
     build_local_pressure_chart,
     build_local_temperature_chart,
     build_mjo_phase_diagram,
@@ -626,3 +642,244 @@ def test_weather_cache_db_stale_fallback(tmp_path: Path, monkeypatch: pytest.Mon
     assert res2.payload == "cached-payload-v1"
     assert res2.is_stale is True
     assert "Simulated NOAA network outage" in (res2.error or "")
+
+
+# ---------------------------------------------------------------------------
+# V2 Institutional Memory Database, Forecast Vintages, Evolution & Verification Tests
+# ---------------------------------------------------------------------------
+
+def test_v2_schema_init_and_idempotent_observation_ingestion(tmp_path: Path):
+    db_file = tmp_path / "wp_v2.db"
+    init_weather_patterns_db(db_file)
+    assert get_weather_schema_version(db_file) == WEATHER_PATTERNS_SCHEMA_VERSION
+
+    bundle = _make_sample_bundle()
+    counts1 = persist_weather_patterns_bundle(bundle, db_path=db_file)
+    assert counts1["teleconnection_obs"] > 0
+    assert counts1["stratosphere_obs"] > 0
+    assert counts1["mjo_obs"] > 0
+    assert counts1["enso_obs"] > 0
+    assert counts1["local_obs"] > 0
+    assert counts1["teleconnection_forecasts"] > 0
+
+    # Re-running with identical data must be idempotent (0 new/modified rows)
+    counts2 = persist_weather_patterns_bundle(bundle, db_path=db_file)
+    assert counts2["teleconnection_obs"] == 0
+    assert counts2["stratosphere_obs"] == 0
+    assert counts2["mjo_obs"] == 0
+    assert counts2["enso_obs"] == 0
+    assert counts2["local_obs"] == 0
+    assert counts2["teleconnection_forecasts"] == 0
+
+    # Verify stored observations can be queried back
+    ao_hist = get_teleconnection_obs_history("AO", db_path=db_file)
+    assert len(ao_hist) == 9
+    assert ao_hist[-1].value == pytest.approx(-1.64)
+
+    strat_hist = get_stratosphere_obs_history(db_path=db_file)
+    assert len(strat_hist) == 9
+    assert strat_hist[-1].zonal_wind_10hpa_60n == pytest.approx(11.8)
+
+    phl_press = get_local_pressure_history("Philadelphia", "KPHL", db_path=db_file)
+    assert len(phl_press) == 3
+    assert phl_press[-1].pressure_hpa == pytest.approx(1027.4)
+
+
+def test_v2_forecast_vintage_preservation_and_evolution_signals(tmp_path: Path):
+    """Verify successive model runs targeting the same valid date are preserved and evolution is calculated."""
+    db_file = tmp_path / "wp_vintages.db"
+
+    # Simulate 4 successive daily GEFS runs (Nov 3, Nov 4, Nov 5, Nov 6) all predicting valid_date 2026-11-15
+    nao_runs = [
+        ("2026-11-03", 12, -0.40, -0.90, 0.10),
+        ("2026-11-04", 11, -0.80, -1.25, -0.35),
+        ("2026-11-05", 10, -1.30, -1.70, -0.90),
+        ("2026-11-06", 9, -1.90, -2.20, -1.60),
+    ]
+    for init_d, lead_d, mean_v, p25_v, p75_v in nao_runs:
+        save_teleconnection_forecast_vintage(
+            index_name="NAO",
+            forecasts=[
+                TeleconnectionForecastDay(
+                    valid_date="2026-11-15",
+                    lead_days=lead_d,
+                    init_date=init_d,
+                    ensemble_mean=mean_v,
+                    ensemble_min=mean_v - 0.6,
+                    ensemble_max=mean_v + 0.6,
+                    ensemble_p25=p25_v,
+                    ensemble_p75=p75_v,
+                    ensemble_std=0.35,
+                    member_count=31,
+                    members=[mean_v] * 31,
+                )
+            ],
+            db_path=db_file,
+        )
+
+    vintages = get_forecast_vintages_for_metric("NAO", model="GEFS", db_path=db_file)
+    # CRITICAL: All 4 forecast runs for 2026-11-15 must remain in the database!
+    assert len(vintages) == 4
+    assert [v["points"][0]["value"] for v in vintages] == pytest.approx([-0.40, -0.80, -1.30, -1.90])
+
+    # Simulate 4 successive stratospheric 10-hPa zonal wind runs strengthening into a reversal (< 0 m/s)
+    pv_runs = [
+        ("2026-11-03", 8.0),
+        ("2026-11-04", 4.0),
+        ("2026-11-05", -2.0),
+        ("2026-11-06", -7.0),
+    ]
+    for init_d, u_min in pv_runs:
+        sb = StratosphereBundle(
+            observations=[StratosphereDailyPoint(init_d, 15.0, 215.0, is_forecast=False)],
+            forecasts=[StratosphereDailyPoint("2026-11-12", u_min, 224.0, is_forecast=True)],
+        )
+        save_stratosphere_forecast_vintage(sb, run_date=init_d, db_path=db_file)
+
+    pv_vintages = get_forecast_vintages_for_metric("U60N_10HPA", model="GEOS5_FP", db_path=db_file)
+    assert len(pv_vintages) == 4
+
+    bundle = _make_sample_bundle()
+    fcst_map = {"NAO": vintages, "U60N_10HPA": pv_vintages}
+    sig = compute_derived_signals(
+        teleconnections=bundle.teleconnections,
+        stratosphere=bundle.stratosphere,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        locations=bundle.locations,
+        forecast_vintages=fcst_map,
+    )
+
+    nao_ev = sig.forecast_evolution["nao"]
+    assert nao_ev["available"] is True
+    assert nao_ev["target_date"] == "2026-11-15"
+    assert nao_ev["current_run"] == pytest.approx(-1.90)
+    assert nao_ev["previous_run"] == pytest.approx(-1.30)
+    assert nao_ev["three_runs_ago"] == pytest.approx(-0.40)
+    assert nao_ev["consecutive_runs_negative"] == 3
+    assert nao_ev["trend"] == "strengthening_negative_signal"
+    assert "stronger negative signal" in nao_ev["display_label"]
+
+    pv_ev = sig.forecast_evolution["stratosphere"]
+    assert pv_ev["available"] is True
+    assert pv_ev["current_run_minimum"] == pytest.approx(-7.0)
+    assert pv_ev["previous_run_minimum"] == pytest.approx(-2.0)
+    assert pv_ev["three_runs_ago_minimum"] == pytest.approx(8.0)
+    assert pv_ev["consecutive_runs_forecasting_reversal"] == 2
+    assert pv_ev["first_run_showing_reversal"] == "2026-11-05"
+    assert pv_ev["trend"] == "strengthening_reversal_signal"
+
+    # Now test when a previously forecast wind reversal disappears in recent runs:
+    # Nov 3: -8, Nov 4: -5, Nov 5: +1, Nov 6: +7
+    db_file_dis = tmp_path / "wp_disappear.db"
+    for init_d, u_min in [("2026-11-03", -8.0), ("2026-11-04", -5.0), ("2026-11-05", 1.0), ("2026-11-06", 7.0)]:
+        sb = StratosphereBundle(
+            observations=[StratosphereDailyPoint(init_d, 18.0, 212.0, is_forecast=False)],
+            forecasts=[StratosphereDailyPoint("2026-11-12", u_min, 215.0, is_forecast=True)],
+        )
+        save_stratosphere_forecast_vintage(sb, run_date=init_d, db_path=db_file_dis)
+
+    pv_dis_vintages = get_forecast_vintages_for_metric("U60N_10HPA", model="GEOS5_FP", db_path=db_file_dis)
+    sig_dis = compute_derived_signals(
+        teleconnections=bundle.teleconnections,
+        stratosphere=bundle.stratosphere,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        locations=bundle.locations,
+        forecast_vintages={"U60N_10HPA": pv_dis_vintages},
+    )
+    pv_ev_dis = sig_dis.forecast_evolution["stratosphere"]
+    assert pv_ev_dis["previously_forecast_reversal_disappeared"] is True
+    assert pv_ev_dis["trend"] == "previously_forecast_reversal_disappeared"
+    assert any("disappeared" in b for b in sig_dis.what_changed["STRATOSPHERE"])
+
+    # Also verify the V2 Forecast Evolution Chart renders cleanly
+    evo_chart = build_forecast_evolution_chart(fcst_map, bundle.teleconnections, bundle.stratosphere)
+    assert isinstance(evo_chart, Drawing)
+
+
+def test_v2_stale_fetch_does_not_manufacture_forecast_vintage(tmp_path: Path):
+    """If today's external fetch failed and returned stale cache, do not create a new forecast vintage."""
+    db_file = tmp_path / "wp_stale_guard.db"
+    bundle = _make_sample_bundle()
+    # Mark AO forecast provenance as stale fallback
+    bundle.teleconnections["AO"].fcst_provenance = SourceProvenance(
+        source_name="NOAA CPC / NCEP GEFS",
+        product="AO GEFS",
+        url="https://ftp.cpc.ncep.noaa.gov/cwlinks/",
+        retrieved_at="2026-11-02T00:00:00Z",
+        from_cache=True,
+        is_stale=True,
+        available=True,
+    )
+    persist_weather_patterns_bundle(bundle, db_path=db_file)
+    ao_vintages = get_forecast_vintages_for_metric("AO", db_path=db_file)
+    assert len(ao_vintages) == 0
+
+
+def test_v2_verification_and_analog_queries(tmp_path: Path):
+    db_file = tmp_path / "wp_verify.db"
+
+    # Seed 12 days of observations and D+3 forecasts so sample_count >= 10 (meaningful sample)
+    obs_list = [
+        TeleconnectionDailyObs(f"2026-10-{10 + i:02d}", -1.0 + 0.1 * i)
+        for i in range(15)
+    ]
+    save_teleconnection_observations("NAO", obs_list, db_path=db_file)
+
+    for i in range(12):
+        init_d = f"2026-10-{7 + i:02d}"
+        valid_d = f"2026-10-{10 + i:02d}"
+        true_v = -1.0 + 0.1 * i
+        pred_v = true_v - 0.15  # slight error
+        save_teleconnection_forecast_vintage(
+            "NAO",
+            [
+                TeleconnectionForecastDay(
+                    valid_date=valid_d,
+                    lead_days=3,
+                    init_date=init_d,
+                    ensemble_mean=pred_v,
+                    ensemble_min=pred_v - 0.3,
+                    ensemble_max=pred_v + 0.3,
+                    ensemble_p25=pred_v - 0.1,
+                    ensemble_p75=pred_v + 0.1,
+                    ensemble_std=0.15,
+                    member_count=31,
+                )
+            ],
+            db_path=db_file,
+        )
+
+    ver = compute_teleconnection_verification_stats(
+        "NAO", lead_days_list=(3, 7), min_samples_for_skill_claim=10, db_path=db_file
+    )
+    assert ver["by_lead"]["D+3"]["sample_count"] == 12
+    assert ver["by_lead"]["D+3"]["has_meaningful_sample"] is True
+    assert ver["by_lead"]["D+3"]["mae"] == pytest.approx(0.15, abs=0.01)
+    assert ver["by_lead"]["D+3"]["correlation"] == pytest.approx(1.0, abs=0.01)
+    # D+7 has 0 samples -> has_meaningful_sample must be False
+    assert ver["by_lead"]["D+7"]["sample_count"] == 0
+    assert ver["by_lead"]["D+7"]["has_meaningful_sample"] is False
+
+    # Test historical analog query
+    save_teleconnection_observations(
+        "AO", [TeleconnectionDailyObs("2026-01-15", -1.60)], db_path=db_file
+    )
+    save_teleconnection_observations(
+        "NAO", [TeleconnectionDailyObs("2026-01-15", -1.50)], db_path=db_file
+    )
+    save_teleconnection_observations(
+        "PNA", [TeleconnectionDailyObs("2026-01-15", 1.55)], db_path=db_file
+    )
+    analogs = find_historical_teleconnection_analogs(
+        ao_target=-1.64,
+        nao_target=-1.55,
+        pna_target=1.60,
+        max_distance_sd=0.5,
+        reference_date="2026-11-04",
+        db_path=db_file,
+    )
+    assert len(analogs) == 1
+    assert analogs[0]["date"] == "2026-01-15"
+    assert analogs[0]["distance_sd"] < 0.15

@@ -57,10 +57,12 @@ class TeleconnectionForecastDay:
 @dataclass
 class TeleconnectionIndexBundle:
     """Complete history + GEFS forecast for one teleconnection index (AO, NAO, or PNA)."""
+    #Complete history + GEFS forecast for one teleconnection index (AO, NAO, or PNA).
     index_name: str                                    # "AO" | "NAO" | "PNA"
     level_label: str                                   # e.g. "1000 hPa" | "500 hPa"
     observations: List[TeleconnectionDailyObs] = field(default_factory=list)
     forecasts: List[TeleconnectionForecastDay] = field(default_factory=list)
+    recent_vintages: List[TeleconnectionForecastDay] = field(default_factory=list)
     obs_provenance: Optional[SourceProvenance] = None
     fcst_provenance: Optional[SourceProvenance] = None
 
@@ -242,7 +244,7 @@ class LocalLocationBundle:
 
 @dataclass
 class DerivedSignals:
-    """Deterministic derived signal-change metrics and rule-based flags."""
+    """Deterministic derived signal-change metrics and rule-based flags (V1 + V2)."""
     # Quantitative changes
     ao: Dict[str, Any] = field(default_factory=dict)
     nao: Dict[str, Any] = field(default_factory=dict)
@@ -250,6 +252,12 @@ class DerivedSignals:
     polar_vortex: Dict[str, Any] = field(default_factory=dict)
     mjo: Dict[str, Any] = field(default_factory=dict)
     enso: Dict[str, Any] = field(default_factory=dict)
+    # V2 Forecast evolution & consistency tracking across archived model runs
+    forecast_evolution: Dict[str, Any] = field(default_factory=dict)
+    # V2 Upgraded "What Changed?" categories (Observed, Forecast, Model Trend / Consistency, Stratosphere)
+    what_changed: Dict[str, List[str]] = field(default_factory=dict)
+    # V2 Verification / skill archive summaries (only populated when sample sizes are meaningful)
+    verification: Dict[str, Any] = field(default_factory=dict)
     # Rule-based boolean flags
     flags: Dict[str, bool] = field(default_factory=dict)
     # Human-readable summary bullets of triggered flags / notable changes
@@ -266,6 +274,7 @@ class WeatherPatternsDataBundle:
     enso: Optional[ENSOBundle] = None
     locations: List[LocalLocationBundle] = field(default_factory=list)
     derived: DerivedSignals = field(default_factory=DerivedSignals)
+    forecast_vintages: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
     narrative_text: str = ""
     provenance_list: List[SourceProvenance] = field(default_factory=list)
 
@@ -286,10 +295,15 @@ class WeatherPatternsDataBundle:
         # Teleconnections
         tc_obs: Dict[str, Any] = {}
         tc_fcst: Dict[str, Any] = {}
+        tc_v2: Dict[str, Any] = {}
         for key, bundle in self.teleconnections.items():
+            obs_block: Dict[str, Any] = {}
+            fcst_block: Dict[str, Any] = {}
             if bundle.observations:
                 latest = bundle.observations[-1]
                 recent_7 = bundle.observations[-8:]
+                one_day_ago = bundle.observations[-2].value if len(bundle.observations) >= 2 else None
+                seven_days_ago = bundle.observations[-8].value if len(bundle.observations) >= 8 else None
                 tc_obs[key] = {
                     "latest_date": latest.date,
                     "latest_value_sd": round(latest.value, 2),
@@ -298,22 +312,45 @@ class WeatherPatternsDataBundle:
                         for pt in recent_7
                     ],
                 }
+                obs_block = {
+                    "latest_date": latest.date,
+                    "current": round(latest.value, 2),
+                    "one_day_ago": round(one_day_ago, 2) if one_day_ago is not None else None,
+                    "seven_days_ago": round(seven_days_ago, 2) if seven_days_ago is not None else None,
+                }
             if bundle.forecasts:
                 day7 = next((f for f in bundle.forecasts if f.lead_days == 7), bundle.forecasts[min(6, len(bundle.forecasts) - 1)])
+                day10 = next((f for f in bundle.forecasts if f.lead_days == 10), bundle.forecasts[min(9, len(bundle.forecasts) - 1)])
                 day14 = next((f for f in bundle.forecasts if f.lead_days == 14), bundle.forecasts[-1])
                 tc_fcst[key] = {
                     "init_date": bundle.forecasts[0].init_date,
                     "day7_valid": day7.valid_date,
                     "day7_gefs_mean_sd": round(day7.ensemble_mean, 2),
                     "day7_gefs_iqr_sd": [round(day7.ensemble_p25, 2), round(day7.ensemble_p75, 2)],
+                    "day10_valid": day10.valid_date,
+                    "day10_gefs_mean_sd": round(day10.ensemble_mean, 2),
                     "day14_valid": day14.valid_date,
                     "day14_gefs_mean_sd": round(day14.ensemble_mean, 2),
                     "day14_gefs_iqr_sd": [round(day14.ensemble_p25, 2), round(day14.ensemble_p75, 2)],
                 }
+                fcst_block = {
+                    "init_date": bundle.forecasts[0].init_date,
+                    "day_7": round(day7.ensemble_mean, 2),
+                    "day_7_iqr": [round(day7.ensemble_p25, 2), round(day7.ensemble_p75, 2)],
+                    "day_10": round(day10.ensemble_mean, 2),
+                    "day_14": round(day14.ensemble_mean, 2),
+                }
+            evol_block = (self.derived.forecast_evolution or {}).get(key.lower()) or (self.derived.forecast_evolution or {}).get(key) or {}
+            tc_v2[key.lower()] = {
+                "observed": obs_block,
+                "current_forecast": fcst_block,
+                "forecast_evolution": evol_block,
+            }
         observations["teleconnections"] = tc_obs
         model_forecasts["teleconnections_gefs"] = tc_fcst
 
         # Stratosphere
+        strat_v2: Dict[str, Any] = {}
         if self.stratosphere and self.stratosphere.observations:
             latest_s = self.stratosphere.observations[-1]
             observations["stratospheric_polar_vortex"] = {
@@ -339,6 +376,27 @@ class WeatherPatternsDataBundle:
                     }
                     for pt in self.stratosphere.forecasts
                 ]
+            pv_sig = self.derived.polar_vortex or {}
+            strat_evol = (self.derived.forecast_evolution or {}).get("stratosphere") or {}
+            strat_v2 = {
+                "observed": {
+                    "latest_date": latest_s.date,
+                    "u60_10hpa": round(latest_s.zonal_wind_10hpa_60n, 2),
+                    "seven_day_change": pv_sig.get("change_7d"),
+                    "polar_cap_temp_k": (
+                        round(latest_s.polar_cap_temp_10hpa_60_90n, 2)
+                        if latest_s.polar_cap_temp_10hpa_60_90n is not None
+                        else None
+                    ),
+                },
+                "current_forecast": {
+                    "minimum": pv_sig.get("forecast_min"),
+                    "reversal_forecast": pv_sig.get("forecast_reversal"),
+                    "reversal_date": pv_sig.get("forecast_min_date") if pv_sig.get("forecast_reversal") else None,
+                    "minimum_date": pv_sig.get("forecast_min_date"),
+                },
+                "forecast_evolution": strat_evol,
+            }
 
         # MJO
         if self.mjo and self.mjo.history:
@@ -442,9 +500,15 @@ class WeatherPatternsDataBundle:
             "OBSERVATIONS": observations,
             "MODEL_FORECASTS": model_forecasts,
             "DERIVED_CHANGES": asdict(self.derived),
+            "WHAT_CHANGED": self.derived.what_changed or {},
+            "FORECAST_EVOLUTION": self.derived.forecast_evolution or {},
+            "teleconnections": tc_v2,
+            "stratosphere": strat_v2,
             "LOCAL_WEATHER": local_weather,
             "SOURCE_TIMESTAMPS": timestamps,
         }
+        if self.derived.verification:
+            packet["FORECAST_VERIFICATION_ARCHIVE"] = self.derived.verification
         if forecaster_discussions:
             packet["OFFICIAL_FORECASTER_DISCUSSION"] = forecaster_discussions
         return packet

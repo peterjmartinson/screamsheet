@@ -45,6 +45,7 @@ from ..llm.summarizers import WeatherPatternsSummarizer
 from .charts import (
     MJO_PHASE_REGIONS,
     build_enso_sparkline,
+    build_forecast_evolution_chart,
     build_local_pressure_chart,
     build_local_temperature_chart,
     build_mjo_phase_diagram,
@@ -322,6 +323,16 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     mjo=self._bundle.mjo,
                     enso=self._bundle.enso,
                     locations=self._bundle.locations,
+                    forecast_vintages=self._bundle.forecast_vintages,
+                )
+            elif not self._bundle.derived.forecast_evolution:
+                self._bundle.derived = compute_derived_signals(
+                    teleconnections=self._bundle.teleconnections,
+                    stratosphere=self._bundle.stratosphere,
+                    mjo=self._bundle.mjo,
+                    enso=self._bundle.enso,
+                    locations=self._bundle.locations,
+                    forecast_vintages=self._bundle.forecast_vintages,
                 )
             if not self._bundle.narrative_text:
                 if self.wp_config.narrative.enabled:
@@ -404,7 +415,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         )
 
         locations: List[LocalLocationBundle] = []
-        for loc_cfg in cfg.locations[:1]:
+        for loc_cfg in cfg.locations:
             loc_bundle = nws_prov.get_location_nws_bundle(
                 name=loc_cfg.name,
                 lat=loc_cfg.lat,
@@ -426,22 +437,98 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 provenance_list.append(loc_bundle.snow.provenance)
             locations.append(loc_bundle)
 
+        report_date_str = self.date.strftime("%Y-%m-%d")
+
+        # V2 Workflow: Persist observations & current forecast vintages, then query historical DB
+        forecast_vintages: Dict[str, List[Dict[str, Any]]] = {}
+        verification_summary: Dict[str, Any] = {}
+        try:
+            from ..db.weather_patterns_db import (
+                compute_teleconnection_verification_stats,
+                get_forecast_vintages_for_metric,
+                get_local_pressure_history,
+                get_stratosphere_obs_history,
+                get_teleconnection_obs_history,
+                persist_weather_patterns_bundle,
+            )
+
+            prelim_bundle = WeatherPatternsDataBundle(
+                report_date=report_date_str,
+                teleconnections=teleconnections,
+                stratosphere=strat_bundle,
+                mjo=mjo_bundle,
+                enso=enso_bundle,
+                locations=locations,
+                provenance_list=provenance_list,
+            )
+            persist_weather_patterns_bundle(prelim_bundle)
+
+            # Query historical observations from DB where helpful (e.g., if today's fetch had gaps or for pressure retention)
+            for code, tb in teleconnections.items():
+                if not tb.observations:
+                    db_obs = get_teleconnection_obs_history(
+                        code, limit_days=cfg.history_days, up_to_date=report_date_str
+                    )
+                    if db_obs:
+                        tb.observations = db_obs
+                forecast_vintages[code] = get_forecast_vintages_for_metric(
+                    metric=code,
+                    model="GEFS",
+                    up_to_run_time=report_date_str,
+                    max_runs=8,
+                )
+                ver_stats = compute_teleconnection_verification_stats(code)
+                if ver_stats.get("has_sufficient_data_for_display"):
+                    verification_summary[code] = ver_stats
+
+            if strat_bundle and not strat_bundle.observations:
+                db_strat = get_stratosphere_obs_history(
+                    limit_days=cfg.history_days, up_to_date=report_date_str
+                )
+                if db_strat:
+                    strat_bundle.observations = db_strat
+
+            forecast_vintages["U60N_10HPA"] = get_forecast_vintages_for_metric(
+                metric="U60N_10HPA",
+                model="GEOS5_FP",
+                up_to_run_time=report_date_str,
+                max_runs=8,
+            )
+
+            for loc_b in locations:
+                if not loc_b.pressure_series:
+                    db_press = get_local_pressure_history(
+                        location_name=loc_b.name,
+                        station_id=loc_b.station_id,
+                        limit_hours=168,
+                    )
+                    if db_press:
+                        loc_b.pressure_series = db_press
+        except Exception as db_exc:
+            logger.error(
+                "Weather Patterns V2 database persistence/query failed (rendering from live data): %s",
+                db_exc,
+            )
+
         derived = compute_derived_signals(
             teleconnections=teleconnections,
             stratosphere=strat_bundle,
             mjo=mjo_bundle,
             enso=enso_bundle,
             locations=locations,
+            forecast_vintages=forecast_vintages,
+            verification_summary=verification_summary,
         )
 
         bundle = WeatherPatternsDataBundle(
-            report_date=self.date.strftime("%Y-%m-%d"),
+            report_date=report_date_str,
             teleconnections=teleconnections,
             stratosphere=strat_bundle,
             mjo=mjo_bundle,
             enso=enso_bundle,
             locations=locations,
             derived=derived,
+            forecast_vintages=forecast_vintages,
             provenance_list=provenance_list,
         )
 
@@ -544,6 +631,14 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         if sig.polar_vortex.get("available") and sig.polar_vortex.get("change_7d") is not None:
             changes.append(f"10-hPa 60°N wind 7-day change of {sig.polar_vortex['change_7d']:+.1f} m/s")
 
+        # Include V2 model trend / forecast evolution highlights if multiple runs exist
+        wc = sig.what_changed or {}
+        for mt_bullet in (wc.get("MODEL_TREND") or [])[:2]:
+            changes.append(mt_bullet.rstrip("."))
+        for st_bullet in (wc.get("STRATOSPHERE") or []):
+            if "consecutive" in st_bullet or "disappeared" in st_bullet:
+                changes.append(st_bullet.rstrip("."))
+
         p2 = (
             "WHAT CHANGED: "
             + ("; ".join(changes) if changes else "Recent 7-day index deltas are minimal.")
@@ -587,11 +682,17 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     break
             left_flowables.append(Paragraph(safe_p, st["narrative_p"]))
 
-        left_flowables.append(Spacer(1, 6))
+        left_flowables.append(Spacer(1, 5))
         left_flowables.extend(
             self._section_header_flowables("Teleconnection & Index Scorecard")
         )
         left_flowables.append(self._build_scorecard_table(bundle))
+
+        left_flowables.append(Spacer(1, 5))
+        left_flowables.extend(
+            self._section_header_flowables("Forecast Evolution (Multi-Run Trend)")
+        )
+        left_flowables.append(self._build_forecast_evolution_table(bundle))
         return left_flowables
 
     def _build_right_column_charts(
@@ -770,6 +871,86 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         )
         return tbl
 
+    def _build_forecast_evolution_table(self, bundle: WeatherPatternsDataBundle) -> Table:
+        """Build compact V2 FORECAST EVOLUTION table showing multi-run convergence & consistency."""
+        st = self._wp_styles
+        evol_map = bundle.derived.forecast_evolution or {}
+
+        rows: List[List[Any]] = [
+            [
+                Paragraph("Metric", st["table_hdr"]),
+                Paragraph("Model Trend / Signal Evolution", st["table_hdr"]),
+                Paragraph("Consistency", st["table_hdr"]),
+            ]
+        ]
+
+        for code in ("NAO", "AO", "PNA"):
+            ev = evol_map.get(code.lower()) or evol_map.get(code) or {}
+            if ev.get("available"):
+                lbl = str(ev.get("display_label") or "→ little change")
+                tgt = str(ev.get("target_date") or "")
+                tgt_short = f" ({tgt[5:]})" if len(tgt) >= 10 else ""
+                c_val = ev.get("current_run")
+                val_txt = f" [{c_val:+.2f} SD]" if c_val is not None else ""
+                n_runs = int(ev.get("display_runs") or ev.get("run_count") or 1)
+                runs_lbl = f"{n_runs} run{'s' if n_runs != 1 else ''}"
+                rows.append(
+                    [
+                        Paragraph(f"<b>{code}</b>", st["table_cell"]),
+                        Paragraph(f"{escape(lbl)}{escape(tgt_short)}{escape(val_txt)}", st["table_cell"]),
+                        Paragraph(escape(runs_lbl), st["table_cell"]),
+                    ]
+                )
+            else:
+                rows.append(
+                    [
+                        Paragraph(f"<b>{code}</b>", st["table_cell"]),
+                        Paragraph("→ accumulating forecast runs", st["table_cell"]),
+                        Paragraph("—", st["table_cell"]),
+                    ]
+                )
+
+        pv_ev = evol_map.get("stratosphere") or {}
+        if pv_ev.get("available"):
+            lbl = str(pv_ev.get("display_label") or "→ steady westerly vortex")
+            c_min = pv_ev.get("current_run_minimum")
+            min_txt = f" [min {c_min:+.1f} m/s]" if c_min is not None else ""
+            n_runs = int(pv_ev.get("display_runs") or pv_ev.get("run_count") or 1)
+            runs_lbl = f"{n_runs} run{'s' if n_runs != 1 else ''}"
+            rows.append(
+                [
+                    Paragraph("<b>PV WIND</b>", st["table_cell"]),
+                    Paragraph(f"{escape(lbl)}{escape(min_txt)}", st["table_cell"]),
+                    Paragraph(escape(runs_lbl), st["table_cell"]),
+                ]
+            )
+        else:
+            rows.append(
+                [
+                    Paragraph("<b>PV WIND</b>", st["table_cell"]),
+                    Paragraph("→ accumulating forecast runs", st["table_cell"]),
+                    Paragraph("—", st["table_cell"]),
+                ]
+            )
+
+        tbl = Table(rows, colWidths=[54.0, 200.0, 56.0])
+        tbl.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAEAEA")),
+                    ("LINEBELOW", (0, 0), (-1, 0), 1.0, colors.black),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#777777")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2.4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        return tbl
+
     def _build_header(self) -> List[Any]:
         """Build standard screamsheet title, date, and location header for Page 1."""
         title_st = ParagraphStyle(
@@ -841,12 +1022,24 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             c4 = build_teleconnections_chart(
                 bundle.teleconnections,
                 width=568.0,
-                height=154.0,
+                height=144.0,
                 history_days=min(self.wp_config.history_days, 55),
                 forecast_days=self.wp_config.forecast_days,
             )
             c4.hAlign = "CENTER"
             story.append(c4)
+
+        if getattr(charts_cfg, "forecast_evolution", True):
+            story.append(Spacer(1, 3))
+            c5 = build_forecast_evolution_chart(
+                forecast_vintages=bundle.forecast_vintages,
+                teleconnections=bundle.teleconnections,
+                stratosphere=bundle.stratosphere,
+                width=568.0,
+                height=108.0,
+            )
+            c5.hAlign = "CENTER"
+            story.append(c5)
 
         return story
 
@@ -1164,6 +1357,26 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 f"{f'{d7_u:+.1f} m/s' if d7_u is not None else '—'} | "
                 f"Min {pv.get('forecast_min')} m/s | "
                 f"Major SSW: {pv.get('major_ssw_criteria_met')} |"
+            )
+
+        lines.append("")
+        lines.append("## Forecast Evolution (Multi-Run Model Trend)")
+        lines.append("")
+        lines.append("| Metric | Model Trend / Signal Evolution | Runs |")
+        lines.append("| :--- | :--- | :--- |")
+        evol_map = sig.forecast_evolution or {}
+        for code in ("NAO", "AO", "PNA"):
+            ev = evol_map.get(code.lower()) or evol_map.get(code) or {}
+            if ev.get("available"):
+                n_r = int(ev.get("display_runs") or ev.get("run_count") or 1)
+                lines.append(
+                    f"| **{code}** | {ev.get('display_label')} (target {ev.get('target_date')}: {ev.get('current_run'):+.2f} SD) | {n_r} run(s) |"
+                )
+        pv_ev = evol_map.get("stratosphere") or {}
+        if pv_ev.get("available"):
+            n_r = int(pv_ev.get("display_runs") or pv_ev.get("run_count") or 1)
+            lines.append(
+                f"| **PV WIND** | {pv_ev.get('display_label')} (min {pv_ev.get('current_run_minimum'):+.1f} m/s) | {n_r} run(s) |"
             )
 
         lines.append("")

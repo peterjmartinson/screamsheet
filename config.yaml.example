@@ -105,6 +105,7 @@ weather_patterns:
     polar_vortex: true
     mjo: true
     enso: true
+    forecast_evolution: true
     local_pressure: true
     local_temperature: true
     snow: true

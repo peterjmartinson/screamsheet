@@ -43,6 +43,7 @@ Each screamsheet is a self-contained PDF covering one topic: sports scores, spor
 | International Soccer | `Files/SOCCER_gamescores_YYYYMMDD.pdf` | Scores across top leagues, dual standings, Match of the Day deep dive + CR7 spotlight (or off-day milestone tracker) |
 | Presidential | `Files/presidential_screamsheet_YYYYMMDD.pdf` | Top 4 political stories from 7 RSS feeds + WhiteHouse.gov |
 | Sky Tonight | `Files/SKY_YYYYMMDD.pdf` | Tonight's sky highlights + horoscopes |
+| Weather Patterns (Climate) | `Files/WEATHER_PATTERNS_YYYYMMDD.pdf` | Teleconnections (AO/NAO/PNA), Polar Vortex, MJO, ENSO, multi-run forecast evolution, and local NWS/NCEI diagnostics |
 
 ### Favourite teams & fallback
 

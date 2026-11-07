@@ -205,11 +205,11 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 "WP_SectionHdr",
                 parent=base_style,
                 fontName="Helvetica-Bold",
-                fontSize=13.0,
-                leading=15.5,
+                fontSize=12.2,
+                leading=14.5,
                 textColor=colors.black,
-                spaceBefore=2,
-                spaceAfter=2,
+                spaceBefore=1,
+                spaceAfter=1.5,
             ),
             "back_section_hdr": ParagraphStyle(
                 "WP_BackSectionHdr",
@@ -235,9 +235,9 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 "WP_NarrativeP",
                 parent=base_style,
                 fontName="Helvetica",
-                fontSize=11.0,
-                leading=13.8,
-                spaceAfter=4.0,
+                fontSize=9.7,
+                leading=11.8,
+                spaceAfter=2.5,
             ),
             "back_body": ParagraphStyle(
                 "WP_BackBody",
@@ -260,15 +260,15 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 "WP_TableCell",
                 parent=base_style,
                 fontName="Helvetica",
-                fontSize=8.8,
-                leading=10.8,
+                fontSize=8.2,
+                leading=9.6,
             ),
             "table_hdr": ParagraphStyle(
                 "WP_TableHdr",
                 parent=base_style,
                 fontName="Helvetica-Bold",
-                fontSize=9.0,
-                leading=11.0,
+                fontSize=8.4,
+                leading=9.8,
                 textColor=colors.black,
             ),
             "back_table_cell": ParagraphStyle(
@@ -682,17 +682,11 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     break
             left_flowables.append(Paragraph(safe_p, st["narrative_p"]))
 
-        left_flowables.append(Spacer(1, 5))
+        left_flowables.append(Spacer(1, 4))
         left_flowables.extend(
             self._section_header_flowables("Teleconnection & Index Scorecard")
         )
         left_flowables.append(self._build_scorecard_table(bundle))
-
-        left_flowables.append(Spacer(1, 5))
-        left_flowables.extend(
-            self._section_header_flowables("Forecast Evolution (Multi-Run Trend)")
-        )
-        left_flowables.append(self._build_forecast_evolution_table(bundle))
         return left_flowables
 
     def _build_right_column_charts(
@@ -705,31 +699,37 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             right_flowables.append(
                 build_polar_vortex_chart(
                     bundle.stratosphere,
-                    width=252.0,
-                    height=130.0,
+                    width=258.0,
+                    height=105.0,
                     history_days=min(self.wp_config.history_days, 45),
                 )
             )
-            right_flowables.append(Spacer(1, 4))
+            right_flowables.append(Spacer(1, 3))
 
         if charts_cfg.mjo:
             right_flowables.append(
                 build_mjo_phase_diagram(
                     bundle.mjo,
-                    width=252.0,
-                    height=130.0,
+                    width=258.0,
+                    height=108.0,
                 )
             )
-            right_flowables.append(Spacer(1, 4))
+            right_flowables.append(Spacer(1, 3))
 
         if charts_cfg.enso:
             right_flowables.append(
                 build_enso_sparkline(
                     bundle.enso,
-                    width=252.0,
-                    height=118.0,
+                    width=258.0,
+                    height=98.0,
                 )
             )
+            right_flowables.append(Spacer(1, 4))
+
+        right_flowables.extend(
+            self._section_header_flowables("Forecast Evolution (Multi-Run Trend)")
+        )
+        right_flowables.append(self._build_forecast_evolution_table(bundle))
 
         return right_flowables
 
@@ -852,7 +852,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
 
         tbl = Table(
             rows,
-            colWidths=[66.0, 78.0, 40.0, 126.0],
+            colWidths=[64.0, 76.0, 38.0, 132.0],
         )
         tbl.setStyle(
             TableStyle(
@@ -862,8 +862,8 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#777777")),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("TOPPADDING", (0, 0), (-1, -1), 2.8),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2.8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 1.8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1.8),
                     ("LEFTPADDING", (0, 0), (-1, -1), 4),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 4),
                 ]
@@ -880,7 +880,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             [
                 Paragraph("Metric", st["table_hdr"]),
                 Paragraph("Model Trend / Signal Evolution", st["table_hdr"]),
-                Paragraph("Consistency", st["table_hdr"]),
+                Paragraph("Runs", st["table_hdr"]),
             ]
         ]
 
@@ -933,7 +933,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 ]
             )
 
-        tbl = Table(rows, colWidths=[54.0, 200.0, 56.0])
+        tbl = Table(rows, colWidths=[44.0, 174.0, 40.0])
         tbl.setStyle(
             TableStyle(
                 [
@@ -942,52 +942,32 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#777777")),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("TOPPADDING", (0, 0), (-1, -1), 2.4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 1.8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1.8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
                 ]
             )
         )
         return tbl
 
     def _build_header(self) -> List[Any]:
-        """Build standard screamsheet title, date, and location header for Page 1."""
-        title_st = ParagraphStyle(
-            "WP_MainTitle",
-            parent=self.title_style,
-            fontName="Helvetica-Bold",
-            fontSize=26,
-            leading=29,
-            spaceAfter=3,
-            alignment=1,
-        )
-        date_st = ParagraphStyle(
-            "WP_DateSub",
+        """Build standard screamsheet masthead (Title, Date, Location)."""
+        last_sub_st = ParagraphStyle(
+            "WP_LastSub",
             parent=self.subtitle_style,
-            fontName="Helvetica",
-            fontSize=15.5,
-            leading=18,
-            spaceAfter=2,
-            alignment=1,
-        )
-        loc_st = ParagraphStyle(
-            "WP_LocationSub",
-            parent=self.subtitle_style,
-            fontName="Helvetica",
-            fontSize=13.5,
-            leading=16,
             spaceAfter=6,
-            alignment=1,
-            textColor=colors.HexColor("#222222"),
         )
-        flow: List[Any] = [
-            Paragraph(escape(self.get_title()), title_st),
-            Paragraph(escape(self.get_date_string()), date_st),
-        ]
         loc_sub = self.get_subtitle()
+        flow: List[Any] = [
+            Paragraph(escape(self.get_title()), self.title_style),
+            Paragraph(
+                escape(self.get_date_string()),
+                self.subtitle_style if loc_sub else last_sub_st,
+            ),
+        ]
         if loc_sub:
-            flow.append(Paragraph(escape(loc_sub), loc_st))
+            flow.append(Paragraph(f"<i>{escape(loc_sub)}</i>", last_sub_st))
         return flow
 
     def _build_page1(self, bundle: WeatherPatternsDataBundle) -> List[Any]:
@@ -999,14 +979,14 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
 
         top_two_col = Table(
             [[left_col, right_col]],
-            colWidths=[316.0, 252.0],
+            colWidths=[318.0, 258.0],
         )
         top_two_col.setStyle(
             TableStyle(
                 [
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (0, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (0, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (0, -1), 8),
                     ("LEFTPADDING", (1, 0), (1, -1), 0),
                     ("RIGHTPADDING", (1, 0), (1, -1), 0),
                     ("TOPPADDING", (0, 0), (-1, -1), 0),
@@ -1015,14 +995,14 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             )
         )
         story.append(top_two_col)
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, 3))
 
         charts_cfg = self.wp_config.charts
         if charts_cfg.teleconnections:
             c4 = build_teleconnections_chart(
                 bundle.teleconnections,
-                width=568.0,
-                height=144.0,
+                width=576.0,
+                height=114.0,
                 history_days=min(self.wp_config.history_days, 55),
                 forecast_days=self.wp_config.forecast_days,
             )
@@ -1035,8 +1015,8 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 forecast_vintages=bundle.forecast_vintages,
                 teleconnections=bundle.teleconnections,
                 stratosphere=bundle.stratosphere,
-                width=568.0,
-                height=108.0,
+                width=576.0,
+                height=88.0,
             )
             c5.hAlign = "CENTER"
             story.append(c5)
@@ -1112,9 +1092,9 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
 
         loc_charts: List[Any] = []
         if charts_cfg.local_pressure:
-            loc_charts.append(build_local_pressure_chart(loc, width=278.0, height=160.0))
+            loc_charts.append(build_local_pressure_chart(loc, width=284.0, height=160.0))
         if charts_cfg.local_temperature:
-            loc_charts.append(build_local_temperature_chart(loc, width=278.0, height=160.0))
+            loc_charts.append(build_local_temperature_chart(loc, width=284.0, height=160.0))
         if loc_charts:
             blocks.extend(
                 self._section_header_flowables(
@@ -1125,7 +1105,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             if len(loc_charts) == 1:
                 blocks.append(loc_charts[0])
             else:
-                ct = Table([loc_charts], colWidths=[282.0, 282.0])
+                ct = Table([loc_charts], colWidths=[288.0, 288.0])
                 ct.setStyle(
                     TableStyle(
                         [
@@ -1181,7 +1161,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 ]
                 f_rows.insert(3, snow_row)
 
-            col_w = [84.0] + [(480.0 / max(1, len(fcst_days)))] * len(fcst_days)
+            col_w = [84.0] + [(492.0 / max(1, len(fcst_days)))] * len(fcst_days)
             ft = Table(f_rows, colWidths=col_w)
             ft.setStyle(
                 TableStyle(
@@ -1218,7 +1198,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             )
             blocks.append(Paragraph(sn_html, st["back_body"]))
             blocks.append(Spacer(1, 4))
-            blocks.append(build_snow_watch_chart(sn, width=564.0, height=130.0))
+            blocks.append(build_snow_watch_chart(sn, width=576.0, height=130.0))
 
         return blocks
 
@@ -1229,14 +1209,14 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         self,
         pages: List[List[Any]],
     ) -> str:
-        """Build an N-page PDF with narrower horizontal margins (24pt = 1/3 inch)."""
+        """Build an N-page PDF with narrow horizontal margins (18pt = 1/4 inch)."""
         non_empty_pages = [p for p in pages if p]
         if not non_empty_pages:
             non_empty_pages = [[]]
 
-        margin_x = 22.0
+        margin_x = 18.0
         margin_top = 24.0
-        margin_bottom = 28.0
+        margin_bottom = 35.0
         page_width, page_height = letter
         frame_w = page_width - 2 * margin_x
         frame_h = page_height - margin_top - margin_bottom

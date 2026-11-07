@@ -1098,11 +1098,12 @@ def build_mjo_phase_diagram(
     else:
         lines_txt = [("Status:", "Unavailable")]
 
-    ty = ry + box_size - 12.0
+    ty = ry + box_size - 10.5
+    step_ty = min(13.8, (box_size - 13.5) / max(1, len(lines_txt) - 1))
     for k_lbl, v_lbl in lines_txt:
-        g.add(String(rx + 4, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.8, fillColor=DARK_GRAY))
-        g.add(String(rx + 38, ty, v_lbl[:22], fontName="Helvetica", fontSize=6.8, fillColor=BLACK))
-        ty -= 13.8
+        g.add(String(rx + 4, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.6, fillColor=DARK_GRAY))
+        g.add(String(rx + 38, ty, v_lbl[:22], fontName="Helvetica", fontSize=6.6, fillColor=BLACK))
+        ty -= step_ty
 
     d.add(g)
     return d
@@ -1264,11 +1265,12 @@ def build_enso_sparkline(
             f"{enso.latest_meiv2:+.2f}" if (enso and enso.latest_meiv2 is not None) else "N/A",
         ),
     ]
-    ty = y0 + plot_h - 11.5
+    ty = y0 + plot_h - 10.0
+    step_ty = min(12.8, (plot_h - 12.5) / max(1, len(readout) - 1))
     for k_lbl, v_lbl in readout:
-        g.add(String(rx + 3, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.6, fillColor=DARK_GRAY))
-        g.add(String(rx + 36, ty, v_lbl[:15], fontName="Helvetica", fontSize=6.6, fillColor=BLACK))
-        ty -= 12.8
+        g.add(String(rx + 3, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.4, fillColor=DARK_GRAY))
+        g.add(String(rx + 36, ty, v_lbl[:15], fontName="Helvetica", fontSize=6.4, fillColor=BLACK))
+        ty -= step_ty
 
     d.add(g)
     return d

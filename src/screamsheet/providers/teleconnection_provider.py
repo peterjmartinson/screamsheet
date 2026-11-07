@@ -140,20 +140,16 @@ class TeleconnectionProvider(DataProvider):
         return rows
 
     @staticmethod
-    def parse_gefs_csv(
+    def parse_gefs_csv_multi_vintages(
         gefs_csv_text: str,
         gfs_csv_text: Optional[str] = None,
         target_date: Optional[datetime] = None,
         forecast_days: int = 14,
+        max_vintages: int = 10,
     ) -> List[TeleconnectionForecastDay]:
-        """Parse a CPC GEFS 120-day ensemble CSV for the latest initialization <= target_date.
-
-        Preserves all 31 ensemble members per lead day and computes mean, min, max,
-        IQR (25th–75th percentile), and standard deviation.
-        """
+        """Parse up to ``max_vintages`` recent GEFS initialization runs from the 120-day CSV."""
         cutoff_str = target_date.strftime("%Y-%m-%d") if target_date else None
 
-        # Group by init_date -> lead_days -> (valid_date, list of member values)
         by_init: Dict[str, Dict[int, Tuple[str, List[float]]]] = defaultdict(dict)
         reader = csv.DictReader(io.StringIO(gefs_csv_text.strip()))
         for row in reader:
@@ -182,56 +178,79 @@ class TeleconnectionProvider(DataProvider):
         if not by_init:
             return []
 
-        latest_init = max(by_init.keys())
-        leads_map = by_init[latest_init]
+        init_dates = sorted(by_init.keys())
+        if max_vintages > 0 and len(init_dates) > max_vintages:
+            init_dates = init_dates[-max_vintages:]
 
-        # Optional deterministic GFS lookup for the same initialization date
-        gfs_by_lead: Dict[int, float] = {}
+        gfs_by_init_lead: Dict[Tuple[str, int], float] = {}
         if gfs_csv_text:
             gfs_reader = csv.DictReader(io.StringIO(gfs_csv_text.strip()))
             for row in gfs_reader:
                 try:
-                    if str(row.get("time", "")).strip() != latest_init:
+                    it = str(row.get("time", "")).strip()
+                    if it not in init_dates:
                         continue
                     lead = int(row["lead"])
                     for k, v in row.items():
                         if k not in ("lead", "time", "valid_time") and v is not None:
                             val = float(v.strip())
                             if not math.isnan(val) and abs(val) <= 50.0:
-                                gfs_by_lead[lead] = val
+                                gfs_by_init_lead[(it, lead)] = val
                             break
                 except (KeyError, ValueError, TypeError):
                     continue
 
         results: List[TeleconnectionForecastDay] = []
-        for lead in sorted(leads_map.keys()):
-            if lead < 1 or (forecast_days > 0 and lead > forecast_days):
-                continue
-            valid_date, members = leads_map[lead]
-            if not members:
-                continue
-            s_members = sorted(members)
-            n = len(s_members)
-            mean_val = sum(s_members) / n
-            variance = sum((x - mean_val) ** 2 for x in s_members) / n
-            std_val = math.sqrt(variance)
-            results.append(
-                TeleconnectionForecastDay(
-                    valid_date=valid_date,
-                    lead_days=lead,
-                    init_date=latest_init,
-                    ensemble_mean=mean_val,
-                    ensemble_min=s_members[0],
-                    ensemble_max=s_members[-1],
-                    ensemble_p25=_percentile(s_members, 0.25),
-                    ensemble_p75=_percentile(s_members, 0.75),
-                    ensemble_std=std_val,
-                    member_count=n,
-                    members=s_members,
-                    deterministic_gfs=gfs_by_lead.get(lead),
+        for init_dt in init_dates:
+            leads_map = by_init[init_dt]
+            for lead in sorted(leads_map.keys()):
+                if lead < 1 or (forecast_days > 0 and lead > forecast_days):
+                    continue
+                valid_date, members = leads_map[lead]
+                if not members:
+                    continue
+                s_members = sorted(members)
+                n = len(s_members)
+                mean_val = sum(s_members) / n
+                variance = sum((x - mean_val) ** 2 for x in s_members) / n
+                std_val = math.sqrt(variance)
+                results.append(
+                    TeleconnectionForecastDay(
+                        valid_date=valid_date,
+                        lead_days=lead,
+                        init_date=init_dt,
+                        ensemble_mean=mean_val,
+                        ensemble_min=s_members[0],
+                        ensemble_max=s_members[-1],
+                        ensemble_p25=_percentile(s_members, 0.25),
+                        ensemble_p75=_percentile(s_members, 0.75),
+                        ensemble_std=std_val,
+                        member_count=n,
+                        members=s_members,
+                        deterministic_gfs=gfs_by_init_lead.get((init_dt, lead)),
+                    )
                 )
-            )
         return results
+
+    @staticmethod
+    def parse_gefs_csv(
+        gefs_csv_text: str,
+        gfs_csv_text: Optional[str] = None,
+        target_date: Optional[datetime] = None,
+        forecast_days: int = 14,
+    ) -> List[TeleconnectionForecastDay]:
+        """Parse a CPC GEFS 120-day ensemble CSV for the latest initialization <= target_date.
+
+        Preserves all 31 ensemble members per lead day and computes mean, min, max,
+        IQR (25th–75th percentile), and standard deviation.
+        """
+        return TeleconnectionProvider.parse_gefs_csv_multi_vintages(
+            gefs_csv_text=gefs_csv_text,
+            gfs_csv_text=gfs_csv_text,
+            target_date=target_date,
+            forecast_days=forecast_days,
+            max_vintages=1,
+        )
 
     def get_index_bundle(
         self,
@@ -289,10 +308,11 @@ class TeleconnectionProvider(DataProvider):
         def _fetch_gefs() -> List[Dict[str, Any]]:
             resp = requests.get(gefs_url, timeout=25)
             resp.raise_for_status()
-            fcst_list = self.parse_gefs_csv(
+            fcst_list = self.parse_gefs_csv_multi_vintages(
                 resp.text,
                 target_date=target_date,
                 forecast_days=max(self.forecast_days, 15),
+                max_vintages=12,
             )
             return [
                 {
@@ -322,25 +342,29 @@ class TeleconnectionProvider(DataProvider):
         )
 
         fcsts: List[TeleconnectionForecastDay] = []
+        recent_vintages: List[TeleconnectionForecastDay] = []
         if gefs_res.data:
+            all_init_dates = sorted({str(item["init_date"]) for item in gefs_res.data if item.get("init_date")})
+            latest_init_date = all_init_dates[-1] if all_init_dates else ""
             for item in gefs_res.data:
                 if self.forecast_days > 0 and int(item["lead_days"]) > self.forecast_days:
                     continue
-                fcsts.append(
-                    TeleconnectionForecastDay(
-                        valid_date=item["valid_date"],
-                        lead_days=int(item["lead_days"]),
-                        init_date=item["init_date"],
-                        ensemble_mean=float(item["ensemble_mean"]),
-                        ensemble_min=float(item["ensemble_min"]),
-                        ensemble_max=float(item["ensemble_max"]),
-                        ensemble_p25=float(item["ensemble_p25"]),
-                        ensemble_p75=float(item["ensemble_p75"]),
-                        ensemble_std=float(item["ensemble_std"]),
-                        member_count=int(item["member_count"]),
-                        members=[float(m) for m in item.get("members", [])],
-                    )
+                f_obj = TeleconnectionForecastDay(
+                    valid_date=item["valid_date"],
+                    lead_days=int(item["lead_days"]),
+                    init_date=item["init_date"],
+                    ensemble_mean=float(item["ensemble_mean"]),
+                    ensemble_min=float(item["ensemble_min"]),
+                    ensemble_max=float(item["ensemble_max"]),
+                    ensemble_p25=float(item["ensemble_p25"]),
+                    ensemble_p75=float(item["ensemble_p75"]),
+                    ensemble_std=float(item["ensemble_std"]),
+                    member_count=int(item["member_count"]),
+                    members=[float(m) for m in item.get("members", [])],
                 )
+                recent_vintages.append(f_obj)
+                if item["init_date"] == latest_init_date:
+                    fcsts.append(f_obj)
 
         fcst_prov = SourceProvenance(
             source_name="NOAA CPC / NCEP GEFS",
@@ -361,6 +385,7 @@ class TeleconnectionProvider(DataProvider):
             level_label=spec["level"],
             observations=obs,
             forecasts=fcsts,
+            recent_vintages=recent_vintages,
             obs_provenance=obs_prov,
             fcst_provenance=fcst_prov,
         )

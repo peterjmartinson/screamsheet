@@ -1,6 +1,7 @@
 """Weather Patterns & Teleconnections package."""
 from .charts import (
     build_enso_sparkline,
+    build_forecast_evolution_chart,
     build_local_pressure_chart,
     build_local_temperature_chart,
     build_mjo_phase_diagram,
@@ -35,6 +36,7 @@ __all__ = [
     "WeatherPatternsScreamsheet",
     "compute_derived_signals",
     "build_teleconnections_chart",
+    "build_forecast_evolution_chart",
     "build_polar_vortex_chart",
     "build_mjo_phase_diagram",
     "build_enso_sparkline",

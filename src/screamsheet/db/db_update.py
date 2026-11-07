@@ -26,6 +26,7 @@ from .mlb_teams_sync import full_sync as mlb_full_sync
 from .nba_teams_sync import full_sync as nba_full_sync
 from .nfl_teams_sync import full_sync as nfl_full_sync
 from .team_lookup_db import seed_aliases
+from .weather_patterns_db import purge_expired_weather_raw_cache, sync_weather_patterns_db
 from ..base.markdown_output import purge_expired_markdown
 
 
@@ -62,6 +63,7 @@ def main() -> None:
     ok = True
     ok &= _run("team_aliases_seeded",          lambda p: seed_aliases(None, p), db)
     ok &= _run("llm_cache_purged",             purge_expired_cache,       db, allow_zero=True)
+    ok &= _run("weather_raw_cache_purged",     purge_expired_weather_raw_cache, db, allow_zero=True)
     ok &= _run("markdown_cache_purged",        lambda: purge_expired_markdown(), db, allow_zero=True)
     ok &= _run("nhl_teams_legacy_upserted",    full_sync_teams,           db)
     ok &= _run("nhl_teams_upserted",           full_sync_canonical_teams, db)
@@ -69,6 +71,7 @@ def main() -> None:
     ok &= _run("nba_teams_upserted",           nba_full_sync,             db)
     ok &= _run("nfl_teams_upserted",           nfl_full_sync,             db)
     ok &= _run("nhl_players_upserted",         full_sync_players,         db)
+    ok &= _run("weather_patterns_synced",      sync_weather_patterns_db,  db, allow_zero=True)
 
     if not ok:
         sys.exit(1)

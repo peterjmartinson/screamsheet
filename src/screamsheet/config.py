@@ -181,6 +181,7 @@ class WeatherPatternsChartsConfig:
     polar_vortex: bool = True
     mjo: bool = True
     enso: bool = True
+    forecast_evolution: bool = True
     local_pressure: bool = True
     local_temperature: bool = True
     snow: bool = True
@@ -470,6 +471,7 @@ def _parse_weather_patterns(
         polar_vortex=bool(charts_raw.get("polar_vortex", True)),
         mjo=bool(charts_raw.get("mjo", True)),
         enso=bool(charts_raw.get("enso", True)),
+        forecast_evolution=bool(charts_raw.get("forecast_evolution", True)),
         local_pressure=bool(charts_raw.get("local_pressure", True)),
         local_temperature=bool(charts_raw.get("local_temperature", True)),
         snow=bool(charts_raw.get("snow", True)),

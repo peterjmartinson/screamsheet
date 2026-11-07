@@ -65,12 +65,29 @@ Core architectural principle:
 
 ---
 
-## 5. Caching & Graceful Degradation
+## 5. Persistent Institutional Memory Database (V2) & Caching
 
-- All remote datasets are cached in the shared SQLite database (`weather_data_cache` table in `src/screamsheet/db/weather_cache_db.py`) with a **fresh TTL** (2h for local NWS, 6h for CPC CDAS/GEFS and ACIS snow, 8h for stratosphere, 12h for MJO and climate normals, 24h for monthly ENSO) and a **stale fallback TTL** (48h–14d).
-- If a remote endpoint fails or times out, the provider falls back to the last cached payload, marks its `SourceProvenance.is_stale = True`, and annotates `[STALE CACHE]` in the provenance footer.
-- If no cached payload exists for a failed dataset, the provider returns an unavailable bundle and the screamsheet renders an explicit `"Unavailable"` placeholder on that specific chart/row while still generating the rest of the screamsheet.
-- Snow sections (`Snow Watch` and Chart 7) are automatically omitted whenever `has_useful_snow_data` is `False` (i.e., zero observed snow depth, zero recent snowfall, and zero 7-day forecast snow).
+V2 extends the V1 screamsheet with a persistent SQLite database layer (`src/screamsheet/db/weather_patterns_db.py`, unified in `screamsheet.db`) so Screamsheet tracks not only what NOAA says happened, but **what Screamsheet knew, when it knew it, and how model guidance evolved across runs**:
+
+- **Forecast Vintage Preservation (`weather_forecasts`)**:
+  - Uniqueness is keyed by `(metric, model, model_run_time, valid_time, location)` — **never** merely `metric + valid_time`.
+  - Successive model runs (e.g., Nov 3, Nov 4, Nov 5, Nov 6 GEFS runs all predicting Nov 15 NAO, or successive GEOS-5 FP runs predicting 10-hPa 60°N zonal wind) are stored side-by-side without overwriting prior vintages.
+  - Preserves ensemble mean, min, max, IQR (`p25`–`p75`), standard deviation, and serialized 31-member values where available.
+- **Normalized Observation Tables**:
+  - `weather_teleconnection_observations` (AO, NAO, PNA daily CDAS series)
+  - `weather_stratosphere_observations` (10-hPa 60°N zonal wind & 60–90°N polar cap temperature)
+  - `weather_mjo_observations` (daily PSL ROMI PC1/PC2, phase, amplitude, active status)
+  - `weather_enso_observations` (monthly Niño 3.4, ONI, RONI, MEI.v2)
+  - `weather_local_daily_observations` & `weather_local_pressure_observations` (persists local station hourly pressure beyond the rolling 7-day NWS API window, plus daily max/min/avg temperature, 1991–2020 departures, precipitation, snow depth, and snowfall for every configured location).
+- **Deterministic Forecast-Evolution & Consistency Metrics**:
+  - Computes 24-hour, 3-run, and 5-run forecast changes for a target valid date, ensemble IQR spread narrowing/widening, consecutive runs supporting a regime, and threshold-crossing persistence (e.g., first run, latest run, consecutive runs forecasting a `< 0 m/s` 10-hPa wind reversal, or explicit detection when a previously forecast reversal disappears).
+  - Populates the Page 1 **Forecast Evolution (Multi-Run Trend)** table, **Chart 5 (V2): Forecast Vintage Evolution**, upgraded `WHAT_CHANGED` categories (`OBSERVED`, `FORECAST`, `MODEL_TREND`, `STRATOSPHERE`), and the V2 LLM packet.
+- **Verification & Analog Groundwork**:
+  - `compute_teleconnection_verification_stats()` compares archived forecast vintages against subsequently observed values by lead day (`D+3`, `D+5`, `D+7`, `D+10`, `D+14`), computing `sample_count`, MAE, RMSE, bias, Pearson correlation, and sign accuracy, while suppressing skill claims until `sample_count` reaches a meaningful threshold.
+  - `find_historical_teleconnection_analogs()` queries historical `(AO, NAO, PNA)` states by Euclidean distance in SD space to support historical analog exploration.
+- **Failure & Staleness Safeguards**:
+  - Raw API responses remain cached in `weather_data_cache` (`src/screamsheet/db/weather_cache_db.py`) with fresh and stale fallback TTLs.
+  - If today's remote fetch fails and falls back to stale cache (`is_stale = True`), V2 retains historical DB records, marks the source stale/unavailable, and **refuses to manufacture a fake forecast vintage** from stale data.
 
 ---
 

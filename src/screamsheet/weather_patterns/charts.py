@@ -441,6 +441,273 @@ def build_teleconnections_chart(
 
 
 # ---------------------------------------------------------------------------
+# Chart 1B (V2): Forecast Evolution / Vintage Convergence Chart
+# ---------------------------------------------------------------------------
+
+def build_forecast_evolution_chart(
+    forecast_vintages: Dict[str, List[Dict[str, Any]]],
+    teleconnections: Optional[Dict[str, TeleconnectionIndexBundle]] = None,
+    stratosphere: Optional[StratosphereBundle] = None,
+    width: float = 568.0,
+    height: float = 116.0,
+    max_vintages_to_plot: int = 4,
+) -> Drawing:
+    """Build two-panel B&W Forecast-Vintage Convergence chart (NAO GEFS runs + 10-hPa Polar Vortex runs).
+
+    Plots successive recent model runs on the same valid-date axis:
+      - Older runs: lighter gray dotted/dashed lines (Run -3, Run -2, Run -1)
+      - Latest run: bold solid black line with filled circle markers
+      - Observed verification (where valid dates have already passed): open square markers
+    """
+    d = Drawing(width, height)
+    d.hAlign = "CENTER"
+    g = Group()
+
+    g.add(
+        String(
+            0,
+            height - 9,
+            "CHART 5 (V2): FORECAST VINTAGE EVOLUTION — SUCCESSIVE MODEL RUNS BY VALID DATE",
+            fontName="Helvetica-Bold",
+            fontSize=8.4,
+            fillColor=BLACK,
+        )
+    )
+
+    gap = 18.0
+    panel_w = (width - gap) / 2.0
+    pad_l, pad_r, pad_t, pad_b = 24.0, 4.0, 21.0, 17.0
+    plot_h = height - pad_t - pad_b
+    y0 = pad_b
+
+    # Helper to extract vintage list for a metric
+    def _extract_vintages(metric_key: str) -> List[Dict[str, Any]]:
+        v_list = list((forecast_vintages or {}).get(metric_key) or [])
+        if not v_list and teleconnections and metric_key in teleconnections:
+            tb = teleconnections[metric_key]
+            src_pts = tb.recent_vintages if tb.recent_vintages else tb.forecasts
+            by_init: Dict[str, List[Dict[str, Any]]] = {}
+            for f in src_pts:
+                by_init.setdefault(f.init_date, []).append(
+                    {"valid_time": f.valid_date, "value": f.ensemble_mean}
+                )
+            for init_d in sorted(by_init.keys()):
+                v_list.append({"run_date": init_d, "points": by_init[init_d]})
+        if not v_list and metric_key == "U60N_10HPA" and stratosphere and stratosphere.forecasts:
+            init_d = stratosphere.observations[-1].date if stratosphere.observations else stratosphere.forecasts[0].date
+            v_list.append(
+                {
+                    "run_date": init_d,
+                    "points": [
+                        {"valid_time": p.date, "value": p.zonal_wind_10hpa_60n}
+                        for p in stratosphere.forecasts
+                    ],
+                }
+            )
+        return v_list[-max_vintages_to_plot:]
+
+    def _draw_vintage_panel(
+        px0: float,
+        title_str: str,
+        v_list: List[Dict[str, Any]],
+        obs_map: Dict[str, float],
+        default_ymin: float,
+        default_ymax: float,
+        zero_label: Optional[str] = None,
+    ) -> None:
+        pw = panel_w - pad_l - pad_r
+        x0 = px0 + pad_l
+        x1 = x0 + pw
+        y1 = y0 + plot_h
+
+        g.add(
+            String(
+                px0 + 2,
+                height - 18,
+                title_str,
+                fontName="Helvetica-Bold",
+                fontSize=7.0,
+                fillColor=DARK_GRAY,
+            )
+        )
+
+        dates_set = set()
+        vals: List[float] = [default_ymin * 0.5, default_ymax * 0.5, 0.0]
+        for v in v_list:
+            for pt in v.get("points") or []:
+                vt = str(pt.get("valid_time", ""))
+                if vt:
+                    dates_set.add(vt)
+                    vals.append(float(pt["value"]))
+
+        all_dates = sorted(dates_set)
+        if len(all_dates) < 2:
+            g.add(Rect(x0, y0, pw, plot_h, strokeColor=MID_GRAY, fillColor=SHADE_LIGHT, strokeWidth=0.6))
+            g.add(
+                String(
+                    x0 + pw / 2.0,
+                    y0 + plot_h / 2.0,
+                    "Accumulating forecast vintages...",
+                    fontName="Helvetica-Oblique",
+                    fontSize=6.8,
+                    textAnchor="middle",
+                    fillColor=MID_GRAY,
+                )
+            )
+            return
+
+        y_min = min(default_ymin, math.floor(min(vals) * 2.0) / 2.0 - 0.3)
+        y_max = max(default_ymax, math.ceil(max(vals) * 2.0) / 2.0 + 0.3)
+        if y_max <= y_min:
+            y_min, y_max = default_ymin, default_ymax
+
+        n_d = len(all_dates)
+        d_idx = {dt: i for i, dt in enumerate(all_dates)}
+
+        def _x(i: int) -> float:
+            return x0 + (i / max(1, n_d - 1)) * pw
+
+        def _y(val: float) -> float:
+            clamped = max(y_min, min(y_max, val))
+            return y0 + ((clamped - y_min) / (y_max - y_min)) * plot_h
+
+        g.add(Rect(x0, y0, pw, plot_h, strokeColor=BLACK, fillColor=WHITE, strokeWidth=0.6))
+
+        # Zero threshold line
+        if y_min <= 0.0 <= y_max:
+            zy = _y(0.0)
+            if zero_label and zy > y0:
+                g.add(Rect(x0, y0, pw, zy - y0, strokeColor=None, fillColor=SHADE_LIGHT))
+            g.add(Line(x0, zy, x1, zy, strokeColor=BLACK, strokeWidth=0.8, strokeDashArray=[2, 2]))
+
+        for tk in (y_min, 0.0, y_max):
+            if y_min <= tk <= y_max:
+                ty = _y(tk)
+                g.add(
+                    String(
+                        x0 - 3,
+                        ty - 2,
+                        f"{tk:+.1f}" if abs(y_max - y_min) <= 10 else f"{tk:.0f}",
+                        fontName="Helvetica",
+                        fontSize=5.8,
+                        textAnchor="end",
+                        fillColor=BLACK,
+                    )
+                )
+
+        # Vintage line styles from oldest to newest
+        n_v = len(v_list)
+        for v_idx, v in enumerate(v_list):
+            is_latest = (v_idx == n_v - 1)
+            age_rank = n_v - 1 - v_idx  # 0 = latest, 1 = prev, 2 = 2 runs ago...
+            if is_latest:
+                stroke_c = BLACK
+                stroke_w = 1.5
+                dash = None
+            elif age_rank == 1:
+                stroke_c = DARK_GRAY
+                stroke_w = 1.1
+                dash = [4, 2]
+            elif age_rank == 2:
+                stroke_c = MID_GRAY
+                stroke_w = 0.9
+                dash = [2, 2]
+            else:
+                stroke_c = LIGHT_GRAY
+                stroke_w = 0.8
+                dash = [1, 2]
+
+            xy: List[Tuple[int, float]] = []
+            for pt in v.get("points") or []:
+                vt = str(pt.get("valid_time", ""))
+                if vt in d_idx:
+                    xy.append((d_idx[vt], float(pt["value"])))
+            xy.sort(key=lambda t: t[0])
+
+            if len(xy) >= 2:
+                coords: List[float] = []
+                for idx_val, val in xy:
+                    coords.extend([_x(idx_val), _y(val)])
+                g.add(PolyLine(coords, strokeColor=stroke_c, strokeWidth=stroke_w, strokeDashArray=dash))
+                if is_latest:
+                    _draw_marker(g, "circle_filled", _x(xy[-1][0]), _y(xy[-1][1]), size=2.0, stroke=BLACK)
+                else:
+                    _draw_marker(g, "diamond", _x(xy[-1][0]), _y(xy[-1][1]), size=1.5, stroke=stroke_c)
+
+        # Overlay observed points where valid_time has already verified
+        obs_xy = [(d_idx[dt], obs_map[dt]) for dt in all_dates if dt in obs_map]
+        if len(obs_xy) >= 2:
+            o_coords: List[float] = []
+            for idx_val, val in obs_xy:
+                o_coords.extend([_x(idx_val), _y(val)])
+            g.add(PolyLine(o_coords, strokeColor=BLACK, strokeWidth=1.0))
+            for idx_val, val in obs_xy:
+                _draw_marker(g, "square_open", _x(idx_val), _y(val), size=1.6, stroke=BLACK)
+
+        # X-axis labels
+        for idx_val in (0, n_d // 2, n_d - 1):
+            tx = _x(idx_val)
+            g.add(
+                String(
+                    tx,
+                    y0 - 9,
+                    _short_date(all_dates[idx_val]),
+                    fontName="Helvetica",
+                    fontSize=5.8,
+                    textAnchor="middle",
+                    fillColor=BLACK,
+                )
+            )
+
+        # Compact run legend in top-right of panel
+        run_lbls = [_short_date(str(v.get("run_date") or v.get("model_run_time", ""))[:10]) for v in v_list]
+        if run_lbls:
+            leg_txt = f"Runs ({len(run_lbls)}): " + " -> ".join(run_lbls[-3:])
+            g.add(
+                String(
+                    x1 - 2,
+                    y1 + 2,
+                    leg_txt,
+                    fontName="Helvetica",
+                    fontSize=5.8,
+                    textAnchor="end",
+                    fillColor=DARK_GRAY,
+                )
+            )
+
+    nao_vintages = _extract_vintages("NAO")
+    nao_obs_map: Dict[str, float] = {}
+    if teleconnections and "NAO" in teleconnections and teleconnections["NAO"].observations:
+        nao_obs_map = {o.date: o.value for o in teleconnections["NAO"].observations}
+
+    pv_vintages = _extract_vintages("U60N_10HPA")
+    pv_obs_map: Dict[str, float] = {}
+    if stratosphere and stratosphere.observations:
+        pv_obs_map = {o.date: o.zonal_wind_10hpa_60n for o in stratosphere.observations}
+
+    _draw_vintage_panel(
+        px0=0.0,
+        title_str="NAO GEFS Ensemble Mean by Run (SD)",
+        v_list=nao_vintages,
+        obs_map=nao_obs_map,
+        default_ymin=-2.0,
+        default_ymax=2.0,
+    )
+    _draw_vintage_panel(
+        px0=panel_w + gap,
+        title_str="10-hPa 60°N Wind Forecast by Run (m/s)",
+        v_list=pv_vintages,
+        obs_map=pv_obs_map,
+        default_ymin=-5.0,
+        default_ymax=30.0,
+        zero_label="<0 Reversal",
+    )
+
+    d.add(g)
+    return d
+
+
+# ---------------------------------------------------------------------------
 # Chart 2: Stratospheric Polar Vortex (10 hPa 60°N Zonal Wind & Polar Cap Temp)
 # ---------------------------------------------------------------------------
 
@@ -831,11 +1098,12 @@ def build_mjo_phase_diagram(
     else:
         lines_txt = [("Status:", "Unavailable")]
 
-    ty = ry + box_size - 12.0
+    ty = ry + box_size - 10.5
+    step_ty = min(13.8, (box_size - 13.5) / max(1, len(lines_txt) - 1))
     for k_lbl, v_lbl in lines_txt:
-        g.add(String(rx + 4, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.8, fillColor=DARK_GRAY))
-        g.add(String(rx + 38, ty, v_lbl[:22], fontName="Helvetica", fontSize=6.8, fillColor=BLACK))
-        ty -= 13.8
+        g.add(String(rx + 4, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.6, fillColor=DARK_GRAY))
+        g.add(String(rx + 38, ty, v_lbl[:22], fontName="Helvetica", fontSize=6.6, fillColor=BLACK))
+        ty -= step_ty
 
     d.add(g)
     return d
@@ -997,11 +1265,12 @@ def build_enso_sparkline(
             f"{enso.latest_meiv2:+.2f}" if (enso and enso.latest_meiv2 is not None) else "N/A",
         ),
     ]
-    ty = y0 + plot_h - 11.5
+    ty = y0 + plot_h - 10.0
+    step_ty = min(12.8, (plot_h - 12.5) / max(1, len(readout) - 1))
     for k_lbl, v_lbl in readout:
-        g.add(String(rx + 3, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.6, fillColor=DARK_GRAY))
-        g.add(String(rx + 36, ty, v_lbl[:15], fontName="Helvetica", fontSize=6.6, fillColor=BLACK))
-        ty -= 12.8
+        g.add(String(rx + 3, ty, k_lbl, fontName="Helvetica-Bold", fontSize=6.4, fillColor=DARK_GRAY))
+        g.add(String(rx + 36, ty, v_lbl[:15], fontName="Helvetica", fontSize=6.4, fillColor=BLACK))
+        ty -= step_ty
 
     d.add(g)
     return d

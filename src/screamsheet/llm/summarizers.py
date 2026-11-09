@@ -731,6 +731,37 @@ class EmailImportantSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
         )
 
 
+class MLSGameSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
+    """
+    Generates a 200-300 word newspaper-style Major League Soccer match recap.
+
+    Expected ``data`` keys
+    ----------------------
+    - ``home_team``       str  — full home team name
+    - ``away_team``       str  — full away team name
+    - ``home_score``      str  — goals scored
+    - ``away_score``      str
+    - ``venue``           str  — venue name and location
+    - ``key_events``      str  — formatted goal, penalty, card event lines
+    - ``team_metrics``    str  — comparative team metrics (shots, possession, saves)
+    """
+
+    _PROMPT_FILE = Path("mls_game.txt")
+
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        grok_api_key: Optional[str] = None,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+    ) -> None:
+        BaseGameSummaryGenerator.__init__(
+            self,
+            gemini_api_key=gemini_api_key,
+            grok_api_key=grok_api_key,
+            config=config,
+        )
+
+
 class WeatherPatternsSummarizer(FilePromptMixin, BaseGameSummaryGenerator):
     """
     Generates a structured 4-paragraph meteorological pattern briefing

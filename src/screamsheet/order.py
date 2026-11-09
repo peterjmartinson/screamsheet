@@ -85,6 +85,14 @@ class NBAOrderOptions:
 
 
 @dataclass
+class MLSOrderOptions:
+    """Options for the MLS sports sheet."""
+
+    favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
+
+
+@dataclass
 class NFLOrderOptions:
     """Options for the NFL sports sheet."""
 
@@ -265,6 +273,7 @@ class ScreamsheetOrder:
     worldcup: WorldCupOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None
+    mls: MLSOrderOptions | None = None
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None

@@ -726,3 +726,170 @@ nfl,34,Houston Texans,HOU,HOU,abbrev
 nfl,34,Houston Texans,HOU,texans,slug
 nfl,34,Houston Texans,HOU,Texans,nickname
 nfl,34,Houston Texans,HOU,Houston,nickname
+mls,18418,Atlanta United FC,ATL,Atlanta United FC,name
+mls,18418,Atlanta United FC,ATL,ATL,abbrev
+mls,18418,Atlanta United FC,ATL,usa.atlanta_united_fc,slug
+mls,18418,Atlanta United FC,ATL,Atlanta,nickname
+mls,18418,Atlanta United FC,ATL,Five Stripes,nickname
+mls,20906,Austin FC,ATX,Austin FC,name
+mls,20906,Austin FC,ATX,ATX,abbrev
+mls,20906,Austin FC,ATX,austin_fc,slug
+mls,20906,Austin FC,ATX,Austin,nickname
+mls,20906,Austin FC,ATX,ATXFC,nickname
+mls,9720,CF Montréal,MTL,CF Montréal,name
+mls,9720,CF Montréal,MTL,MTL,abbrev
+mls,9720,CF Montréal,MTL,usa.usl.1.montreal,slug
+mls,9720,CF Montréal,MTL,Montreal,nickname
+mls,9720,CF Montréal,MTL,Montréal,nickname
+mls,9720,CF Montréal,MTL,CFMTL,nickname
+mls,21300,Charlotte FC,CLT,Charlotte FC,name
+mls,21300,Charlotte FC,CLT,CLT,abbrev
+mls,21300,Charlotte FC,CLT,charlotte_fc,slug
+mls,21300,Charlotte FC,CLT,Charlotte,nickname
+mls,21300,Charlotte FC,CLT,CLTFC,nickname
+mls,182,Chicago Fire FC,CHI,Chicago Fire FC,name
+mls,182,Chicago Fire FC,CHI,CHI,abbrev
+mls,182,Chicago Fire FC,CHI,usa.chicago,slug
+mls,182,Chicago Fire FC,CHI,Chicago,nickname
+mls,182,Chicago Fire FC,CHI,Fire,nickname
+mls,182,Chicago Fire FC,CHI,Chicago Fire,nickname
+mls,184,Colorado Rapids,COL,Colorado Rapids,name
+mls,184,Colorado Rapids,COL,COL,abbrev
+mls,184,Colorado Rapids,COL,usa.colorado,slug
+mls,184,Colorado Rapids,COL,Colorado,nickname
+mls,184,Colorado Rapids,COL,Rapids,nickname
+mls,183,Columbus Crew,CLB,Columbus Crew,name
+mls,183,Columbus Crew,CLB,CLB,abbrev
+mls,183,Columbus Crew,CLB,usa.columbus,slug
+mls,183,Columbus Crew,CLB,Columbus,nickname
+mls,183,Columbus Crew,CLB,Crew,nickname
+mls,193,D.C. United,DC,D.C. United,name
+mls,193,D.C. United,DC,DC,abbrev
+mls,193,D.C. United,DC,usa.dc_united,slug
+mls,193,D.C. United,DC,DC United,nickname
+mls,193,D.C. United,DC,D.C.,nickname
+mls,193,D.C. United,DC,Black-and-Red,nickname
+mls,18267,FC Cincinnati,CIN,FC Cincinnati,name
+mls,18267,FC Cincinnati,CIN,CIN,abbrev
+mls,18267,FC Cincinnati,CIN,fc_cincinnati,slug
+mls,18267,FC Cincinnati,CIN,Cincinnati,nickname
+mls,18267,FC Cincinnati,CIN,FCC,nickname
+mls,185,FC Dallas,DAL,FC Dallas,name
+mls,185,FC Dallas,DAL,DAL,abbrev
+mls,185,FC Dallas,DAL,usa.dallas,slug
+mls,185,FC Dallas,DAL,Dallas,nickname
+mls,6077,Houston Dynamo FC,HOU,Houston Dynamo FC,name
+mls,6077,Houston Dynamo FC,HOU,HOU,abbrev
+mls,6077,Houston Dynamo FC,HOU,usa.houston,slug
+mls,6077,Houston Dynamo FC,HOU,Houston,nickname
+mls,6077,Houston Dynamo FC,HOU,Dynamo,nickname
+mls,6077,Houston Dynamo FC,HOU,Houston Dynamo,nickname
+mls,20232,Inter Miami CF,MIA,Inter Miami CF,name
+mls,20232,Inter Miami CF,MIA,MIA,abbrev
+mls,20232,Inter Miami CF,MIA,usa.inter_miami,slug
+mls,20232,Inter Miami CF,MIA,Miami,nickname
+mls,20232,Inter Miami CF,MIA,Inter Miami,nickname
+mls,20232,Inter Miami CF,MIA,Herons,nickname
+mls,20232,Inter Miami CF,MIA,The Herons,nickname
+mls,20232,Inter Miami CF,MIA,Messi,nickname
+mls,187,LA Galaxy,LA,LA Galaxy,name
+mls,187,LA Galaxy,LA,LA,abbrev
+mls,187,LA Galaxy,LA,usa.los_angeles,slug
+mls,187,LA Galaxy,LA,Galaxy,nickname
+mls,18966,LAFC,LAFC,LAFC,name
+mls,18966,LAFC,LAFC,LAFC,abbrev
+mls,18966,LAFC,LAFC,usa.lafc,slug
+mls,18966,LAFC,LAFC,Los Angeles FC,nickname
+mls,18966,LAFC,LAFC,Black and Gold,nickname
+mls,17362,Minnesota United FC,MIN,Minnesota United FC,name
+mls,17362,Minnesota United FC,MIN,MIN,abbrev
+mls,17362,Minnesota United FC,MIN,usa.minnesota_united_fc,slug
+mls,17362,Minnesota United FC,MIN,Minnesota,nickname
+mls,17362,Minnesota United FC,MIN,Loons,nickname
+mls,18986,Nashville SC,NSH,Nashville SC,name
+mls,18986,Nashville SC,NSH,NSH,abbrev
+mls,18986,Nashville SC,NSH,nashville_sc,slug
+mls,18986,Nashville SC,NSH,Nashville,nickname
+mls,18986,Nashville SC,NSH,NSC,nickname
+mls,189,New England Revolution,NE,New England Revolution,name
+mls,189,New England Revolution,NE,NE,abbrev
+mls,189,New England Revolution,NE,usa.new_england,slug
+mls,189,New England Revolution,NE,New England,nickname
+mls,189,New England Revolution,NE,Revs,nickname
+mls,189,New England Revolution,NE,Revolution,nickname
+mls,17606,New York City FC,NYC,New York City FC,name
+mls,17606,New York City FC,NYC,NYC,abbrev
+mls,17606,New York City FC,NYC,usa.nyc_fc,slug
+mls,17606,New York City FC,NYC,NYCFC,nickname
+mls,17606,New York City FC,NYC,New York City,nickname
+mls,17606,New York City FC,NYC,Pigeons,nickname
+mls,12011,Orlando City SC,ORL,Orlando City SC,name
+mls,12011,Orlando City SC,ORL,ORL,abbrev
+mls,12011,Orlando City SC,ORL,usa.orlando_city_sc,slug
+mls,12011,Orlando City SC,ORL,Orlando,nickname
+mls,12011,Orlando City SC,ORL,Orlando City,nickname
+mls,12011,Orlando City SC,ORL,Lions,nickname
+mls,10739,Philadelphia Union,PHI,Philadelphia Union,name
+mls,10739,Philadelphia Union,PHI,PHI,abbrev
+mls,10739,Philadelphia Union,PHI,usa.philadelphia,slug
+mls,10739,Philadelphia Union,PHI,Philadelphia,nickname
+mls,10739,Philadelphia Union,PHI,Union,nickname
+mls,10739,Philadelphia Union,PHI,Philly,nickname
+mls,10739,Philadelphia Union,PHI,Philly Union,nickname
+mls,9723,Portland Timbers,POR,Portland Timbers,name
+mls,9723,Portland Timbers,POR,POR,abbrev
+mls,9723,Portland Timbers,POR,usa.portland,slug
+mls,9723,Portland Timbers,POR,Portland,nickname
+mls,9723,Portland Timbers,POR,Timbers,nickname
+mls,4771,Real Salt Lake,RSL,Real Salt Lake,name
+mls,4771,Real Salt Lake,RSL,RSL,abbrev
+mls,4771,Real Salt Lake,RSL,usa.real_salt_lake,slug
+mls,4771,Real Salt Lake,RSL,Salt Lake,nickname
+mls,190,Red Bull New York,RBNY,Red Bull New York,name
+mls,190,Red Bull New York,RBNY,RBNY,abbrev
+mls,190,Red Bull New York,RBNY,usa.new_york,slug
+mls,190,Red Bull New York,RBNY,Red Bull NY,nickname
+mls,190,Red Bull New York,RBNY,Red Bulls,nickname
+mls,190,Red Bull New York,RBNY,New York Red Bulls,nickname
+mls,22529,San Diego FC,SD,San Diego FC,name
+mls,22529,San Diego FC,SD,SD,abbrev
+mls,22529,San Diego FC,SD,san_diego_fc,slug
+mls,22529,San Diego FC,SD,San Diego,nickname
+mls,191,San Jose Earthquakes,SJ,San Jose Earthquakes,name
+mls,191,San Jose Earthquakes,SJ,SJ,abbrev
+mls,191,San Jose Earthquakes,SJ,usa.san_jose,slug
+mls,191,San Jose Earthquakes,SJ,San Jose,nickname
+mls,191,San Jose Earthquakes,SJ,Earthquakes,nickname
+mls,191,San Jose Earthquakes,SJ,Quakes,nickname
+mls,9726,Seattle Sounders FC,SEA,Seattle Sounders FC,name
+mls,9726,Seattle Sounders FC,SEA,SEA,abbrev
+mls,9726,Seattle Sounders FC,SEA,usa.seattle,slug
+mls,9726,Seattle Sounders FC,SEA,Seattle,nickname
+mls,9726,Seattle Sounders FC,SEA,Sounders,nickname
+mls,9726,Seattle Sounders FC,SEA,Seattle Sounders,nickname
+mls,186,Sporting Kansas City,SKC,Sporting Kansas City,name
+mls,186,Sporting Kansas City,SKC,SKC,abbrev
+mls,186,Sporting Kansas City,SKC,usa.kansas_city,slug
+mls,186,Sporting Kansas City,SKC,Kansas City,nickname
+mls,186,Sporting Kansas City,SKC,Sporting KC,nickname
+mls,21812,St. Louis CITY SC,STL,St. Louis CITY SC,name
+mls,21812,St. Louis CITY SC,STL,STL,abbrev
+mls,21812,St. Louis CITY SC,STL,st._louis_city_sc,slug
+mls,21812,St. Louis CITY SC,STL,St. Louis,nickname
+mls,21812,St. Louis CITY SC,STL,City SC,nickname
+mls,131554,TBD Away,TBD Away,TBD Away,name
+mls,131554,TBD Away,TBD Away,TBD Away,abbrev
+mls,131554,TBD Away,TBD Away,tbd_away,slug
+mls,131556,TBD Home,TBD Home,TBD Home,name
+mls,131556,TBD Home,TBD Home,TBD Home,abbrev
+mls,131556,TBD Home,TBD Home,tbd_home,slug
+mls,7318,Toronto FC,TOR,Toronto FC,name
+mls,7318,Toronto FC,TOR,TOR,abbrev
+mls,7318,Toronto FC,TOR,usa.toronto_fc,slug
+mls,7318,Toronto FC,TOR,Toronto,nickname
+mls,7318,Toronto FC,TOR,TFC,nickname
+mls,9727,Vancouver Whitecaps,VAN,Vancouver Whitecaps,name
+mls,9727,Vancouver Whitecaps,VAN,VAN,abbrev
+mls,9727,Vancouver Whitecaps,VAN,usa.vancouver,slug
+mls,9727,Vancouver Whitecaps,VAN,Vancouver,nickname
+mls,9727,Vancouver Whitecaps,VAN,Whitecaps,nickname

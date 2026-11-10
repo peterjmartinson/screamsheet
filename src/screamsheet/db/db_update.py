@@ -25,6 +25,7 @@ from .nhl_players_sync import full_sync as full_sync_players
 from .mlb_teams_sync import full_sync as mlb_full_sync
 from .nba_teams_sync import full_sync as nba_full_sync
 from .nfl_teams_sync import full_sync as nfl_full_sync
+from .soccer_db import sync_soccer_leagues_from_api
 from .team_lookup_db import seed_aliases
 from .weather_patterns_db import purge_expired_weather_raw_cache, sync_weather_patterns_db
 from ..base.markdown_output import purge_expired_markdown
@@ -60,8 +61,17 @@ def main() -> None:
     db = args.db or get_db_path()
     print(f"Using DB: {db}")
 
+    try:
+        from dotenv import load_dotenv
+        env_path = Path.home() / ".config" / "screamsheet" / ".env"
+        if env_path.is_file():
+            load_dotenv(dotenv_path=env_path)
+    except Exception:
+        pass
+
     ok = True
     ok &= _run("team_aliases_seeded",          lambda p: seed_aliases(None, p), db)
+    ok &= _run("soccer_catalog_synced",        sync_soccer_leagues_from_api, db)
     ok &= _run("llm_cache_purged",             purge_expired_cache,       db, allow_zero=True)
     ok &= _run("weather_raw_cache_purged",     purge_expired_weather_raw_cache, db, allow_zero=True)
     ok &= _run("markdown_cache_purged",        lambda: purge_expired_markdown(), db, allow_zero=True)

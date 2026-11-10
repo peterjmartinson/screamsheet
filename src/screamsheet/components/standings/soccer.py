@@ -11,7 +11,11 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from ...base.data_provider import DataProvider
-from ...providers.soccer_provider import SoccerDataProvider, AL_NASSR_TEAM_ID
+from ...providers.soccer_provider import (
+    AL_NASSR_TEAM_ID,
+    SoccerDataProvider,
+    resolve_team_list,
+)
 from ..base import ComponentLayoutSpec
 from ..registry import ComponentRegistry
 from .base import StandingsComponent
@@ -19,7 +23,7 @@ from .base import StandingsComponent
 
 @ComponentRegistry.register("soccer_standings")
 class SoccerStandingsComponent(StandingsComponent):
-    """Renders dual mini-standings tables (e.g. Saudi Pro League & Premier League)."""
+    """Renders dual mini-standings tables (e.g. Saudi Pro League & Premier League, or custom leagues)."""
 
     component_key = "soccer_standings"
 
@@ -30,8 +34,15 @@ class SoccerStandingsComponent(StandingsComponent):
         date: Optional[datetime] = None,
         page_slot: str = "front",
         layout_spec: Optional[ComponentLayoutSpec] = None,
+        favorite_teams: Optional[List[Any]] = None,
+        standings: Optional[List[Any]] = None,
+        standings_leagues: Optional[List[Any]] = None,
+        leagues: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
+        self._init_favorite_teams = favorite_teams
+        self._init_standings = standings_leagues if standings_leagues is not None else standings
+        self._init_leagues = leagues
         super().__init__(
             title=title,
             provider=provider,
@@ -39,6 +50,11 @@ class SoccerStandingsComponent(StandingsComponent):
             page_slot=page_slot,
             layout_spec=layout_spec,
             **kwargs,
+        )
+        self.favorite_teams = (
+            resolve_team_list(favorite_teams)
+            if favorite_teams is not None
+            else getattr(self.provider, "favorite_teams", [(AL_NASSR_TEAM_ID, "Al-Nassr")])
         )
         self.table_header_style = ParagraphStyle(
             "SoccerTableTitle",
@@ -51,11 +67,18 @@ class SoccerStandingsComponent(StandingsComponent):
         )
 
     def _create_provider(self) -> DataProvider:
-        return SoccerDataProvider()
+        return SoccerDataProvider(
+            favorite_teams=self._init_favorite_teams,
+            standings=self._init_standings,
+            leagues=self._init_leagues,
+        )
 
     def _build_standings_flowables(self) -> List[Any]:
         if not self.data or not isinstance(self.data, dict):
             return []
+
+        fav_ids = {tid for tid, _ in self.favorite_teams}
+        fav_names = {tname.lower() for _, tname in self.favorite_teams}
 
         sub_tables: List[Any] = []
         for league_name, df in self.data.items():
@@ -68,14 +91,17 @@ class SoccerStandingsComponent(StandingsComponent):
 
             header = ["#", "Club", "MP", "GD", "Pts", "Form"]
             rows: List[List[str]] = [header]
-            al_nassr_row_idx = -1
+            highlight_row_indices: List[int] = []
 
             for idx, r in enumerate(subset.iterrows()):
                 row_data = r[1]
                 t_name = str(row_data.get("team", ""))
                 tid = row_data.get("team_id")
-                if tid == AL_NASSR_TEAM_ID or "nassr" in t_name.lower():
-                    al_nassr_row_idx = idx + 1  # 1-indexed because header is row 0
+                if (
+                    (tid is not None and tid in fav_ids)
+                    or any(fn in t_name.lower() for fn in fav_names)
+                ):
+                    highlight_row_indices.append(idx + 1)
 
                 rows.append([
                     str(row_data.get("rank", idx + 1)),
@@ -101,10 +127,9 @@ class SoccerStandingsComponent(StandingsComponent):
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]
 
-            # Highlight Al-Nassr with bold font (gray shading reserved strictly for table headers)
-            if al_nassr_row_idx != -1:
+            for r_idx in highlight_row_indices:
                 table_style_commands.append(
-                    ("FONTNAME", (0, al_nassr_row_idx), (-1, al_nassr_row_idx), "Helvetica-Bold")
+                    ("FONTNAME", (0, r_idx), (-1, r_idx), "Helvetica-Bold")
                 )
 
             t = Table(rows, colWidths=[18, 108, 24, 26, 26, 48])

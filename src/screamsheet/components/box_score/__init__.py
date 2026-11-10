@@ -2,6 +2,7 @@
 from .allstar import MLBAllStarBoxScoreComponent, MLBAllStarGameSummaryComponent
 from .base import BoxScoreComponent, GameSummaryComponent
 from .mlb import MLBBoxScoreComponent
+from .mls import MLSBoxScoreComponent
 from .nba import NBABoxScoreComponent
 from .nfl import NFLBoxScoreComponent
 from .nhl import NHLBoxScoreComponent
@@ -12,6 +13,7 @@ __all__ = [
     "BoxScoreComponent",
     "GameSummaryComponent",
     "MLBBoxScoreComponent",
+    "MLSBoxScoreComponent",
     "NHLBoxScoreComponent",
     "NBABoxScoreComponent",
     "NFLBoxScoreComponent",

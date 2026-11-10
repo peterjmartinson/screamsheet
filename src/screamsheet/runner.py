@@ -24,6 +24,7 @@ from .order import (
     MLBNewsOrderOptions,
     MLBOrderOptions,
     MLBTradeRumorsOrderOptions,
+    MLSOrderOptions,
     NBAOrderOptions,
     NFLOrderOptions,
     NHLOrderOptions,
@@ -64,7 +65,7 @@ def _output_path(output_dir: str, basename: str) -> str:
 
 def _options_summary_entry(field_name: str, options: Any) -> list[str]:
     """Extract a human-readable summary list from a sheet options object."""
-    if field_name in ("nhl", "mlb", "nba", "nfl", "soccer", "worldcup"):
+    if field_name in ("nhl", "mlb", "nba", "mls", "nfl", "soccer", "worldcup"):
         return [t.name for t in getattr(options, "favorite_teams", [])]
     if field_name in ("nhl_news", "mlb_news", "mlb_trade_rumors", "french_mlb_news", "presidential"):
         weather = getattr(options, "weather", None)
@@ -116,6 +117,19 @@ def _run_nba(options: NBAOrderOptions, today: datetime, today_str: str, output_d
     teams = [(t.id, t.name) for t in options.favorite_teams]
     sheet = ScreamsheetFactory.create_nba_screamsheet(
         output_filename=_output_path(output_dir, f"NBA_gamescores_{today_str}.pdf"),
+        favorite_teams=teams,
+        date=game_date,
+        display_date=today,
+        mad_fan=options.mad_fan,
+    )
+    return sheet.generate()
+
+
+def _run_mls(options: MLSOrderOptions, today: datetime, today_str: str, output_dir: str) -> str:
+    game_date = today - timedelta(days=1)
+    teams = [(t.id, t.name) for t in options.favorite_teams]
+    sheet = ScreamsheetFactory.create_mls_screamsheet(
+        output_filename=_output_path(output_dir, f"MLS_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
         date=game_date,
         display_date=today,
@@ -249,6 +263,9 @@ def _run_soccer(
     sheet = ScreamsheetFactory.create_soccer_screamsheet(
         output_filename=_output_path(output_dir, f"SOCCER_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
+        favorite_players=options.favorite_players or None,
+        leagues=options.leagues or None,
+        standings=options.standings or None,
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
@@ -390,11 +407,18 @@ def _resolve_sport_team_tuples(sport: str, raw_teams: list[Any]) -> list[tuple[i
             if not name_str:
                 continue
             match = None
-            if sport in ("mlb", "nhl", "nba", "nfl"):
+            if sport in ("mlb", "nhl", "nba", "nfl", "mls"):
                 try:
                     from .db import sport_resolve_team
 
                     match = sport_resolve_team(sport, name_str)  # type: ignore[arg-type]
+                except Exception:
+                    match = None
+            elif sport == "soccer":
+                try:
+                    from .db import resolve_soccer_team
+
+                    match = resolve_soccer_team(name_str)
                 except Exception:
                     match = None
             if match:
@@ -432,7 +456,7 @@ def _build_component_from_spec(
         kwargs["title"] = spec.title
 
     sport = ""
-    for prefix in ("mlb", "nhl", "nba", "nfl", "soccer", "worldcup"):
+    for prefix in ("mlb", "nhl", "nba", "mls", "nfl", "soccer", "worldcup"):
         if comp_type.startswith(f"{prefix}_"):
             sport = prefix
             break
@@ -514,6 +538,7 @@ _REGISTRY: dict[str, Callable[..., str]] = {
     "nhl_news":         _run_nhl_news,
     "mlb":              _run_mlb,
     "nba":              _run_nba,
+    "mls":              _run_mls,
     "nfl":              _run_nfl,
     "mlb_news":         _run_mlb_news,
     "mlb_trade_rumors": _run_mlb_trade_rumors,

@@ -101,6 +101,18 @@ from .team_lookup_db import (
     upsert_team_aliases as sport_upsert_team_aliases,
     upsert_teams as sport_upsert_teams,
 )
+from .soccer_db import (
+    init_soccer_db,
+    resolve_soccer_league,
+    resolve_soccer_player,
+    resolve_soccer_team,
+    seed_soccer_db,
+    sync_soccer_leagues_from_api,
+    upsert_soccer_aliases,
+    upsert_soccer_leagues,
+    upsert_soccer_players,
+    upsert_soccer_teams,
+)
 
 __all__ = [
     # DB path
@@ -163,4 +175,15 @@ __all__ = [
     "find_historical_teleconnection_analogs",
     "sync_weather_patterns_db",
     "purge_expired_weather_raw_cache",
+    # International soccer catalog & alias DB
+    "init_soccer_db",
+    "seed_soccer_db",
+    "sync_soccer_leagues_from_api",
+    "resolve_soccer_league",
+    "resolve_soccer_team",
+    "resolve_soccer_player",
+    "upsert_soccer_leagues",
+    "upsert_soccer_teams",
+    "upsert_soccer_players",
+    "upsert_soccer_aliases",
 ]

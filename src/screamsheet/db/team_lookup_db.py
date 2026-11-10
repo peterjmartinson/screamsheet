@@ -51,7 +51,7 @@ from .team_aliases_data import ALL_SEEDS
 
 logger = logging.getLogger(__name__)
 
-Sport = Literal["nhl", "mlb", "nba", "nfl"]
+Sport = Literal["nhl", "mlb", "nba", "nfl", "mls"]
 
 DEFAULT_CSV_PATH = Path(__file__).parent / "data" / "team_aliases.csv"
 
@@ -96,6 +96,15 @@ class _NFLTeam(_Base):
     last_synced = Column(String(25))
 
 
+class _MLSTeam(_Base):
+    __tablename__ = "mls_teams"
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    team_id     = Column(Integer, nullable=False, index=True)
+    full_name   = Column(String(150), nullable=False)
+    abbrev      = Column(String(10), index=True)
+    last_synced = Column(String(25))
+
+
 class _TeamAlias(_Base):
     __tablename__ = "team_aliases"
     id          = Column(Integer, primary_key=True, autoincrement=True)
@@ -110,6 +119,7 @@ _MODELS: dict[str, type] = {
     "mlb": _MLBTeam,
     "nba": _NBATeam,
     "nfl": _NFLTeam,
+    "mls": _MLSTeam,
 }
 
 
@@ -344,7 +354,9 @@ def seed_aliases(
     """
     path = csv_path or DEFAULT_CSV_PATH
     if path.exists():
-        return load_aliases_from_csv(path, sport, db_path)
+        count = load_aliases_from_csv(path, sport, db_path)
+        if count > 0:
+            return count
 
     init_db(sport, db_path)
     sports_to_seed = [sport] if sport else list(ALL_SEEDS.keys())

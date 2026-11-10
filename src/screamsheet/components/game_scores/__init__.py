@@ -2,6 +2,7 @@
 from .allstar import MLBAllStarGameScoresComponent
 from .base import GameScoresComponent, _determine_series_badge
 from .mlb import MLBGameScoresComponent
+from .mls import MLSGameScoresComponent
 from .nba import NBAGameScoresComponent
 from .nfl import NFLGameScoresComponent
 from .nhl import NHLGameScoresComponent
@@ -12,6 +13,7 @@ __all__ = [
     "GameScoresComponent",
     "_determine_series_badge",
     "MLBGameScoresComponent",
+    "MLSGameScoresComponent",
     "NHLGameScoresComponent",
     "NBAGameScoresComponent",
     "NFLGameScoresComponent",

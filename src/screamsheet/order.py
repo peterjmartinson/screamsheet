@@ -85,6 +85,14 @@ class NBAOrderOptions:
 
 
 @dataclass
+class MLSOrderOptions:
+    """Options for the MLS sports sheet."""
+
+    favorite_teams: list[TeamEntry] = field(default_factory=list)
+    mad_fan: bool = False
+
+
+@dataclass
 class NFLOrderOptions:
     """Options for the NFL sports sheet."""
 
@@ -158,6 +166,9 @@ class SoccerOrderOptions:
     """Options for the International Soccer sheet."""
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
+    favorite_players: list[Any] = field(default_factory=list)
+    leagues: list[Any] = field(default_factory=list)
+    standings: list[Any] = field(default_factory=list)
     mad_fan: bool = False
 
 
@@ -265,6 +276,7 @@ class ScreamsheetOrder:
     worldcup: WorldCupOrderOptions | None = None
     nhl: NHLOrderOptions | None = None
     nba: NBAOrderOptions | None = None
+    mls: MLSOrderOptions | None = None
     nfl: NFLOrderOptions | None = None
     mlb_trade_rumors: MLBTradeRumorsOrderOptions | None = None
     home_run_derby: HomeRunDerbyOrderOptions | None = None
@@ -320,20 +332,35 @@ def build_custom_sheet_options_from_dict(
             ),
         )
 
+    sheet_teams = raw.get("teams", raw.get("favorite_teams", [])) or []
+    if isinstance(sheet_teams, str):
+        sheet_teams = [sheet_teams]
+    sheet_extra: dict[str, Any] = {}
+    for k in ("players", "favorite_players", "leagues", "standings", "standings_leagues"):
+        if k in raw and raw[k] is not None:
+            sheet_extra[k] = raw[k]
+
     specs: list[ComponentSpec] = []
     for item in raw.get("components", []) or []:
         if isinstance(item, str):
-            specs.append(ComponentSpec(type=item.strip(), weather=sheet_weather))
+            specs.append(
+                ComponentSpec(
+                    type=item.strip(),
+                    teams=list(sheet_teams),
+                    weather=sheet_weather,
+                    options=dict(sheet_extra),
+                )
+            )
             continue
         if not isinstance(item, dict) or not item.get("type"):
             continue
         comp_type = str(item["type"]).strip()
         comp_title = str(item["title"]) if item.get("title") is not None else None
-        raw_teams = item.get("teams", item.get("favorite_teams", [])) or []
+        raw_teams = item.get("teams", item.get("favorite_teams", [])) or sheet_teams or []
         if isinstance(raw_teams, str):
             raw_teams = [raw_teams]
         max_articles = int(item.get("max_articles", 4))
-        mad_fan = bool(item.get("mad_fan", False))
+        mad_fan = bool(item.get("mad_fan", raw.get("mad_fan", False)))
 
         comp_weather = sheet_weather
         comp_loc = item.get("weather") or item.get("location")
@@ -348,7 +375,8 @@ def build_custom_sheet_options_from_dict(
                 ),
             )
 
-        extra_options: dict[str, Any] = dict(item.get("options") or {})
+        extra_options: dict[str, Any] = dict(sheet_extra)
+        extra_options.update(dict(item.get("options") or {}))
         for k, v in item.items():
             if k not in _RESERVED_COMPONENT_KEYS:
                 extra_options[k] = v

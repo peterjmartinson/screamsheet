@@ -35,7 +35,10 @@ class SoccerScreamsheet(BaseScreamsheet):
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
-        favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        favorite_teams: Optional[List[Any]] = None,
+        favorite_players: Optional[List[Any]] = None,
+        leagues: Optional[List[Any]] = None,
+        standings: Optional[List[Any]] = None,
         mad_fan: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -48,17 +51,24 @@ class SoccerScreamsheet(BaseScreamsheet):
         self.sport_name = "Soccer"
         self.mad_fan = mad_fan
 
+        raw_teams: Optional[List[Any]]
         if favorite_teams is not None:
-            self.favorite_teams = favorite_teams
+            raw_teams = favorite_teams
         elif team_id is not None and team_name is not None:
-            self.favorite_teams = [(team_id, team_name)]
+            raw_teams = [(team_id, team_name)]
         else:
-            self.favorite_teams = [
-                (AL_NASSR_TEAM_ID, "Al-Nassr"),
-                (PORTUGAL_TEAM_ID, "Portugal"),
-            ]
+            raw_teams = None
 
-        self.provider = SoccerDataProvider()
+        self.provider = SoccerDataProvider(
+            favorite_teams=raw_teams,
+            favorite_players=favorite_players,
+            leagues=leagues,
+            standings=standings,
+        )
+        self.favorite_teams = self.provider.favorite_teams
+        self.favorite_players = self.provider.favorite_players
+        self.leagues = leagues
+        self.standings = standings
         if not self.branding:
             self.branding = "DISTRACTEDFORTUNE.COM/SCREAMSHEET"
 
@@ -77,15 +87,17 @@ class SoccerScreamsheet(BaseScreamsheet):
                 title="Scores",
                 provider=self.provider,
                 date=self.date,
+                favorite_teams=self.favorite_teams,
             )
         )
 
-        # 2. Front page: dual mini-standings (Saudi Pro League & Premier League)
+        # 2. Front page: dual mini-standings
         sections.append(
             SoccerStandingsComponent(
                 title="League Standings",
                 provider=self.provider,
                 date=self.date,
+                favorite_teams=self.favorite_teams,
             )
         )
 
@@ -96,6 +108,7 @@ class SoccerScreamsheet(BaseScreamsheet):
                 provider=self.provider,
                 date=self.date,
                 favorite_teams=self.favorite_teams,
+                favorite_players=self.favorite_players,
             )
         )
 

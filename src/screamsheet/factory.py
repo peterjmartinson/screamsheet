@@ -385,7 +385,10 @@ class ScreamsheetFactory:
         team_name: Optional[str] = None,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
-        favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        favorite_teams: Optional[List[Any]] = None,
+        favorite_players: Optional[List[Any]] = None,
+        leagues: Optional[List[Any]] = None,
+        standings: Optional[List[Any]] = None,
         mad_fan: bool = False,
     ) -> SoccerScreamsheet:
         """
@@ -397,7 +400,10 @@ class ScreamsheetFactory:
             team_name: Optional team name.
             date: Target date for fixtures (defaults to yesterday).
             display_date: Date shown in subtitle header.
-            favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
+            favorite_teams: Priority-ordered list of (team_id, team_name) tuples or names.
+            favorite_players: Optional list of favorite player names or IDs.
+            leagues: Optional list of competition names or IDs to track.
+            standings: Optional list of up to 2 league names or IDs for dual standings.
             mad_fan: If True, generate an enraged recap on loss. Defaults to False.
 
         Returns:
@@ -410,6 +416,9 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            favorite_players=favorite_players,
+            leagues=leagues,
+            standings=standings,
             mad_fan=mad_fan,
         )
 

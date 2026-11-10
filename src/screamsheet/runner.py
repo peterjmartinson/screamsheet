@@ -263,6 +263,9 @@ def _run_soccer(
     sheet = ScreamsheetFactory.create_soccer_screamsheet(
         output_filename=_output_path(output_dir, f"SOCCER_gamescores_{today_str}.pdf"),
         favorite_teams=teams,
+        favorite_players=options.favorite_players or None,
+        leagues=options.leagues or None,
+        standings=options.standings or None,
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
@@ -409,6 +412,13 @@ def _resolve_sport_team_tuples(sport: str, raw_teams: list[Any]) -> list[tuple[i
                     from .db import sport_resolve_team
 
                     match = sport_resolve_team(sport, name_str)  # type: ignore[arg-type]
+                except Exception:
+                    match = None
+            elif sport == "soccer":
+                try:
+                    from .db import resolve_soccer_team
+
+                    match = resolve_soccer_team(name_str)
                 except Exception:
                     match = None
             if match:

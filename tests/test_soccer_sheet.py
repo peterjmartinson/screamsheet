@@ -108,3 +108,107 @@ class TestFactoryAndRunner:
         assert len(res.sheets_generated) == 1
         assert "SOCCER" in res.sheets_generated[0]
         assert (tmp_path / res.sheets_generated[0]).exists()
+
+
+class TestConfigurableSoccerAndDB:
+    def test_soccer_db_resolution(self, tmp_path):
+        from screamsheet.db import (
+            resolve_soccer_league,
+            resolve_soccer_player,
+            resolve_soccer_team,
+            seed_soccer_db,
+        )
+
+        db_file = tmp_path / "soccer_test.db"
+        count = seed_soccer_db(db_path=db_file)
+        assert count > 30
+
+        # Leagues
+        npfl = resolve_soccer_league("NPFL", db_path=db_file, allow_api_fallback=False)
+        assert npfl is not None
+        assert npfl["league_id"] == 399
+
+        afcon = resolve_soccer_league("afcon", db_path=db_file, allow_api_fallback=False)
+        assert afcon is not None
+        assert afcon["league_id"] == 6
+
+        # Teams
+        enyimba = resolve_soccer_team("Peoples Elephant", db_path=db_file, allow_api_fallback=False)
+        assert enyimba is not None
+        assert enyimba["team_id"] == 5203
+        assert enyimba["full_name"] == "Enyimba"
+
+        nigeria = resolve_soccer_team("Super Eagles", db_path=db_file, allow_api_fallback=False)
+        assert nigeria is not None
+        assert nigeria["team_id"] == 19
+        assert nigeria["full_name"] == "Nigeria"
+
+        arsenal = resolve_soccer_team("Gunners", db_path=db_file, allow_api_fallback=False)
+        assert arsenal is not None
+        assert arsenal["team_id"] == 42
+
+        # Players
+        osimhen = resolve_soccer_player("Osimhen", db_path=db_file, allow_api_fallback=False)
+        assert osimhen is not None
+        assert osimhen["player_id"] == 2393
+        assert osimhen["full_name"] == "Victor Osimhen"
+
+        cr7 = resolve_soccer_player("CR7", db_path=db_file, allow_api_fallback=False)
+        assert cr7 is not None
+        assert cr7["player_id"] == 874
+
+    def test_nigeria_subscriber_configuration(self, tmp_path, sample_date):
+        from screamsheet.order import build_custom_sheet_options_from_dict
+
+        raw_yaml = {
+            "screamsheet_title": "Football Screamsheet",
+            "teams": ["Arsenal", "Enyimba", "Super Eagles"],
+            "players": ["Victor Osimhen"],
+            "leagues": ["Premier League", "NPFL", "CAF Champions League", "AFCON"],
+            "standings": ["Premier League", "NPFL"],
+            "components": [
+                {"type": "soccer_game_scores"},
+                {"type": "soccer_standings"},
+                {"type": "soccer_box_score"},
+            ],
+        }
+        custom_opts = build_custom_sheet_options_from_dict("soccer", raw_yaml)
+        order = ScreamsheetOrder(
+            output=OutputOrderOptions(directory=str(tmp_path)),
+            custom_sheets=[custom_opts],
+        )
+        res = run_order(order, today=sample_date)
+        assert len(res.errors) == 0
+        assert len(res.sheets_generated) == 1
+        assert (tmp_path / res.sheets_generated[0]).exists()
+
+        # Also verify off-day fallback for Osimhen + Arsenal
+        box_comp = SoccerBoxScoreComponent(
+            date=sample_date,
+            favorite_teams=["Arsenal", "Enyimba"],
+            favorite_players=["Victor Osimhen"],
+            standings=["Premier League", "NPFL"],
+        )
+        with patch.object(box_comp.provider, "get_game_scores", return_value=[]):
+            flowables = box_comp.render()
+            assert len(flowables) > 0
+            assert "VICTOR OSIMHEN" in flowables[0].text
+
+    def test_man_of_the_match_spotlight_when_no_players_configured(self, sample_date):
+        box_comp = SoccerBoxScoreComponent(
+            date=sample_date,
+            favorite_teams=["Arsenal"],
+            favorite_players=[],
+        )
+        spot = box_comp.provider._build_spotlight_for_match(
+            home_name="Arsenal",
+            away_name="Chelsea",
+            home_xi=[{"number": 7, "name": "B. Saka", "pos": "F", "rating": "8.9"}],
+            away_xi=[{"number": 20, "name": "C. Palmer", "pos": "M", "rating": "7.8"}],
+            key_events=[{"minute": "22'", "type": "GOAL", "team": "home", "player": "B. Saka", "detail": "Normal Goal"}],
+        )
+        assert spot["featured"] is True
+        assert spot["label"] == "MAN OF THE MATCH"
+        assert spot["player_name"] == "B. Saka"
+        assert spot["goals"] == 1
+

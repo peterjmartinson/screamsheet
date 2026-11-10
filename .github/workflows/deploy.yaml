@@ -45,8 +45,9 @@ jobs:
           # 4. Generate minimal config for branding
           echo 'branding: "DISTRACTEDFORTUNE.COM/SCREAMSHEET"' > "$RELEASE_DIR/config.yaml"
 
-          # 5. Set Permissions
-          chmod +x "$RELEASE_DIR/screamsheet.sh"
+          # 5. Set Permissions & Sync DB Aliases / Soccer Catalog
+          chmod +x "$RELEASE_DIR/screamsheet.sh" "$RELEASE_DIR/update_db.sh"
+          uv run python -c "from pathlib import Path; from dotenv import load_dotenv; p = Path.home() / '.config/screamsheet/.env'; p.is_file() and load_dotenv(p); from screamsheet.db import sport_seed_aliases, sync_soccer_leagues_from_api; sport_seed_aliases(None); sync_soccer_leagues_from_api()" || true
 
           # 6. Atomic Switch
           ln -snf "$RELEASE_DIR" "$LIVE_PATH"

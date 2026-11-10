@@ -1,9 +1,10 @@
 """International soccer box score / Match of the Day deep dive component."""
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
@@ -12,7 +13,12 @@ from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import KeepInFrame
 
 from ...base import DataProvider
-from ...providers.soccer_provider import SoccerDataProvider
+from ...providers.soccer_provider import (
+    AL_NASSR_TEAM_ID,
+    SoccerDataProvider,
+    resolve_player_list,
+    resolve_team_list,
+)
 from ..registry import ComponentRegistry
 from .base import BoxScoreComponent
 
@@ -32,9 +38,17 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         fixture_id: Optional[int] = None,
         date: Optional[datetime] = None,
         is_primary_favorite: bool = False,
-        favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        favorite_teams: Optional[List[Any]] = None,
+        favorite_players: Optional[List[Any]] = None,
+        players: Optional[List[Any]] = None,
+        leagues: Optional[List[Any]] = None,
+        standings: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
+        self._init_favorite_teams = favorite_teams
+        self._init_players = favorite_players if favorite_players is not None else players
+        self._init_leagues = leagues
+        self._init_standings = standings
         super().__init__(
             title=title,
             provider=provider,
@@ -44,7 +58,15 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             **kwargs,
         )
         self.fixture_id: int = fixture_id or 0
-        self.favorite_teams = favorite_teams
+        self.favorite_teams = (
+            resolve_team_list(favorite_teams)
+            if favorite_teams is not None
+            else getattr(self.provider, "favorite_teams", None)
+        )
+        if self._init_players is not None:
+            self.favorite_players = resolve_player_list(self._init_players)
+        else:
+            self.favorite_players = getattr(self.provider, "favorite_players", [])
         self.page_slot = "back"
 
         styles = getSampleStyleSheet()
@@ -114,7 +136,12 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         )
 
     def create_default_provider(self) -> DataProvider:
-        return SoccerDataProvider()
+        return SoccerDataProvider(
+            favorite_teams=self._init_favorite_teams,
+            favorite_players=self._init_players,
+            leagues=self._init_leagues,
+            standings=self._init_standings,
+        )
 
     def fetch_data(self) -> None:
         if self.provider is None:
@@ -182,19 +209,29 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         elements.append(Paragraph(header_text, self.match_title_style))
         elements.append(Paragraph(f"{comp_info}  •  {venue_info}", self.match_subtitle_style))
 
-        # 2. CR7 Spotlight Banner (Grayscale, no gray background fill)
-        spotlight = box.get("ronaldo_spotlight")
+        # 2. Player / MVP Spotlight Banner (Grayscale, no gray background fill)
+        spotlight = box.get("player_spotlight") or box.get("ronaldo_spotlight")
         if spotlight and spotlight.get("featured"):
+            label = spotlight.get("label", "CR7 SPOTLIGHT")
+            p_name = spotlight.get("player_name", "")
             rating = spotlight.get("rating", "8.5")
             goals = spotlight.get("goals", 0)
-            total = spotlight.get("career_total", 916)
+            total = spotlight.get("career_total")
+            note = spotlight.get("milestone_note", "(Road to 1,000)" if total == 916 else "")
+            if label == "MAN OF THE MATCH" and p_name:
+                banner_str = (
+                    f"★ <b>{label}:</b> {p_name} {note}  |  Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b>"
+                )
+            elif total is not None:
+                banner_str = (
+                    f"★ <b>{label}:</b> Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b>  |  Career Goals: <b>{total}</b> {note}".strip()
+                )
+            else:
+                banner_str = (
+                    f"★ <b>{label}:</b> Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b> {note}".strip()
+                )
             spot_table = Table(
-                [[
-                    Paragraph(
-                        f"★ <b>CR7 SPOTLIGHT:</b> Rating: <b>{rating}</b>  |  Goals: <b>{goals}</b>  |  Career Goals: <b>{total}</b> (Road to 1,000)",
-                        self.spotlight_style,
-                    )
-                ]],
+                [[Paragraph(banner_str, self.spotlight_style)]],
                 colWidths=[530],
             )
             spot_table.setStyle(
@@ -389,17 +426,20 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         return elements
 
     def _render_offday_fallback(self) -> List[Any]:
-        """Render CR7 Career Tracker and upcoming fixture countdown when no match yesterday."""
+        """Render Player/Golden Boot Tracker and upcoming fixture countdown when no match yesterday."""
         elements: List[Any] = []
-        elements.append(Paragraph("<b>CRISTIANO RONALDO: THE ROAD TO 1,000 GOALS</b>", self.match_title_style))
-        elements.append(
-            Paragraph(
-                "No competitive fixtures were played yesterday. Here is your daily tracker of football history in the making!",
-                self.match_subtitle_style,
-            )
-        )
 
-        career_rows = [
+        # Determine primary player (if configured) and primary team
+        primary_player = self.favorite_players[0] if self.favorite_players else None
+        primary_team = (
+            self.favorite_teams[0]
+            if self.favorite_teams
+            else (AL_NASSR_TEAM_ID, "Al-Nassr")
+        )
+        p_team_id, p_team_name = primary_team
+
+        headline_title = "CRISTIANO RONALDO: THE ROAD TO 1,000 GOALS"
+        career_rows: List[List[str]] = [
             ["Team / Club", "Matches", "Goals", "Honors"],
             ["Real Madrid", "438", "450", "4x Champions League, 2x La Liga"],
             ["Manchester United", "346", "145", "1x Champions League, 3x Premier League"],
@@ -409,6 +449,45 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
             ["Sporting CP", "31", "5", "Supertaça"],
             ["CAREER TOTAL", "1,248", "916", "84 Goals Remaining to 1,000!"],
         ]
+
+        if primary_player:
+            if primary_player.get("stats_json"):
+                try:
+                    parsed = json.loads(primary_player["stats_json"])
+                    headline_title = parsed.get("headline_title", f"{primary_player['full_name'].upper()}: CAREER TRACKER")
+                    if parsed.get("rows"):
+                        career_rows = [["Team / Club", "Matches", "Goals", "Honors"]] + parsed["rows"]
+                except Exception:
+                    headline_title = f"{primary_player['full_name'].upper()}: CAREER & SEASON TRACKER"
+            else:
+                headline_title = f"{primary_player['full_name'].upper()}: PLAYER SPOTLIGHT TRACKER"
+                club_str = primary_player.get("current_team_name") or p_team_name
+                nat_str = primary_player.get("nationality") or "National Team"
+                career_rows = [
+                    ["Team / Competition", "Role", "Status", "Notes"],
+                    [club_str, primary_player.get("position", "Attacker"), "Active", "Primary Club"],
+                    [nat_str, primary_player.get("position", "Attacker"), "Active", "International Duty"],
+                ]
+        elif self._init_players is not None and len(self.favorite_players) == 0:
+            # Subscriber explicitly configured no favorite players -> show Golden Boot / Club Tracker
+            headline_title = f"{p_team_name.upper()} & GOLDEN BOOT TRACKER"
+            career_rows = [
+                ["Player", "Club", "Goals", "Competition"],
+                ["Erling Haaland", "Manchester City", "14", "Premier League"],
+                ["Mohamed Salah", "Liverpool", "11", "Premier League"],
+                ["Bukayo Saka", "Arsenal", "9", "Premier League"],
+                ["Cole Palmer", "Chelsea", "9", "Premier League"],
+                ["Victor Osimhen", "Galatasaray", "10", "European Leagues"],
+            ]
+
+        elements.append(Paragraph(f"<b>{headline_title}</b>", self.match_title_style))
+        elements.append(
+            Paragraph(
+                "No competitive fixtures were played yesterday. Here is your daily tracker of football history in the making!",
+                self.match_subtitle_style,
+            )
+        )
+
         ct = Table(career_rows, colWidths=[150, 70, 70, 240])
         ct.setStyle(
             TableStyle(
@@ -429,11 +508,29 @@ class SoccerBoxScoreComponent(BoxScoreComponent):
         elements.append(ct)
         elements.append(Spacer(1, 10))
 
-        elements.append(Paragraph("<b>NEXT AL-NASSR FIXTURE</b>", self.section_h_style))
+        upcoming_list = getattr(
+            self.provider,
+            "get_upcoming_fixtures",
+            lambda tid, tname="": [{
+                "matchup": f"{tname or 'Al-Nassr'} vs. Al-Ain",
+                "competition": "AFC Champions League Elite",
+                "venue": "Al-Awwal Park, Riyadh",
+                "date": "Upcoming",
+            }],
+        )(p_team_id, p_team_name)
+        next_fx = upcoming_list[0] if upcoming_list else {
+            "matchup": f"{p_team_name} vs. Opponent",
+            "competition": "League Fixture",
+            "venue": "Home Stadium",
+            "date": "Upcoming",
+        }
+        star_name = primary_player["full_name"] if primary_player else p_team_name
+
+        elements.append(Paragraph(f"<b>NEXT {p_team_name.upper()} FIXTURE</b>", self.section_h_style))
         preview_p = Paragraph(
-            "<b>Upcoming Match:</b> Al-Nassr vs. Al-Ain • AFC Champions League Elite<br/>"
-            "<b>Venue:</b> Al-Awwal Park, Riyadh • <b>Broadcast:</b> SSC / Shahid VIP<br/>"
-            "<i>Cristiano Ronaldo enters the match in prime form looking to continue his scoring streak!</i>",
+            f"<b>Upcoming Match:</b> {next_fx['matchup']} • {next_fx['competition']}<br/>"
+            f"<b>Venue:</b> {next_fx['venue']} • <b>Date:</b> {next_fx.get('date', 'Upcoming')}<br/>"
+            f"<i>{star_name} enters the match in prime form looking to continue their momentum!</i>",
             self.narrative_style,
         )
         elements.append(preview_p)

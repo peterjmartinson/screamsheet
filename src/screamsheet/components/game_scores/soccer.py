@@ -25,9 +25,25 @@ class SoccerGameScoresComponent(GameScoresComponent):
         title: str = "Yesterday's Scores",
         provider: Optional[DataProvider] = None,
         date: Optional[datetime] = None,
+        favorite_teams: Optional[List[Any]] = None,
+        leagues: Optional[List[Any]] = None,
+        players: Optional[List[Any]] = None,
+        favorite_players: Optional[List[Any]] = None,
+        standings: Optional[List[Any]] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(title=title, provider=provider, date=date, **kwargs)
+        self._init_favorite_teams = favorite_teams
+        self._init_leagues = leagues
+        self._init_players = favorite_players if favorite_players is not None else players
+        self._init_standings = standings
+        super().__init__(
+            title=title,
+            provider=provider,
+            date=date,
+            favorite_teams=favorite_teams,
+            leagues=leagues,
+            **kwargs,
+        )
         styles = getSampleStyleSheet()
         self.league_header_style = ParagraphStyle(
             "SoccerLeagueHeader",
@@ -40,7 +56,12 @@ class SoccerGameScoresComponent(GameScoresComponent):
         )
 
     def create_default_provider(self) -> DataProvider:
-        return SoccerDataProvider()
+        return SoccerDataProvider(
+            favorite_teams=self._init_favorite_teams,
+            favorite_players=self._init_players,
+            leagues=self._init_leagues,
+            standings=self._init_standings,
+        )
 
     def render(self) -> List[Any]:
         if not self.data:

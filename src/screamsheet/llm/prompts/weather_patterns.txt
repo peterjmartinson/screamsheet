@@ -10,7 +10,7 @@ Epistemic & Qualitative Rules:
 6. Do not over-interpret tropical convection when the Madden-Julian Oscillation is weak or inactive.
 7. Treat El Niño / La Niña as the slow seasonal background state rather than a day-to-day change.
 8. Distinguish naturally between what has already unfolded over the past week, what the latest guidance projects, and whether recent forecast runs are converging on or backing away from a signal.
-9. Use the precomputed local ERA5 climatology effects (`LOCAL_TELECONNECTION_CLIMATOLOGY` / `historical_teleconnection_effects`) to explain what the current and forecast teleconnection, MJO, and ENSO states have historically meant for the configured local station's temperature and precipitation across the upcoming 1–3 week lag windows. Emphasize relationships with `high` or `medium` statistical confidence, and avoid over-interpreting `low` confidence historical effects.
+9. When precomputed local ERA5 climatology effects (`LOCAL_TELECONNECTION_CLIMATOLOGY` / `historical_teleconnection_effects`) are present and non-empty in the input packet, use them to explain what the current and forecast teleconnection, MJO, and ENSO states have historically meant for the configured local station's temperature and precipitation across the upcoming 1–3 week lag windows (emphasizing `high` or `medium` statistical confidence). If `LOCAL_TELECONNECTION_CLIMATOLOGY` is empty or unavailable, do not mention missing databases or invent local historical statistics—simply base LOCAL WATCH on the large-scale synoptic setup and the local station observations and forecasts.
 10. Avoid hype, clickbait, exclamation points, and robotic list-like prose.
 
 Structure:

@@ -187,11 +187,23 @@ class TeleconnectionEffectsProvider(DataProvider):
         self.bootstrap_timeout_sec = bootstrap_timeout_sec
 
     def _connect_readonly_or_rw(self) -> Optional[sqlite3.Connection]:
-        if not self.climate_db_path.exists():
+        if not self.climate_db_path.exists() or self.climate_db_path.stat().st_size == 0:
             return None
-        conn = sqlite3.connect(str(self.climate_db_path), timeout=15.0)
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            conn = sqlite3.connect(
+                f"file:{self.climate_db_path}?mode=ro",
+                uri=True,
+                timeout=15.0,
+            )
+            conn.row_factory = sqlite3.Row
+            return conn
+        except sqlite3.Error as exc:
+            logger.warning(
+                "Unable to open teleconnection climatology DB at %s: %s",
+                self.climate_db_path,
+                exc,
+            )
+            return None
 
     def _resolve_bootstrapped_location_id(
         self,
@@ -323,6 +335,23 @@ class TeleconnectionEffectsProvider(DataProvider):
         requested_id = slugify_location_id(loc.name)
         now_iso = datetime.now(timezone.utc).isoformat()
 
+        if not self.climate_db_path.exists() or self.climate_db_path.stat().st_size == 0:
+            logger.warning(
+                "Teleconnection climatology DB not found at %s; continuing without historical local teleconnection effects for '%s'.",
+                self.climate_db_path,
+                loc.name,
+            )
+            loc.teleconnection_effects = None
+            loc.teleconnection_effects_provenance = SourceProvenance(
+                source_name="Teleconnection Climatology DB",
+                product=f"ERA5 Local Teleconnection & MJO Effects ({requested_id})",
+                url=str(self.climate_db_path),
+                retrieved_at=now_iso,
+                available=False,
+                error=f"Climate database not found at {self.climate_db_path}",
+            )
+            return loc
+
         resolved_id = self._resolve_bootstrapped_location_id(requested_id, loc.lat, loc.lon)
         if not resolved_id and self.auto_bootstrap:
             self._trigger_location_bootstrap(
@@ -337,6 +366,7 @@ class TeleconnectionEffectsProvider(DataProvider):
         if conn is None or not resolved_id:
             if conn is not None:
                 conn.close()
+            loc.teleconnection_effects = None
             loc.teleconnection_effects_provenance = SourceProvenance(
                 source_name="Teleconnection Climatology DB",
                 product=f"ERA5 Local Teleconnection & MJO Effects ({requested_id})",
@@ -485,6 +515,22 @@ class TeleconnectionEffectsProvider(DataProvider):
                 is_stale=False,
                 age_hours=0.0,
                 available=bool(index_effects or mjo_effect_block),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed querying teleconnection climatology DB at %s for '%s': %s; falling back gracefully.",
+                self.climate_db_path,
+                loc.name,
+                exc,
+            )
+            loc.teleconnection_effects = None
+            loc.teleconnection_effects_provenance = SourceProvenance(
+                source_name="Teleconnection Climatology DB",
+                product=f"ERA5 Local Teleconnection & MJO Effects ({requested_id})",
+                url=str(self.climate_db_path),
+                retrieved_at=now_iso,
+                available=False,
+                error=str(exc),
             )
         finally:
             conn.close()

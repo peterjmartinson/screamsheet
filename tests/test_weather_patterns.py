@@ -1046,3 +1046,71 @@ def test_bom_rmm_parser_and_teleconnection_effects_provider(
     assert len(called_cmds) == 1
     assert "--id" in called_cmds[0] and "stowe_vt" in called_cmds[0]
     assert loc1.teleconnection_effects["location_id"] == "stowe_vt"
+
+
+def test_teleconnection_effects_provider_graceful_fallback_when_db_missing_or_corrupt(tmp_path, monkeypatch):
+    """Ensure Climate Screamsheet runs cleanly when climate.db is missing, empty, or corrupted on the server."""
+    import sqlite3
+
+    from screamsheet.providers.teleconnection_effects_provider import TeleconnectionEffectsProvider
+
+    called_cmds: list[list[str]] = []
+    monkeypatch.setattr("subprocess.run", lambda cmd, **kw: called_cmds.append(list(cmd)))
+
+    # Case 1: climate.db does not exist at all on the prod server
+    missing_db = tmp_path / "nonexistent_climate.db"
+    bundle = _make_sample_bundle()
+    prov_missing = TeleconnectionEffectsProvider(
+        climate_db_path=missing_db,
+        teleconnections_dir=tmp_path / "fake_tele",
+        auto_bootstrap=True,
+    )
+    loc0 = bundle.locations[0]
+    prov_missing.enrich_location_teleconnection_effects(
+        loc0,
+        teleconnections=bundle.teleconnections,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        target_date=datetime(2026, 11, 4),
+    )
+    assert not missing_db.exists()
+    assert len(called_cmds) == 0
+    assert loc0.teleconnection_effects is None
+    assert loc0.teleconnection_effects_provenance is not None
+    assert loc0.teleconnection_effects_provenance.available is False
+
+    # Case 2: climate.db exists on disk, has location row 'complete', but effect tables are missing/corrupt
+    broken_db = tmp_path / "broken_climate.db"
+    conn = sqlite3.connect(str(broken_db))
+    conn.execute(
+        "CREATE TABLE location (id TEXT PRIMARY KEY, name TEXT, latitude REAL, longitude REAL, bootstrap_status TEXT);"
+    )
+    conn.execute(
+        "INSERT INTO location VALUES ('philadelphia', 'Philadelphia', 39.95, -75.16, 'complete');"
+    )
+    conn.commit()
+    conn.close()
+
+    prov_broken = TeleconnectionEffectsProvider(
+        climate_db_path=broken_db,
+        teleconnections_dir=tmp_path / "fake_tele",
+        auto_bootstrap=False,
+    )
+    prov_broken.enrich_location_teleconnection_effects(
+        loc0,
+        teleconnections=bundle.teleconnections,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        target_date=datetime(2026, 11, 4),
+    )
+    assert loc0.teleconnection_effects is None
+    assert loc0.teleconnection_effects_provenance is not None
+    assert loc0.teleconnection_effects_provenance.available is False
+
+    # Verify fallback narrative and LLM packet still generate cleanly without historical climatology
+    narrative = WeatherPatternsScreamsheet._build_deterministic_fallback_narrative(bundle)
+    assert "PATTERN:" in narrative
+    assert "LOCAL WATCH:" in narrative
+    packet = bundle.to_llm_packet()
+    assert "LOCAL_TELECONNECTION_CLIMATOLOGY" not in packet
+

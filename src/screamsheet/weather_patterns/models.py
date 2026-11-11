@@ -237,9 +237,12 @@ class LocalLocationBundle:
     afd_office: Optional[str] = None
     afd_issued_at: Optional[str] = None
     afd_synopsis: Optional[str] = None
+    # Precomputed historical local teleconnection & MJO effects (from climate.db)
+    teleconnection_effects: Dict[str, Any] = field(default_factory=dict)
     # Provenance
     nws_provenance: Optional[SourceProvenance] = None
     climate_provenance: Optional[SourceProvenance] = None
+    teleconnection_effects_provenance: Optional[SourceProvenance] = None
 
 
 @dataclass
@@ -425,6 +428,7 @@ class WeatherPatternsDataBundle:
 
         # Local weather
         local_weather: List[Dict[str, Any]] = []
+        local_teleconnection_climatology: List[Dict[str, Any]] = []
         forecaster_discussions: List[Dict[str, Any]] = []
         for loc in self.locations:
             loc_dict: Dict[str, Any] = {
@@ -470,6 +474,9 @@ class WeatherPatternsDataBundle:
                     "snowfall_7d_in": loc.snow.snowfall_7d_in,
                     "nws_forecast_snow_7d_in": loc.snow.forecast_snow_7d_in,
                 }
+            if loc.teleconnection_effects:
+                loc_dict["historical_teleconnection_effects"] = loc.teleconnection_effects
+                local_teleconnection_climatology.append(loc.teleconnection_effects)
             local_weather.append(loc_dict)
 
             if include_afd and loc.afd_synopsis:
@@ -507,6 +514,8 @@ class WeatherPatternsDataBundle:
             "LOCAL_WEATHER": local_weather,
             "SOURCE_TIMESTAMPS": timestamps,
         }
+        if local_teleconnection_climatology:
+            packet["LOCAL_TELECONNECTION_CLIMATOLOGY"] = local_teleconnection_climatology
         if self.derived.verification:
             packet["FORECAST_VERIFICATION_ARCHIVE"] = self.derived.verification
         if forecaster_discussions:

@@ -534,10 +534,10 @@ def test_derived_signals_and_llm_packet():
         {"weather_packet_json": "{}", "max_words": 200}
     )
     assert "PATTERN:" in prompt
-    assert "WHAT CHANGED:" in prompt
-    assert "WHAT IT MAY MEAN:" in prompt
+    assert "WHAT CHANGED:" not in prompt
+    assert "WHAT IT MAY MEAN:" not in prompt
     assert "LOCAL WATCH:" in prompt
-    assert "120–200 words" in prompt
+    assert "100–200 words" in prompt
 
 
 def test_charts_and_screamsheet_pdf_generation(tmp_path: Path):
@@ -565,8 +565,10 @@ def test_charts_and_screamsheet_pdf_generation(tmp_path: Path):
     assert generated.stat().st_size > 2000
 
     md = sheet.render_markdown()
-    assert "Climate Screamsheet" in md
+    assert "Climate Teleconnections" in md
     assert "PATTERN:" in md
+    assert "WHAT CHANGED:" not in md
+    assert "WHAT IT MAY MEAN:" not in md
     assert "MOUNT MANSFIELD" in md
 
 
@@ -883,3 +885,164 @@ def test_v2_verification_and_analog_queries(tmp_path: Path):
     assert len(analogs) == 1
     assert analogs[0]["date"] == "2026-01-15"
     assert analogs[0]["distance_sd"] < 0.15
+
+
+def test_bom_rmm_parser_and_teleconnection_effects_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test Australian BOM RMM parsing, climate.db querying, auto-bootstrap, and LLM packet inclusion."""
+    import sqlite3
+    from datetime import datetime
+    from screamsheet.providers.mjo_provider import MJOProvider
+    from screamsheet.providers.teleconnection_effects_provider import (
+        TeleconnectionEffectsProvider,
+        classify_teleconnection_state,
+    )
+
+    bom_text = (
+        "RMM values up to real time\n"
+        " year, month, day, RMM1, RMM2, phase, amplitude.\n"
+        " 2026 11 5 -0.7356 -1.9707 2 2.1035 Gottschalk10\n"
+        " 2026 11 6 -0.9242 -2.0711 2 2.2679 Gottschalk10\n"
+    )
+    mjo_pts = MJOProvider.parse_bom_rmm_text(bom_text)
+    assert len(mjo_pts) == 2
+    assert mjo_pts[-1].date == "2026-11-06"
+    assert mjo_pts[-1].phase == 2
+    assert mjo_pts[-1].active is True
+
+    assert classify_teleconnection_state("AO", -1.7) == "strong_negative"
+    assert classify_teleconnection_state("NAO", -0.8) == "negative"
+    assert classify_teleconnection_state("PNA", 1.2) == "positive"
+    assert classify_teleconnection_state("NINO34", -0.7) == "la_nina"
+
+    # Build a synthetic climate.db with location, teleconnection_effect, and mjo_effect
+    clim_db = tmp_path / "climate.db"
+    conn = sqlite3.connect(str(clim_db))
+    conn.executescript(
+        """
+        CREATE TABLE location (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            era5_latitude REAL,
+            era5_longitude REAL,
+            bootstrap_status TEXT NOT NULL DEFAULT 'pending',
+            bootstrap_date TEXT,
+            history_start TEXT,
+            history_end TEXT
+        );
+        CREATE TABLE teleconnection_effect (
+            location_id TEXT NOT NULL,
+            code TEXT NOT NULL,
+            season TEXT NOT NULL,
+            state TEXT NOT NULL,
+            lag_start_days INTEGER NOT NULL,
+            lag_end_days INTEGER NOT NULL,
+            variable TEXT NOT NULL,
+            mean_effect REAL,
+            median_effect REAL,
+            sample_count INTEGER NOT NULL,
+            p_value REAL,
+            confidence TEXT NOT NULL
+        );
+        CREATE TABLE mjo_effect (
+            location_id TEXT NOT NULL,
+            season TEXT NOT NULL,
+            phase INTEGER NOT NULL,
+            lag_start_days INTEGER NOT NULL,
+            lag_end_days INTEGER NOT NULL,
+            variable TEXT NOT NULL,
+            mean_effect REAL,
+            median_effect REAL,
+            sample_count INTEGER NOT NULL,
+            p_value REAL,
+            confidence TEXT NOT NULL
+        );
+        INSERT INTO location VALUES (
+            'philadelphia_pa', 'Philadelphia, PA', 39.95, -75.16, 40.03, -75.27,
+            'complete', '2026-11-11T00:00:00Z', '1979-01-01', '2026-11-06'
+        );
+        INSERT INTO teleconnection_effect VALUES
+            ('philadelphia_pa', 'AO', 'OND', 'strong_negative', 0, 5, 'tmean_anomaly_c', -1.8, -1.7, 450, 0.001, 'high'),
+            ('philadelphia_pa', 'AO', 'OND', 'strong_negative', 0, 5, 'precip_mm', 0.4, -0.2, 450, 0.25, 'low'),
+            ('philadelphia_pa', 'NAO', 'OND', 'strong_negative', 0, 5, 'tmean_anomaly_c', -1.4, -1.3, 410, 0.002, 'high'),
+            ('philadelphia_pa', 'PNA', 'OND', 'strong_positive', 0, 5, 'tmean_anomaly_c', -1.1, -1.0, 380, 0.01, 'high'),
+            ('philadelphia_pa', 'NINO34', 'OND', 'la_nina', 0, 5, 'tmean_anomaly_c', 0.3, 0.2, 900, 0.12, 'medium');
+        INSERT INTO mjo_effect VALUES
+            ('philadelphia_pa', 'OND', 1, 6, 10, 'tmean_anomaly_c', -0.9, -0.8, 120, 0.03, 'high');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    bundle = _make_sample_bundle()
+    prov = TeleconnectionEffectsProvider(
+        climate_db_path=clim_db,
+        teleconnections_dir=tmp_path / "nonexistent_tele_dir",
+        auto_bootstrap=False,
+    )
+    loc0 = bundle.locations[0]
+    prov.enrich_location_teleconnection_effects(
+        loc0,
+        teleconnections=bundle.teleconnections,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        target_date=datetime(2026, 11, 4),
+    )
+
+    assert loc0.teleconnection_effects["location_id"] == "philadelphia_pa"
+    assert loc0.teleconnection_effects["season"] == "OND"
+    ao_eff = loc0.teleconnection_effects["teleconnections"]["AO"]
+    assert ao_eff["current_state"] == "strong_negative"
+    assert ao_eff["current_state_effects"][0]["temp_anomaly_mean_c"] == pytest.approx(-1.8)
+    assert ao_eff["current_state_effects"][0]["temp_anomaly_mean_f"] == pytest.approx(-3.24)
+    assert ao_eff["current_state_effects"][0]["temp_confidence"] == "high"
+
+    # Verify LLM packet contains LOCAL_TELECONNECTION_CLIMATOLOGY
+    packet = bundle.to_llm_packet()
+    assert "LOCAL_TELECONNECTION_CLIMATOLOGY" in packet
+    assert packet["LOCAL_TELECONNECTION_CLIMATOLOGY"][0]["location_id"] == "philadelphia_pa"
+
+    # Verify subprocess auto-bootstrap is triggered when location is missing from climate.db
+    fake_tele_dir = tmp_path / "fake_tele"
+    (fake_tele_dir / "scripts").mkdir(parents=True)
+    (fake_tele_dir / "scripts" / "bootstrap_location.py").write_text("# stub\n", encoding="utf-8")
+
+    called_cmds: list[list[str]] = []
+
+    def _fake_run(cmd, **kwargs):
+        called_cmds.append(list(cmd))
+        # Simulate bootstrap_location.py writing status='complete' into clim_db
+        c = sqlite3.connect(str(clim_db))
+        c.execute(
+            "INSERT INTO location VALUES ('stowe_vt', 'Stowe, VT', 44.46, -72.68, 44.5, -72.7, 'complete', '2026-11-11', '1979-01-01', '2026-11-06');"
+        )
+        c.commit()
+        c.close()
+
+        class _Proc:
+            returncode = 0
+            stdout = "ok"
+            stderr = ""
+
+        return _Proc()
+
+    monkeypatch.setattr("subprocess.run", _fake_run)
+    prov_auto = TeleconnectionEffectsProvider(
+        climate_db_path=clim_db,
+        teleconnections_dir=fake_tele_dir,
+        auto_bootstrap=True,
+    )
+    loc1 = bundle.locations[1]  # Stowe, VT
+    prov_auto.enrich_location_teleconnection_effects(
+        loc1,
+        teleconnections=bundle.teleconnections,
+        mjo=bundle.mjo,
+        enso=bundle.enso,
+        target_date=datetime(2026, 11, 4),
+    )
+    assert len(called_cmds) == 1
+    assert "--id" in called_cmds[0] and "stowe_vt" in called_cmds[0]
+    assert loc1.teleconnection_effects["location_id"] == "stowe_vt"

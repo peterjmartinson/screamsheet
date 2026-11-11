@@ -127,7 +127,7 @@ def build_teleconnections_chart(
         String(
             0,
             height - 10,
-            "CHART 4: ARCTIC (AO), NORTH ATLANTIC (NAO) & PACIFIC-NORTH AMERICAN (PNA) INDICES (SD)",
+            "ARCTIC (AO), NORTH ATLANTIC (NAO) & PACIFIC-NORTH AMERICAN (PNA) INDICES (SD)",
             fontName="Helvetica-Bold",
             fontSize=9.0,
             fillColor=BLACK,
@@ -467,7 +467,7 @@ def build_forecast_evolution_chart(
         String(
             0,
             height - 9,
-            "CHART 5 (V2): FORECAST VINTAGE EVOLUTION — SUCCESSIVE MODEL RUNS BY VALID DATE",
+            "FORECAST VINTAGE EVOLUTION — SUCCESSIVE MODEL RUNS BY VALID DATE",
             fontName="Helvetica-Bold",
             fontSize=8.4,
             fillColor=BLACK,
@@ -731,7 +731,7 @@ def build_polar_vortex_chart(
         String(
             2,
             height - 9,
-            "CHART 1: STRATOSPHERIC POLAR VORTEX (10 hPa 60°N U-WIND)",
+            "STRATOSPHERIC POLAR VORTEX (10 hPa 60°N U-WIND)",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,
@@ -945,7 +945,7 @@ def build_mjo_phase_diagram(
         String(
             2,
             height - 9,
-            "CHART 2: MJO PHASE SPACE (NOAA PSL ROMI) & STATUS",
+            "MJO PHASE SPACE (NOAA PSL ROMI) & STATUS",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,
@@ -1127,7 +1127,7 @@ def build_enso_sparkline(
         String(
             2,
             height - 9,
-            "CHART 3: ENSO BACKGROUND — NINO 3.4 ANOMALY (°C, 24M)",
+            "ENSO BACKGROUND — NINO 3.4 ANOMALY (°C, 24M)",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,
@@ -1294,7 +1294,7 @@ def build_local_pressure_chart(
         String(
             4,
             height - 10,
-            f"CHART 5: BAROMETRIC PRESSURE (hPa){stn_lbl}",
+            f"BAROMETRIC PRESSURE (hPa){stn_lbl}",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,
@@ -1438,7 +1438,7 @@ def build_local_temperature_chart(
         String(
             4,
             height - 10,
-            "CHART 6: TEMP ANOMALY (30d) & 7d FORECAST",
+            "TEMP ANOMALY (30d) & 7d FORECAST",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,
@@ -1660,7 +1660,7 @@ def build_snow_watch_chart(
         String(
             4,
             height - 10,
-            f"CHART 7: SNOW DEPTH & DAILY SNOWFALL (INCHES){stn_lbl[:45]}",
+            f"SNOW DEPTH & DAILY SNOWFALL (INCHES){stn_lbl[:45]}",
             fontName="Helvetica-Bold",
             fontSize=7.8,
             fillColor=BLACK,

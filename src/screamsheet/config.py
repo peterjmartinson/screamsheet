@@ -212,6 +212,8 @@ class WeatherPatternsConfig:
     )
     history_days: int = 60
     forecast_days: int = 14
+    climate_db_path: str = ""
+    teleconnections_dir: str = ""
     charts: WeatherPatternsChartsConfig = field(default_factory=WeatherPatternsChartsConfig)
     narrative: WeatherPatternsNarrativeConfig = field(default_factory=WeatherPatternsNarrativeConfig)
 
@@ -489,6 +491,8 @@ def _parse_weather_patterns(
         locations=locations,
         history_days=int(raw.get("history_days", 60)),
         forecast_days=int(raw.get("forecast_days", 14)),
+        climate_db_path=str(raw.get("climate_db_path", "") or ""),
+        teleconnections_dir=str(raw.get("teleconnections_dir", "") or ""),
         charts=charts,
         narrative=narrative,
     )

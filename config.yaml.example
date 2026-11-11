@@ -99,6 +99,10 @@ weather:
 weather_patterns:
   history_days: 60
   forecast_days: 14
+  # Optional overrides for local teleconnection climatology (defaults to ~/database/climate.db
+  # or TELECLIM_DB env var, and ../teleconnections or TELECONNECTIONS_DIR env var):
+  # climate_db_path: "/home/peter/database/climate.db"
+  # teleconnections_dir: "/home/peter/Code/teleconnections"
 
   charts:
     teleconnections: true

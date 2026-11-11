@@ -178,7 +178,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             output_filename=output_filename or "WEATHER_PATTERNS.pdf",
             date=target_date,
         )
-        self.title = "Climate Screamsheet"
+        self.title = "Climate Teleconnections"
         self.wp_config = weather_patterns_config or WeatherPatternsConfig(
             locations=[
                 WeatherPatternsLocationConfig(
@@ -196,7 +196,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         self._wp_styles = self._create_wp_styles()
 
     def get_title(self) -> str:
-        return "Climate Screamsheet"
+        return "Climate Teleconnections"
 
     def _create_wp_styles(self) -> Dict[str, ParagraphStyle]:
         base_style = self.styles["Normal"]
@@ -350,6 +350,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         from ..providers.nws_patterns_provider import NWSWeatherPatternsProvider
         from ..providers.snow_provider import SnowProvider
         from ..providers.stratosphere_provider import StratosphereProvider
+        from ..providers.teleconnection_effects_provider import TeleconnectionEffectsProvider
         from ..providers.teleconnection_provider import TeleconnectionProvider
 
         # 1. Teleconnections (AO, NAO, PNA)
@@ -413,6 +414,10 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             use_cache=self.use_cache,
             refresh_cache=self.refresh_cache,
         )
+        tele_eff_prov = TeleconnectionEffectsProvider(
+            climate_db_path=cfg.climate_db_path,
+            teleconnections_dir=cfg.teleconnections_dir,
+        )
 
         locations: List[LocalLocationBundle] = []
         for loc_cfg in cfg.locations:
@@ -429,12 +434,21 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 explicit_snow_station=loc_cfg.snow_station,
                 target_date=self.date,
             )
+            tele_eff_prov.enrich_location_teleconnection_effects(
+                loc_bundle,
+                teleconnections=teleconnections,
+                mjo=mjo_bundle,
+                enso=enso_bundle,
+                target_date=self.date,
+            )
             if loc_bundle.nws_provenance:
                 provenance_list.append(loc_bundle.nws_provenance)
             if loc_bundle.climate_provenance:
                 provenance_list.append(loc_bundle.climate_provenance)
             if loc_bundle.snow and loc_bundle.snow.provenance:
                 provenance_list.append(loc_bundle.snow.provenance)
+            if loc_bundle.teleconnection_effects_provenance:
+                provenance_list.append(loc_bundle.teleconnection_effects_provenance)
             locations.append(loc_bundle)
 
         report_date_str = self.date.strftime("%Y-%m-%d")
@@ -588,65 +602,100 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
     def _build_deterministic_fallback_narrative(
         bundle: WeatherPatternsDataBundle,
     ) -> str:
-        """Build a strictly factual 4-paragraph summary directly from the normalized bundle."""
+        """Build a qualitative 2-paragraph summary (PATTERN and LOCAL WATCH) directly from the normalized bundle."""
         sig = bundle.derived
 
-        ao_str = f"AO at {sig.ao['current']:+.2f} SD" if sig.ao.get("available") else "AO unavailable"
-        nao_str = f"NAO at {sig.nao['current']:+.2f} SD" if sig.nao.get("available") else "NAO unavailable"
-        pna_str = f"PNA at {sig.pna['current']:+.2f} SD" if sig.pna.get("available") else "PNA unavailable"
+        def _qual_regime(val: Optional[float]) -> str:
+            if val is None:
+                return "unavailable"
+            if val <= -1.5:
+                return "deeply negative"
+            if val <= -0.5:
+                return "moderately negative"
+            if val >= 1.5:
+                return "strongly positive"
+            if val >= 0.5:
+                return "moderately positive"
+            return "near neutral"
 
-        mjo_str = "MJO unavailable"
-        if sig.mjo.get("available"):
-            state_w = "active" if sig.mjo.get("active") else "inactive/weak"
-            ph = sig.mjo.get("phase")
-            reg = MJO_PHASE_REGIONS.get(ph, "")
-            mjo_str = f"MJO in Phase {ph} ({reg}, amplitude {sig.mjo['amplitude']:.2f}, {state_w})"
+        def _qual_trend(chg: Optional[float], fcst_chg: Optional[float]) -> str:
+            parts: List[str] = []
+            if chg is not None:
+                if chg <= -1.0:
+                    parts.append("having dropped sharply recently")
+                elif chg <= -0.4:
+                    parts.append("trending lower recently")
+                elif chg >= 1.0:
+                    parts.append("having surged higher recently")
+                elif chg >= 0.4:
+                    parts.append("trending higher recently")
+                else:
+                    parts.append("holding relatively steady")
+            if fcst_chg is not None:
+                if fcst_chg <= -0.5:
+                    parts.append("with guidance projecting further weakening")
+                elif fcst_chg >= 0.5:
+                    parts.append("with guidance projecting a notable rise")
+                else:
+                    parts.append("with guidance keeping it in a similar regime")
+            return " ".join(parts)
 
-        enso_str = "ENSO unavailable"
-        if sig.enso.get("available"):
-            enso_str = f"ENSO in {sig.enso['state']} (Niño 3.4 {sig.enso['nino34']:+.2f}°C)"
-
-        strat_str = "Stratospheric 10-hPa data unavailable"
-        if sig.polar_vortex.get("available"):
-            strat_str = (
-                f"10-hPa 60°N zonal wind at {sig.polar_vortex['current_wind']:.1f} m/s "
-                f"(forecast min {sig.polar_vortex.get('forecast_min') or 0.0:.1f} m/s)"
+        pattern_sentences: List[str] = []
+        if sig.ao.get("available") or sig.nao.get("available") or sig.pna.get("available"):
+            ao_desc = _qual_regime(sig.ao.get("current")) if sig.ao.get("available") else "unavailable"
+            nao_desc = _qual_regime(sig.nao.get("current")) if sig.nao.get("available") else "unavailable"
+            pna_desc = _qual_regime(sig.pna.get("current")) if sig.pna.get("available") else "unavailable"
+            pattern_sentences.append(
+                f"High-latitude circulation is currently {ao_desc} across the Arctic and {nao_desc} across the North Atlantic, "
+                f"paired with a {pna_desc} Pacific-North American pattern."
             )
+            trend_bits: List[str] = []
+            for label, info in (
+                ("Arctic blocking", sig.ao),
+                ("North Atlantic blocking", sig.nao),
+                ("the Pacific-North American pattern", sig.pna),
+            ):
+                if info.get("available"):
+                    t_phrase = _qual_trend(info.get("change_7d"), info.get("forecast_change_7d"))
+                    if t_phrase:
+                        trend_bits.append(f"{label} is {t_phrase}")
+            if trend_bits:
+                pattern_sentences.append("; ".join(trend_bits).capitalize() + ".")
 
-        p1 = (
-            f"PATTERN: Large-scale indices show {ao_str}, {nao_str}, and {pna_str}. "
-            f"Tropical and seasonal background forcing features {mjo_str} and {enso_str}, "
-            f"while the stratospheric polar vortex shows {strat_str}."
-        )
+        bg_parts: List[str] = []
+        if sig.enso.get("available"):
+            state_lbl = str(sig.enso.get("state") or "neutral conditions").split("/")[0].strip().lower()
+            bg_parts.append(f"seasonal background forcing remains in {state_lbl} across the tropical Pacific")
+        if sig.mjo.get("available"):
+            ph = sig.mjo.get("phase")
+            reg = MJO_PHASE_REGIONS.get(ph, "the tropics")
+            if sig.mjo.get("active"):
+                bg_parts.append(f"tropical convection is active over {reg}")
+            else:
+                bg_parts.append("intraseasonal tropical convection remains weak and incoherent")
+        if bg_parts:
+            pattern_sentences.append("Meanwhile, " + ", while ".join(bg_parts) + ".")
 
-        changes: List[str] = []
-        for code, info in (("AO", sig.ao), ("NAO", sig.nao), ("PNA", sig.pna)):
-            if info.get("available") and info.get("change_7d") is not None:
-                fc_s = (
-                    f", 7d GEFS Δ {info['forecast_change_7d']:+.2f} SD"
-                    if info.get("forecast_change_7d") is not None
-                    else ""
+        if sig.polar_vortex.get("available"):
+            pv = sig.polar_vortex
+            if pv.get("major_ssw_criteria_met"):
+                pattern_sentences.append(
+                    "Aloft, the stratospheric polar vortex has undergone a major warming and wind reversal."
                 )
-                changes.append(f"{code} 7-day change of {info['change_7d']:+.2f} SD{fc_s}")
-        if sig.polar_vortex.get("available") and sig.polar_vortex.get("change_7d") is not None:
-            changes.append(f"10-hPa 60°N wind 7-day change of {sig.polar_vortex['change_7d']:+.1f} m/s")
+            elif pv.get("forecast_reversal"):
+                pattern_sentences.append(
+                    "Aloft, the stratospheric polar vortex has been weakening rapidly and model guidance projects a potential wind reversal ahead."
+                )
+            elif (pv.get("change_7d") or 0.0) <= -8.0:
+                pattern_sentences.append(
+                    "Aloft, the stratospheric polar vortex has weakened noticeably though westerly circulation persists."
+                )
+            else:
+                pattern_sentences.append(
+                    "Aloft, the stratospheric polar vortex maintains a steady westerly circulation."
+                )
 
-        # Include V2 model trend / forecast evolution highlights if multiple runs exist
-        wc = sig.what_changed or {}
-        for mt_bullet in (wc.get("MODEL_TREND") or [])[:2]:
-            changes.append(mt_bullet.rstrip("."))
-        for st_bullet in (wc.get("STRATOSPHERE") or []):
-            if "consecutive" in st_bullet or "disappeared" in st_bullet:
-                changes.append(st_bullet.rstrip("."))
-
-        p2 = (
-            "WHAT CHANGED: "
-            + ("; ".join(changes) if changes else "Recent 7-day index deltas are minimal.")
-            + "."
-        )
-
-        notes = sig.notable_changes if sig.notable_changes else ["Large-scale indices remain near neutral regimes."]
-        p3 = "WHAT IT MAY MEAN: " + " | ".join(notes[:3])
+        p1 = "PATTERN: " + " ".join(pattern_sentences)
 
         loc_parts: List[str] = []
         for loc in bundle.locations:
@@ -657,10 +706,27 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             snow_s = ""
             if loc.snow and loc.snow.has_useful_snow_data:
                 snow_s = f", snow depth {loc.snow.current_depth_in or 0.0:.1f}\" (7d fcst snow {loc.snow.forecast_snow_7d_in or 0.0:.1f}\")"
-            loc_parts.append(f"{loc.name}: {t_s}, {p_s}{', ' + anom_s if anom_s else ''}{snow_s}")
-        p4 = "LOCAL WATCH: " + (" | ".join(loc_parts) if loc_parts else "No local stations configured.")
+            hist_s = ""
+            if loc.teleconnection_effects:
+                tc_map = loc.teleconnection_effects.get("teleconnections") or {}
+                notable_effs: List[str] = []
+                for idx_code in ("AO", "NAO", "PNA", "NINO34"):
+                    entry = tc_map.get(idx_code) or {}
+                    lags = entry.get("current_state_effects") or []
+                    for lag_item in lags:
+                        if lag_item.get("lag_days") in ("0-5", "6-10") and lag_item.get("temp_confidence") in ("high", "medium"):
+                            tf = lag_item.get("temp_anomaly_mean_f")
+                            if tf is not None and abs(tf) >= 0.5:
+                                notable_effs.append(
+                                    f"{idx_code} ({entry.get('current_state')}) historically {tf:+.1f}°F ({lag_item.get('lag_days')}d, {lag_item.get('temp_confidence')} conf)"
+                                )
+                                break
+                if notable_effs:
+                    hist_s = " [Climatology: " + "; ".join(notable_effs[:2]) + "]"
+            loc_parts.append(f"{loc.name}: {t_s}, {p_s}{', ' + anom_s if anom_s else ''}{snow_s}{hist_s}")
+        p2 = "LOCAL WATCH: " + (" | ".join(loc_parts) if loc_parts else "No local stations configured.")
 
-        return "\n\n".join([p1, p2, p3, p4])
+        return "\n\n".join([p1, p2])
 
     # ------------------------------------------------------------------
     # Page 1 Builders: Narrative, Scorecard Table, & Large-Scale Charts
@@ -676,7 +742,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
 
         for para in [p.strip() for p in narrative_raw.split("\n\n") if p.strip()]:
             safe_p = escape(para)
-            for label in ("PATTERN:", "WHAT CHANGED:", "WHAT IT MAY MEAN:", "LOCAL WATCH:"):
+            for label in ("PATTERN:", "LOCAL WATCH:"):
                 if safe_p.startswith(label):
                     safe_p = f"<b>{label}</b>{safe_p[len(label):]}"
                     break
@@ -695,6 +761,16 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         charts_cfg = self.wp_config.charts
         right_flowables: List[Any] = []
 
+        if charts_cfg.enso:
+            right_flowables.append(
+                build_enso_sparkline(
+                    bundle.enso,
+                    width=258.0,
+                    height=98.0,
+                )
+            )
+            right_flowables.append(Spacer(1, 3))
+
         if charts_cfg.polar_vortex:
             right_flowables.append(
                 build_polar_vortex_chart(
@@ -712,16 +788,6 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     bundle.mjo,
                     width=258.0,
                     height=108.0,
-                )
-            )
-            right_flowables.append(Spacer(1, 3))
-
-        if charts_cfg.enso:
-            right_flowables.append(
-                build_enso_sparkline(
-                    bundle.enso,
-                    width=258.0,
-                    height=98.0,
                 )
             )
             right_flowables.append(Spacer(1, 4))
@@ -1377,6 +1443,23 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     f"Depth {loc.snow.current_depth_in}\", 7d Snowfall {loc.snow.snowfall_7d_in}\", "
                     f"7d NWS Forecast Snow {loc.snow.forecast_snow_7d_in}\""
                 )
+            if loc.teleconnection_effects:
+                season_lbl = loc.teleconnection_effects.get("season", "")
+                lines.append(f"- **Historical Teleconnection Climatology (Season {season_lbl}):**")
+                tc_map = loc.teleconnection_effects.get("teleconnections") or {}
+                for idx_code, entry in tc_map.items():
+                    lags = entry.get("current_state_effects") or []
+                    if lags:
+                        l0 = lags[0]
+                        tf = l0.get("temp_anomaly_mean_f")
+                        pm = l0.get("precip_anomaly_mean_mm_day")
+                        lines.append(
+                            f"  - **{idx_code} ({entry.get('current_state')})**: "
+                            f"0-5d ΔT {tf:+.1f}°F ({l0.get('temp_confidence')} conf), "
+                            f"ΔP {pm:+.2f} mm/d ({l0.get('precip_confidence')} conf)"
+                            if (tf is not None and pm is not None)
+                            else f"  - **{idx_code} ({entry.get('current_state')})**"
+                        )
             lines.append("")
 
         return "\n".join(lines)

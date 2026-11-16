@@ -245,6 +245,7 @@ def _build_sheets(today_str: str) -> tuple[list, str]:
                 gmail_label=cfg.briefing.gmail_label,
                 important_senders=cfg.briefing.important_senders,
                 latest_email_per_sender=cfg.briefing.latest_email_per_sender,
+                unread_important_only=cfg.briefing.unread_important_only,
                 date=today,
             ),
         ),

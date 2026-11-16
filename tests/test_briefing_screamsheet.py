@@ -935,3 +935,108 @@ def test_important_emails_deduplication_latest_per_sender():
     sec_all.fetch_data()
     assert len(sec_all.items) == 3
 
+
+def test_gmail_provider_fetch_important_emails_unread_only():
+    import email.message
+    from datetime import timezone
+    from screamsheet.providers.gmail_provider import GmailNewsProvider
+
+    provider = GmailNewsProvider(username="test@gmail.com", app_password="secret_password")
+
+    msg = email.message.EmailMessage()
+    msg["Subject"] = "Urgent School Update"
+    msg["From"] = "Principal <admin@mainlineclassical.org>"
+    msg["Date"] = "Fri, 28 Aug 2026 10:00:00 -0400"
+    msg.set_content("Dismissal is at 1pm today.")
+
+    # 1. Default unread_only=True uses UNSEEN SINCE
+    with patch("imaplib.IMAP4_SSL") as mock_imap_cls:
+        mock_imap = MagicMock()
+        mock_imap_cls.return_value = mock_imap
+        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap.uid.side_effect = [
+            ("OK", [b"201"]),
+            ("OK", [(b"201 (RFC822 {100})", msg.as_bytes())]),
+        ]
+
+        emails = provider.fetch_important_emails(
+            important_senders=["mainlineclassical.org"],
+            since=datetime(2026, 8, 28, 15, 0, tzinfo=timezone.utc),
+            lookback_hours=24,
+        )
+        assert len(emails) == 1
+        assert emails[0]["subject"] == "Urgent School Update"
+        mock_imap.uid.assert_any_call("SEARCH", None, 'UNSEEN SINCE "26-Aug-2026"')
+
+    # 2. When unread_only=True and 0 unread messages exist, do NOT fall back to ALL
+    with patch("imaplib.IMAP4_SSL") as mock_imap_cls:
+        mock_imap = MagicMock()
+        mock_imap_cls.return_value = mock_imap
+        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap.uid.return_value = ("OK", [b""])
+
+        emails = provider.fetch_important_emails(
+            important_senders=["mainlineclassical.org"],
+            since=datetime(2026, 8, 28, 15, 0, tzinfo=timezone.utc),
+            lookback_hours=24,
+            unread_only=True,
+        )
+        assert emails == []
+        assert mock_imap.uid.call_count == 1
+        mock_imap.uid.assert_called_once_with("SEARCH", None, 'UNSEEN SINCE "26-Aug-2026"')
+
+    # 3. unread_only=False uses SINCE without UNSEEN
+    with patch("imaplib.IMAP4_SSL") as mock_imap_cls:
+        mock_imap = MagicMock()
+        mock_imap_cls.return_value = mock_imap
+        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap.uid.side_effect = [
+            ("OK", [b"201"]),
+            ("OK", [(b"201 (RFC822 {100})", msg.as_bytes())]),
+        ]
+
+        emails = provider.fetch_important_emails(
+            important_senders=["mainlineclassical.org"],
+            since=datetime(2026, 8, 28, 15, 0, tzinfo=timezone.utc),
+            lookback_hours=24,
+            unread_only=False,
+        )
+        assert len(emails) == 1
+        mock_imap.uid.assert_any_call("SEARCH", None, 'SINCE "26-Aug-2026"')
+
+
+def test_important_emails_unread_only_forwarding():
+    from screamsheet.renderers.important_emails import ImportantEmailsSection
+
+    mock_provider = MagicMock()
+    mock_provider.fetch_important_emails.return_value = []
+
+    sec_default = ImportantEmailsSection(
+        important_senders=["mainlineclassical.org"],
+        provider=mock_provider,
+        date=datetime(2026, 8, 28),
+    )
+    sec_default.fetch_data()
+    mock_provider.fetch_important_emails.assert_called_once_with(
+        important_senders=["mainlineclassical.org"],
+        since=datetime(2026, 8, 28),
+        lookback_hours=24,
+        unread_only=True,
+    )
+
+    mock_provider.reset_mock()
+    sec_all = ImportantEmailsSection(
+        important_senders=["mainlineclassical.org"],
+        provider=mock_provider,
+        date=datetime(2026, 8, 28),
+        unread_only=False,
+    )
+    sec_all.fetch_data()
+    mock_provider.fetch_important_emails.assert_called_once_with(
+        important_senders=["mainlineclassical.org"],
+        since=datetime(2026, 8, 28),
+        lookback_hours=24,
+        unread_only=False,
+    )
+
+

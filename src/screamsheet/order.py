@@ -65,6 +65,7 @@ class NHLOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -74,6 +75,7 @@ class MLBOrderOptions:
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     news_names: list[str] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -82,6 +84,7 @@ class NBAOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -90,6 +93,7 @@ class MLSOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -98,6 +102,7 @@ class NFLOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -107,6 +112,7 @@ class MLBNewsOrderOptions:
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
     sources: list[Any] | None = None
+    title: str | None = None
 
 
 @dataclass
@@ -116,6 +122,7 @@ class NHLNewsOrderOptions:
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
     sources: list[Any] | None = None
+    title: str | None = None
 
 
 @dataclass
@@ -123,6 +130,7 @@ class FrenchMLBNewsOrderOptions:
     """Options for the French MLB News sheet."""
 
     news_names: list[str] = field(default_factory=list)
+    title: str | None = None
 
 
 @dataclass
@@ -132,6 +140,7 @@ class MLBTradeRumorsOrderOptions:
     news_names: list[str] = field(default_factory=list)
     weather: WeatherLocationOptions | None = None
     sources: list[Any] | None = None
+    title: str | None = None
 
 
 @dataclass
@@ -140,6 +149,7 @@ class PresidentialOrderOptions:
 
     weather: WeatherLocationOptions | None = None
     sources: list[Any] | None = None
+    title: str | None = None
 
 
 @dataclass
@@ -151,6 +161,7 @@ class SkyOrderOptions:
     location_name: str = "My Location"
     people: list[PersonOptions] = field(default_factory=list)
     horoscope_style: str = "kepler"
+    title: str | None = None
 
 
 @dataclass
@@ -159,6 +170,7 @@ class WorldCupOrderOptions:
 
     favorite_teams: list[TeamEntry] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -170,6 +182,7 @@ class SoccerOrderOptions:
     leagues: list[Any] = field(default_factory=list)
     standings: list[Any] = field(default_factory=list)
     mad_fan: bool = False
+    title: str | None = None
 
 
 @dataclass
@@ -177,6 +190,7 @@ class HomeRunDerbyOrderOptions:
     """Options for the MLB Home Run Derby sheet."""
 
     game_pk: int | None = None
+    title: str | None = None
 
 
 @dataclass
@@ -194,6 +208,7 @@ class BriefingOrderOptions:
     important_senders: list[str] = field(default_factory=list)
     latest_email_per_sender: bool = True
     unread_important_only: bool = True
+    title: str | None = None
 
 
 @dataclass
@@ -214,6 +229,7 @@ class WeatherPatternsOrderOptions:
     charts: dict[str, bool] = field(default_factory=dict)
     narrative_enabled: bool = True
     narrative_max_words: int = 160
+    title: str | None = None
 
 
 

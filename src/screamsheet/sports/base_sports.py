@@ -47,6 +47,7 @@ class SportsScreamsheet(BaseScreamsheet):
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ):
         """
         Initialize the sports screamsheet.
@@ -63,8 +64,9 @@ class SportsScreamsheet(BaseScreamsheet):
                 team_id and team_name are ignored.
             mad_fan: If True, generate an enraged hometown-fan recap when the primary
                 favorite team loses. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
         """
-        super().__init__(output_filename, date, display_date, suppress_empty=True)
+        super().__init__(output_filename, date, display_date, suppress_empty=True, title=title)
         self.sport_name = sport_name
         self.mad_fan = mad_fan
 

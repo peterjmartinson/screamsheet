@@ -28,6 +28,7 @@ from .stratosphere_provider import StratosphereProvider
 from .nws_patterns_provider import NWSWeatherPatternsProvider
 from .climate_history_provider import ClimateHistoryProvider
 from .snow_provider import SnowProvider
+from .space_weather_provider import SpaceWeatherProvider
 from .teleconnection_effects_provider import TeleconnectionEffectsProvider
 
 __all__ = [
@@ -57,4 +58,5 @@ __all__ = [
     "NWSWeatherPatternsProvider",
     "ClimateHistoryProvider",
     "SnowProvider",
+    "SpaceWeatherProvider",
 ]

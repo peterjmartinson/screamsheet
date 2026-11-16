@@ -136,6 +136,56 @@ class StratosphereBundle:
 
 
 @dataclass
+class XRayFluxPoint:
+    """Single timestamp of GOES primary X-ray sensor flux (Watts/m²)."""
+    timestamp: str                              # ISO-8601 UTC
+    flux_long: Optional[float] = None           # 0.1-0.8 nm (W/m²)
+    flux_short: Optional[float] = None          # 0.05-0.4 nm (W/m²)
+
+
+@dataclass
+class KpIndexPoint:
+    """Single 3-hour Planetary K-index observation from NOAA SWPC."""
+    timestamp: str                              # ISO-8601 UTC
+    kp: float                                   # 0.0 .. 9.0
+    a_running: Optional[float] = None
+
+
+@dataclass
+class SolarCycleMonthPoint:
+    """Single monthly point for Solar Cycle 25 sunspot progression & forecast."""
+    period: str                                 # YYYY-MM
+    observed_ssn: Optional[float] = None
+    smoothed_ssn: Optional[float] = None
+    predicted_ssn: Optional[float] = None
+    predicted_low: Optional[float] = None
+    predicted_high: Optional[float] = None
+
+
+@dataclass
+class SpaceWeatherBundle:
+    """Combined NOAA SWPC space weather observations, solar cycle progression, and solar X-ray image."""
+    xray_series: List[XRayFluxPoint] = field(default_factory=list)
+    latest_xray_flux: Optional[float] = None
+    latest_xray_class: str = "Unavailable"
+    max_24h_xray_flux: Optional[float] = None
+    max_24h_xray_class: str = "Unavailable"
+    kp_series: List[KpIndexPoint] = field(default_factory=list)
+    latest_kp: Optional[float] = None
+    max_24h_kp: Optional[float] = None
+    geomag_scale_label: str = "Quiet (G0)"
+    solar_cycle_series: List[SolarCycleMonthPoint] = field(default_factory=list)
+    current_cycle_period: Optional[str] = None
+    current_observed_ssn: Optional[float] = None
+    current_smoothed_ssn: Optional[float] = None
+    current_predicted_ssn: Optional[float] = None
+    sun_image_png_b64: Optional[str] = None
+    sun_image_wavelength: str = "GOES SUVI 094 Å (X-Ray/EUV)"
+    sun_image_timestamp: Optional[str] = None
+    provenance: Optional[SourceProvenance] = None
+
+
+@dataclass
 class HourlyPressurePoint:
     """Single barometric/sea-level pressure observation at a local station."""
     timestamp: str      # ISO-8601
@@ -275,6 +325,7 @@ class WeatherPatternsDataBundle:
     stratosphere: Optional[StratosphereBundle] = None
     mjo: Optional[MJOBundle] = None
     enso: Optional[ENSOBundle] = None
+    space_weather: Optional[SpaceWeatherBundle] = None
     locations: List[LocalLocationBundle] = field(default_factory=list)
     derived: DerivedSignals = field(default_factory=DerivedSignals)
     forecast_vintages: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)

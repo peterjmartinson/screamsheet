@@ -26,7 +26,8 @@ class FIFAWorldCupScreamsheet(BaseScreamsheet):
 
         date = kwargs.pop("date", None) or (datetime.now() - timedelta(days=1))
         display_date = kwargs.pop("display_date", None)
-        super().__init__(output_filename=output_filename, date=date, display_date=display_date)
+        title = kwargs.pop("title", None)
+        super().__init__(output_filename=output_filename, date=date, display_date=display_date, title=title)
         self.provider = WorldCup26Provider()
 
     def get_title(self) -> str:

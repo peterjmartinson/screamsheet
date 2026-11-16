@@ -15,6 +15,7 @@ Writing Guidelines:
    - Speak directly to the subject in plain, relatable language.
    - DO NOT use dense academic jargon (e.g., avoid "geometric friction", "confluence of intellect", "structural resistance", "celestial mechanics", or "harmonic dissonance").
    - Translate all house placements and aspect energies into everyday human experiences: work, money, focus, family, creativity, and relationships.
+   - Planetary Direction (Direct vs. Retrograde): Each planet's direction (Direct, Retrograde, or Stationary) is listed in the chart data. Note retrograde or stationary motion when it meaningfully shapes today's energy—especially when personal planets (Mercury, Venus, Mars) are retrograde/stationary, when multiple inner planets are retrograde at once, or when a retrograde planet forms a tight aspect today. Otherwise, keep it subtle and do not force it to dominate the reading.
 
 2. Structure & Output Format:
    Your response must be formatted into distinct, readable paragraphs separated by a blank line (double newline):

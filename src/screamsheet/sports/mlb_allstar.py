@@ -17,6 +17,7 @@ class MLBAllStarScreamsheet(SportsScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        title: Optional[str] = None,
     ):
         """Initialize MLB All-Star screamsheet."""
         super().__init__(
@@ -25,6 +26,7 @@ class MLBAllStarScreamsheet(SportsScreamsheet):
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            title=title,
         )
 
     def create_provider(self) -> MLBDataProvider:

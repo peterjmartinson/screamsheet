@@ -10,7 +10,7 @@ reference zones and ensemble spread.
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from reportlab.graphics.shapes import (
     Circle,
@@ -29,6 +29,7 @@ from .models import (
     LocalLocationBundle,
     MJOBundle,
     SnowLocationBundle,
+    SpaceWeatherBundle,
     StratosphereBundle,
     TeleconnectionIndexBundle,
 )
@@ -1760,3 +1761,619 @@ def build_snow_watch_chart(
 
     d.add(g)
     return d
+
+
+# ---------------------------------------------------------------------------
+# Chart 8: Space Weather — Current Sun B&W X-Ray Image Panel
+# ---------------------------------------------------------------------------
+
+def build_sun_xray_image_panel(
+    space_weather: Optional[SpaceWeatherBundle],
+    width: float = 196.0,
+    height: float = 208.0,
+) -> Any:
+    """Build a square B&W solar X-ray/EUV disk panel with title and caption."""
+    import base64
+    import io
+    from reportlab.platypus import Image as RLImage, Paragraph, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+
+    img_size = min(width - 2.0, height - 20.0)
+    if space_weather and space_weather.sun_image_png_b64:
+        try:
+            raw_bytes = base64.b64decode(space_weather.sun_image_png_b64)
+            rl_img = RLImage(io.BytesIO(raw_bytes), width=img_size, height=img_size)
+            hdr_st = ParagraphStyle(
+                "SW_SunHdr",
+                fontName="Helvetica-Bold",
+                fontSize=7.4,
+                leading=8.8,
+                textColor=BLACK,
+            )
+            sub_st = ParagraphStyle(
+                "SW_SunSub",
+                fontName="Helvetica",
+                fontSize=5.8,
+                leading=7.0,
+                textColor=DARK_GRAY,
+            )
+            wl_lbl = space_weather.sun_image_wavelength or "GOES SUVI 094 Å (X-Ray)"
+            tbl = Table(
+                [
+                    [Paragraph("CURRENT SUN (X-RAY)", hdr_st)],
+                    [Paragraph(wl_lbl, sub_st)],
+                    [rl_img],
+                ],
+                colWidths=[img_size],
+            )
+            tbl.setStyle(
+                TableStyle(
+                    [
+                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                        ("ALIGN", (0, 2), (0, 2), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                        ("TOPPADDING", (0, 0), (-1, -1), 0),
+                        ("BOTTOMPADDING", (0, 0), (0, 1), 1.5),
+                        ("BOTTOMPADDING", (0, 2), (0, 2), 0),
+                        ("BOX", (0, 2), (0, 2), 0.7, BLACK),
+                    ]
+                )
+            )
+            return tbl
+        except Exception:
+            pass
+
+    d = Drawing(width, height)
+    g = Group()
+    g.add(
+        String(
+            2,
+            height - 9,
+            "CURRENT SUN (X-RAY)",
+            fontName="Helvetica-Bold",
+            fontSize=7.4,
+            fillColor=BLACK,
+        )
+    )
+    g.add(
+        String(
+            2,
+            height - 18,
+            "GOES SUVI 094 Å",
+            fontName="Helvetica",
+            fontSize=5.8,
+            fillColor=DARK_GRAY,
+        )
+    )
+    box_s = img_size
+    bx = (width - box_s) / 2.0
+    by = 2.0
+    g.add(Rect(bx, by, box_s, box_s, strokeColor=BLACK, fillColor=BLACK, strokeWidth=0.7))
+    cx, cy = bx + box_s / 2.0, by + box_s / 2.0
+    g.add(Circle(cx, cy, box_s * 0.38, strokeColor=LIGHT_GRAY, fillColor=DARK_GRAY, strokeWidth=1.0))
+    g.add(
+        String(
+            cx,
+            cy - 2,
+            "SUVI Image N/A",
+            fontName="Helvetica-Oblique",
+            fontSize=6.2,
+            textAnchor="middle",
+            fillColor=WHITE,
+        )
+    )
+    d.add(g)
+    return d
+
+
+# ---------------------------------------------------------------------------
+# Chart 9: Space Weather — Solar Cycle 25 Progression & Forecast
+# ---------------------------------------------------------------------------
+
+def build_solar_cycle_chart(
+    space_weather: Optional[SpaceWeatherBundle],
+    width: float = 432.0,
+    height: float = 134.0,
+) -> Drawing:
+    """Build Solar Cycle 25 Sunspot Number progression & NOAA SWPC forecast chart with 'WE ARE HERE' marker."""
+    d = Drawing(width, height)
+    g = Group()
+
+    g.add(
+        String(
+            2,
+            height - 9,
+            "SOLAR CYCLE 25 SUNSPOT NUMBER — OBSERVED VS. NOAA SWPC FORECAST",
+            fontName="Helvetica-Bold",
+            fontSize=7.6,
+            fillColor=BLACK,
+        )
+    )
+
+    pad_l, pad_r, pad_t, pad_b = 24.0, 6.0, 23.0, 17.0
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+    x0, y0 = pad_l, pad_b
+    x1, y1 = x0 + plot_w, y0 + plot_h
+
+    pts = space_weather.solar_cycle_series if (space_weather and space_weather.solar_cycle_series) else []
+    if len(pts) < 4:
+        g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=MID_GRAY, fillColor=SHADE_LIGHT))
+        g.add(
+            String(
+                x0 + plot_w / 2.0,
+                y0 + plot_h / 2.0,
+                "Solar Cycle 25 progression data unavailable",
+                fontName="Helvetica-Oblique",
+                fontSize=7.2,
+                textAnchor="middle",
+                fillColor=MID_GRAY,
+            )
+        )
+        d.add(g)
+        return d
+
+    n_pts = len(pts)
+    vals: List[float] = [180.0]
+    for p in pts:
+        for v in (p.observed_ssn, p.smoothed_ssn, p.predicted_ssn, p.predicted_high):
+            if v is not None:
+                vals.append(float(v))
+    y_max = max(180.0, math.ceil(max(vals) / 25.0) * 25.0 + 10.0)
+
+    def _x(idx: int) -> float:
+        return x0 + (idx / max(1, n_pts - 1)) * plot_w
+
+    def _y(val: float) -> float:
+        clamped = max(0.0, min(y_max, val))
+        return y0 + (clamped / y_max) * plot_h
+
+    g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=BLACK, fillColor=WHITE, strokeWidth=0.65))
+
+    # Horizontal grid lines
+    step_y = 50.0
+    tk = 0.0
+    while tk <= y_max:
+        ty = _y(tk)
+        if tk > 0:
+            g.add(Line(x0, ty, x1, ty, strokeColor=GRID_GRAY, strokeWidth=0.45, strokeDashArray=[2, 2]))
+        g.add(
+            String(
+                x0 - 3,
+                ty - 2,
+                f"{tk:.0f}",
+                fontName="Helvetica",
+                fontSize=6.0,
+                textAnchor="end",
+                fillColor=BLACK,
+            )
+        )
+        tk += step_y
+
+    # Shaded forecast uncertainty band where predicted_low & predicted_high exist
+    band_pts = [
+        (i, float(p.predicted_low), float(p.predicted_high))
+        for i, p in enumerate(pts)
+        if p.predicted_low is not None and p.predicted_high is not None
+    ]
+    if len(band_pts) >= 2:
+        poly_c: List[float] = []
+        for idx_val, lo_v, _ in band_pts:
+            poly_c.extend([_x(idx_val), _y(lo_v)])
+        for idx_val, _, hi_v in reversed(band_pts):
+            poly_c.extend([_x(idx_val), _y(hi_v)])
+        g.add(Polygon(poly_c, strokeColor=None, fillColor=SHADE_GRAY))
+
+    # 13-Month Smoothed Observed SSN (bold solid black line)
+    sm_xy = [(i, float(p.smoothed_ssn)) for i, p in enumerate(pts) if p.smoothed_ssn is not None]
+
+    # Predicted SSN curve (dashed, anchored to last smoothed point for seamless join)
+    pred_xy = [(i, float(p.predicted_ssn)) for i, p in enumerate(pts) if p.predicted_ssn is not None]
+    if sm_xy and pred_xy:
+        last_sm_i = sm_xy[-1][0]
+        pred_xy = [sm_xy[-1]] + [(i, v) for i, v in pred_xy if i > last_sm_i]
+    if len(pred_xy) >= 2:
+        p_coords: List[float] = []
+        for idx_val, v in pred_xy:
+            p_coords.extend([_x(idx_val), _y(v)])
+        g.add(PolyLine(p_coords, strokeColor=DARK_GRAY, strokeWidth=1.35, strokeDashArray=[4, 2]))
+
+    # Monthly Observed SSN (thin gray line)
+    obs_xy = [(i, float(p.observed_ssn)) for i, p in enumerate(pts) if p.observed_ssn is not None]
+    if len(obs_xy) >= 2:
+        o_coords: List[float] = []
+        for idx_val, v in obs_xy:
+            o_coords.extend([_x(idx_val), _y(v)])
+        g.add(PolyLine(o_coords, strokeColor=MID_GRAY, strokeWidth=0.75))
+
+    if len(sm_xy) >= 2:
+        s_coords: List[float] = []
+        for idx_val, v in sm_xy:
+            s_coords.extend([_x(idx_val), _y(v)])
+        g.add(PolyLine(s_coords, strokeColor=BLACK, strokeWidth=1.65))
+
+    # "WE ARE HERE" marker at the latest observed month
+    if obs_xy:
+        cur_idx, cur_obs = obs_xy[-1]
+        cx = _x(cur_idx)
+        cy = _y(cur_obs)
+        g.add(Line(cx, y0, cx, y1, strokeColor=BLACK, strokeWidth=0.85, strokeDashArray=[2, 2]))
+        g.add(Circle(cx, cy, 4.2, strokeColor=BLACK, fillColor=WHITE, strokeWidth=1.1))
+        g.add(Circle(cx, cy, 2.2, strokeColor=BLACK, fillColor=BLACK, strokeWidth=0.8))
+
+        cur_ym = pts[cur_idx].period
+        lbl_txt = f"WE ARE HERE ({cur_ym}: {cur_obs:.0f})"
+        anchor = "start" if cx < (x0 + plot_w * 0.62) else "end"
+        lx = cx + 5.0 if anchor == "start" else cx - 5.0
+        ly = min(y1 - 9.0, max(y0 + 8.0, cy + 6.0))
+        g.add(
+            String(
+                lx,
+                ly,
+                lbl_txt,
+                fontName="Helvetica-Bold",
+                fontSize=6.2,
+                textAnchor=anchor,
+                fillColor=BLACK,
+            )
+        )
+
+    # Subtitle summary & compact legend
+    sub_parts: List[str] = []
+    if space_weather and space_weather.current_cycle_period and space_weather.current_observed_ssn is not None:
+        sub_parts.append(f"Latest ({space_weather.current_cycle_period}): Obs SSN {space_weather.current_observed_ssn:.1f}")
+    if space_weather and space_weather.current_predicted_ssn is not None:
+        sub_parts.append(f"SWPC Pred: {space_weather.current_predicted_ssn:.1f}")
+    sub_parts.append("Solid: Smoothed | Thin: Monthly Obs | Dashed: SWPC Fcst")
+    g.add(
+        String(
+            x0,
+            height - 18,
+            "  |  ".join(sub_parts),
+            fontName="Helvetica",
+            fontSize=5.8,
+            fillColor=DARK_GRAY,
+        )
+    )
+
+    # X-axis year ticks (every 2 years)
+    for i, p in enumerate(pts):
+        if p.period.endswith("-01") and int(p.period[:4]) % 2 == 0:
+            tx = _x(i)
+            g.add(Line(tx, y0, tx, y0 - 2.5, strokeColor=BLACK, strokeWidth=0.5))
+            g.add(
+                String(
+                    tx,
+                    y0 - 9.5,
+                    p.period[:4],
+                    fontName="Helvetica",
+                    fontSize=6.0,
+                    textAnchor="middle",
+                    fillColor=BLACK,
+                )
+            )
+
+    d.add(g)
+    return d
+
+
+# ---------------------------------------------------------------------------
+# Chart 10: Space Weather — GOES 24-Hour X-Ray Flux (Log Scale)
+# ---------------------------------------------------------------------------
+
+def build_goes_xray_flux_chart(
+    space_weather: Optional[SpaceWeatherBundle],
+    width: float = 284.0,
+    height: float = 124.0,
+) -> Drawing:
+    """Build 24-hour GOES X-ray flux log-scale chart (10^-9 to 10^-3 W/m²) with A/B/C/M/X flare bands."""
+    d = Drawing(width, height)
+    g = Group()
+
+    g.add(
+        String(
+            2,
+            height - 9,
+            "GOES X-RAY FLUX (LATEST 24 HOURS, WATTS/m²)",
+            fontName="Helvetica-Bold",
+            fontSize=7.4,
+            fillColor=BLACK,
+        )
+    )
+
+    pad_l, pad_r, pad_t, pad_b = 24.0, 14.0, 23.0, 17.0
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+    x0, y0 = pad_l, pad_b
+    x1, y1 = x0 + plot_w, y0 + plot_h
+
+    pts = space_weather.xray_series if (space_weather and space_weather.xray_series) else []
+    if len(pts) < 2:
+        g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=MID_GRAY, fillColor=SHADE_LIGHT))
+        g.add(
+            String(
+                x0 + plot_w / 2.0,
+                y0 + plot_h / 2.0,
+                "GOES 24h X-ray flux data unavailable",
+                fontName="Helvetica-Oblique",
+                fontSize=7.0,
+                textAnchor="middle",
+                fillColor=MID_GRAY,
+            )
+        )
+        d.add(g)
+        return d
+
+    log_min, log_max = -9.0, -3.0
+    n_pts = len(pts)
+
+    def _x(idx: int) -> float:
+        return x0 + (idx / max(1, n_pts - 1)) * plot_w
+
+    def _y_log(flux_val: float) -> float:
+        lv = math.log10(max(1e-9, min(1e-3, flux_val)))
+        return y0 + ((lv - log_min) / (log_max - log_min)) * plot_h
+
+    # Shade M/X flare radio-blackout region (>= 10^-5 W/m²)
+    m_y = _y_log(1e-5)
+    g.add(Rect(x0, m_y, plot_w, y1 - m_y, strokeColor=None, fillColor=SHADE_LIGHT))
+    g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=BLACK, fillColor=None, strokeWidth=0.65))
+
+    flare_classes = [
+        (-8.0, "1e-8", "A", -7.5),
+        (-7.0, "1e-7", "B", -6.5),
+        (-6.0, "1e-6", "C", -5.5),
+        (-5.0, "1e-5", "M", -4.5),
+        (-4.0, "1e-4", "X", -3.5),
+    ]
+    for exp_v, lbl_l, cls_r, mid_exp in flare_classes:
+        ty = y0 + ((exp_v - log_min) / (log_max - log_min)) * plot_h
+        is_m = abs(exp_v - (-5.0)) < 1e-6
+        g.add(
+            Line(
+                x0,
+                ty,
+                x1,
+                ty,
+                strokeColor=DARK_GRAY if is_m else GRID_GRAY,
+                strokeWidth=0.7 if is_m else 0.45,
+                strokeDashArray=[3, 2] if is_m else [2, 2],
+            )
+        )
+        g.add(
+            String(
+                x0 - 3,
+                ty - 2,
+                lbl_l,
+                fontName="Helvetica",
+                fontSize=5.5,
+                textAnchor="end",
+                fillColor=BLACK,
+            )
+        )
+        cy_cls = y0 + ((mid_exp - log_min) / (log_max - log_min)) * plot_h
+        g.add(
+            String(
+                x1 + 3,
+                cy_cls - 2.5,
+                cls_r,
+                fontName="Helvetica-Bold",
+                fontSize=6.4,
+                textAnchor="start",
+                fillColor=BLACK,
+            )
+        )
+
+    # Short channel (0.05-0.4 nm) dashed gray
+    short_xy = [(i, float(p.flux_short)) for i, p in enumerate(pts) if p.flux_short is not None and p.flux_short > 0]
+    if len(short_xy) >= 2:
+        s_coords: List[float] = []
+        for idx_val, fv in short_xy:
+            s_coords.extend([_x(idx_val), _y_log(fv)])
+        g.add(PolyLine(s_coords, strokeColor=MID_GRAY, strokeWidth=0.75, strokeDashArray=[2, 1.5]))
+
+    # Long channel (0.1-0.8 nm) solid black
+    long_xy = [(i, float(p.flux_long)) for i, p in enumerate(pts) if p.flux_long is not None and p.flux_long > 0]
+    if len(long_xy) >= 2:
+        l_coords: List[float] = []
+        for idx_val, fv in long_xy:
+            l_coords.extend([_x(idx_val), _y_log(fv)])
+        g.add(PolyLine(l_coords, strokeColor=BLACK, strokeWidth=1.3))
+
+    # Subtitle
+    lat_c = space_weather.latest_xray_class if space_weather else "N/A"
+    max_c = space_weather.max_24h_xray_class if space_weather else "N/A"
+    g.add(
+        String(
+            x0,
+            height - 18,
+            f"Latest: {lat_c}  |  24h Peak: {max_c}  |  Solid: 0.1–0.8 nm, Dashed: 0.05–0.4 nm",
+            fontName="Helvetica",
+            fontSize=5.6,
+            fillColor=DARK_GRAY,
+        )
+    )
+
+    # X-axis UTC time labels
+    for idx_val in (0, n_pts // 2, n_pts - 1):
+        ts_raw = pts[idx_val].timestamp
+        hhmm = ts_raw[11:16] + "Z" if len(ts_raw) >= 16 else ts_raw[-5:]
+        g.add(
+            String(
+                _x(idx_val),
+                y0 - 9.5,
+                hhmm,
+                fontName="Helvetica",
+                fontSize=5.6,
+                textAnchor="middle",
+                fillColor=BLACK,
+            )
+        )
+
+    d.add(g)
+    return d
+
+
+# ---------------------------------------------------------------------------
+# Chart 11: Space Weather — Estimated Planetary K-Index (Kp)
+# ---------------------------------------------------------------------------
+
+def build_planetary_kp_chart(
+    space_weather: Optional[SpaceWeatherBundle],
+    width: float = 284.0,
+    height: float = 124.0,
+) -> Drawing:
+    """Build 3-hour Planetary K-index (Kp) bar chart with NOAA G1–G5 storm thresholds."""
+    d = Drawing(width, height)
+    g = Group()
+
+    g.add(
+        String(
+            2,
+            height - 9,
+            "ESTIMATED PLANETARY K-INDEX (Kp, 3-HOUR INTERVALS)",
+            fontName="Helvetica-Bold",
+            fontSize=7.4,
+            fillColor=BLACK,
+        )
+    )
+
+    pad_l, pad_r, pad_t, pad_b = 18.0, 16.0, 23.0, 17.0
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+    x0, y0 = pad_l, pad_b
+    x1, y1 = x0 + plot_w, y0 + plot_h
+
+    pts = space_weather.kp_series[-12:] if (space_weather and space_weather.kp_series) else []
+    if not pts:
+        g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=MID_GRAY, fillColor=SHADE_LIGHT))
+        g.add(
+            String(
+                x0 + plot_w / 2.0,
+                y0 + plot_h / 2.0,
+                "Planetary K-index data unavailable",
+                fontName="Helvetica-Oblique",
+                fontSize=7.0,
+                textAnchor="middle",
+                fillColor=MID_GRAY,
+            )
+        )
+        d.add(g)
+        return d
+
+    y_max = 9.0
+    n_pts = len(pts)
+
+    def _y(kp_v: float) -> float:
+        clamped = max(0.0, min(y_max, kp_v))
+        return y0 + (clamped / y_max) * plot_h
+
+    # Shade storm region Kp >= 5 (G1+)
+    y_g1 = _y(5.0)
+    g.add(Rect(x0, y_g1, plot_w, y1 - y_g1, strokeColor=None, fillColor=SHADE_LIGHT))
+    g.add(Rect(x0, y0, plot_w, plot_h, strokeColor=BLACK, fillColor=None, strokeWidth=0.65))
+
+    for tk in (0, 2, 4, 5, 6, 7, 8, 9):
+        ty = _y(float(tk))
+        if tk in (2, 4, 5, 7):
+            is_storm = tk == 5
+            g.add(
+                Line(
+                    x0,
+                    ty,
+                    x1,
+                    ty,
+                    strokeColor=BLACK if is_storm else GRID_GRAY,
+                    strokeWidth=0.75 if is_storm else 0.45,
+                    strokeDashArray=[3, 2] if is_storm else [2, 2],
+                )
+            )
+        if tk in (0, 2, 4, 5, 7, 9):
+            g.add(
+                String(
+                    x0 - 3,
+                    ty - 2,
+                    str(tk),
+                    fontName="Helvetica-Bold" if tk == 5 else "Helvetica",
+                    fontSize=5.6,
+                    textAnchor="end",
+                    fillColor=BLACK,
+                )
+            )
+        if tk >= 5:
+            g_lbl = f"G{tk - 4}"
+            g.add(
+                String(
+                    x1 + 2.5,
+                    ty - 2,
+                    g_lbl,
+                    fontName="Helvetica-Bold",
+                    fontSize=5.5,
+                    textAnchor="start",
+                    fillColor=DARK_GRAY,
+                )
+            )
+
+    # Mark last 24h (latest 8 bars) if more than 8 bars are shown
+    slot_w = plot_w / max(1, n_pts)
+    bar_w = max(4.0, slot_w * 0.66)
+    if n_pts > 8:
+        div_x = x0 + (n_pts - 8) * slot_w
+        g.add(Line(div_x, y0, div_x, y1, strokeColor=DARK_GRAY, strokeWidth=0.6, strokeDashArray=[2, 2]))
+        g.add(
+            String(
+                div_x + 3,
+                y1 - 7,
+                "LATEST 24H ->",
+                fontName="Helvetica-Bold",
+                fontSize=5.2,
+                fillColor=DARK_GRAY,
+            )
+        )
+
+    for i, p in enumerate(pts):
+        cx = x0 + (i + 0.5) * slot_w
+        bx = cx - bar_w / 2.0
+        bh = max(1.5, _y(p.kp) - y0)
+        if p.kp >= 5.0:
+            fill_c = BLACK
+        elif p.kp >= 4.0:
+            fill_c = DARK_GRAY
+        else:
+            fill_c = LIGHT_GRAY
+        g.add(Rect(bx, y0, bar_w, bh, strokeColor=BLACK, fillColor=fill_c, strokeWidth=0.5))
+
+    lat_kp = f"{space_weather.latest_kp:.1f}" if (space_weather and space_weather.latest_kp is not None) else "N/A"
+    max_kp = f"{space_weather.max_24h_kp:.1f}" if (space_weather and space_weather.max_24h_kp is not None) else "N/A"
+    g_status = space_weather.geomag_scale_label if space_weather else "Unavailable"
+    g.add(
+        String(
+            x0,
+            height - 18,
+            f"Latest Kp: {lat_kp}  |  24h Max: {max_kp} ({g_status})  |  G1 Storm >= 5",
+            fontName="Helvetica",
+            fontSize=5.6,
+            fillColor=DARK_GRAY,
+        )
+    )
+
+    for idx_val in (0, n_pts // 2, n_pts - 1):
+        ts_raw = pts[idx_val].timestamp
+        lbl = f"{ts_raw[5:10]} {ts_raw[11:13]}Z" if len(ts_raw) >= 13 else ts_raw[-5:]
+        g.add(
+            String(
+                x0 + (idx_val + 0.5) * slot_w,
+                y0 - 9.5,
+                lbl,
+                fontName="Helvetica",
+                fontSize=5.4,
+                textAnchor="middle",
+                fillColor=BLACK,
+            )
+        )
+
+    d.add(g)
+    return d
+

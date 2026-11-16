@@ -28,7 +28,8 @@ class NewsScreamsheet(BaseScreamsheet):
         news_source: str,
         output_filename: str,
         include_weather: bool = True,
-        date: Optional[datetime] = None
+        date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ):
         """
         Initialize the news screamsheet.
@@ -38,8 +39,9 @@ class NewsScreamsheet(BaseScreamsheet):
             output_filename: Path to save the PDF
             include_weather: Whether to include a weather report
             date: Target date (defaults to today)
+            title: Optional custom title override for the screamsheet header
         """
-        super().__init__(output_filename, date)
+        super().__init__(output_filename, date, title=title)
         self.news_source = news_source
         self.include_weather = include_weather
     

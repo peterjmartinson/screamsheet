@@ -95,6 +95,7 @@ def _run_nhl(options: NHLOrderOptions, today: datetime, today_str: str, output_d
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -108,6 +109,7 @@ def _run_mlb(options: MLBOrderOptions, today: datetime, today_str: str, output_d
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -121,6 +123,7 @@ def _run_nba(options: NBAOrderOptions, today: datetime, today_str: str, output_d
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -134,6 +137,7 @@ def _run_mls(options: MLSOrderOptions, today: datetime, today_str: str, output_d
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -147,6 +151,7 @@ def _run_nfl(options: NFLOrderOptions, today: datetime, today_str: str, output_d
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -159,6 +164,7 @@ def _run_mlb_news(
         "favorite_teams": options.news_names,
         "date": today,
         "sources": getattr(options, "sources", None) or None,
+        "title": options.title,
     }
     if options.weather:
         kwargs.update(
@@ -179,6 +185,7 @@ def _run_nhl_news(
         "favorite_teams": options.news_names,
         "date": today,
         "sources": getattr(options, "sources", None) or None,
+        "title": options.title,
     }
     if options.weather:
         kwargs.update(
@@ -199,6 +206,7 @@ def _run_mlb_trade_rumors(
         "favorite_teams": options.news_names,
         "date": today,
         "sources": getattr(options, "sources", None) or None,
+        "title": options.title,
     }
     if options.weather:
         kwargs.update(
@@ -218,6 +226,7 @@ def _run_french_mlb_news(
         output_filename=_output_path(output_dir, f"french_mlb_news_{today_str}.pdf"),
         favorite_teams=options.news_names,
         date=today,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -228,6 +237,7 @@ def _run_presidential(
     kwargs: dict[str, Any] = {
         "output_filename": _output_path(output_dir, f"presidential_screamsheet_{today_str}.pdf"),
         "date": today,
+        "title": options.title,
     }
     if getattr(options, "sources", None):
         kwargs["sources"] = options.sources
@@ -251,6 +261,7 @@ def _run_sky(options: SkyOrderOptions, today: datetime, today_str: str, output_d
         date=today,
         people=options.people,
         horoscope_style=options.horoscope_style,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -269,6 +280,7 @@ def _run_soccer(
         date=game_date,
         display_date=today,
         mad_fan=options.mad_fan,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -280,6 +292,7 @@ def _run_worldcup(
     sheet = ScreamsheetFactory.create_worldcup_screamsheet(
         output_filename=_output_path(output_dir, f"WORLD_CUP_{today_str}.pdf"),
         date=game_date,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -291,6 +304,7 @@ def _run_home_run_derby(
         output_filename=_output_path(output_dir, f"Home_Run_Derby_{today_str}.pdf"),
         date=today,
         game_pk=options.game_pk,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -325,9 +339,11 @@ def _run_weather_patterns(
         polar_vortex=bool(c_raw.get("polar_vortex", True)),
         mjo=bool(c_raw.get("mjo", True)),
         enso=bool(c_raw.get("enso", True)),
+        forecast_evolution=bool(c_raw.get("forecast_evolution", False)),
         local_pressure=bool(c_raw.get("local_pressure", True)),
         local_temperature=bool(c_raw.get("local_temperature", True)),
         snow=bool(c_raw.get("snow", True)),
+        space_weather=bool(c_raw.get("space_weather", True)),
     )
     wp_cfg = WeatherPatternsConfig(
         locations=locs,
@@ -338,11 +354,13 @@ def _run_weather_patterns(
             enabled=options.narrative_enabled,
             max_words=options.narrative_max_words,
         ),
+        title=options.title,
     )
     sheet = ScreamsheetFactory.create_weather_patterns_screamsheet(
         output_filename=_output_path(output_dir, f"WEATHER_PATTERNS_{today_str}.pdf"),
         weather_patterns_config=wp_cfg if locs else None,
         date=today,
+        title=options.title,
     )
     return sheet.generate()
 
@@ -363,6 +381,7 @@ def _run_briefing(
         "latest_email_per_sender": options.latest_email_per_sender,
         "unread_important_only": options.unread_important_only,
         "date": today,
+        "title": options.title,
     }
     if options.api_url:
         kwargs["api_url"] = options.api_url

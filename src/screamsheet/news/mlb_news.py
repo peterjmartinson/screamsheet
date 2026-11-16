@@ -23,12 +23,14 @@ class MLBNewsScreamsheet(NewsScreamsheet):
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
         sources: Optional[List[Any]] = None,
+        title: Optional[str] = None,
     ) -> None:
         super().__init__(
             news_source="MLB News",
             output_filename=output_filename,
             include_weather=include_weather,
             date=date,
+            title=title,
         )
         self.favorite_teams: List[str] = favorite_teams or []
         self.max_articles: int = max_articles

@@ -52,9 +52,10 @@ class SkyTonightScreamsheet(BaseScreamsheet):
         date: Optional[datetime] = None,
         people: Optional[List[PersonConfig]] = None,
         horoscope_style: str = "kepler",
+        title: Optional[str] = None,
     ) -> None:
         # Default to *today* — we're describing tonight's sky, not last night's.
-        super().__init__(output_filename, date=date if date is not None else datetime.now())
+        super().__init__(output_filename, date=date if date is not None else datetime.now(), title=title)
         self.lat = lat
         self.lon = lon
         self.location_name = location_name

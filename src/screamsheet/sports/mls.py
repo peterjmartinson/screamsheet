@@ -26,6 +26,7 @@ class MLSScreamsheet(SportsScreamsheet):
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ):
         """
         Initialize MLS screamsheet.
@@ -38,6 +39,7 @@ class MLSScreamsheet(SportsScreamsheet):
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, generate an enraged hometown-fan recap when primary favorite loses.
+            title: Optional custom title override for the screamsheet header.
         """
         super().__init__(
             sport_name="MLS",
@@ -48,6 +50,7 @@ class MLSScreamsheet(SportsScreamsheet):
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
 
     def create_provider(self) -> MLSDataProvider:

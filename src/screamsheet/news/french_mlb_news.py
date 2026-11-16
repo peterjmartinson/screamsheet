@@ -19,12 +19,14 @@ class FrenchMLBNewsScreamsheet(NewsScreamsheet):
         favorite_teams: Optional[List[str]] = None,
         grok_api_key: Optional[str] = None,
         date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ) -> None:
         super().__init__(
             news_source="RDS \u00b7 TVA Sports",
             output_filename=output_filename,
             include_weather=False,
             date=date,
+            title=title,
         )
         self.favorite_teams: List[str] = favorite_teams or []
         self._grok_api_key = grok_api_key or os.getenv("GROK_API_KEY")

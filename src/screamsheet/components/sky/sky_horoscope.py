@@ -434,17 +434,19 @@ class SkyHoroscopeComponent(ScreamsheetComponent):
 
             hits = AstroDataProvider._find_transit_hits(transit_source, natal_planets) if natal_planets else []
 
-            natal_planet_str = ", ".join(f"{p['name']} in {p['zodiac']}" for p in natal_planets)
+            natal_planet_str = ", ".join(
+                f"{p['name']} ({p['motion_status']}) in {p['zodiac']}"
+                if p.get("motion_status")
+                else f"{p['name']} in {p['zodiac']}"
+                for p in natal_planets
+            )
             natal_line = f"Natal planets: {natal_planet_str}\n" if natal_planet_str else ""
             subject_natal = f"Sun: {sun_sign} | Moon: {moon_sign} | Ascendant: {ascendant}\n{natal_line}".strip()
 
             planet_lines: List[str] = []
             for p in transit_enriched:
-                motion_str = (
-                    f" ({p['motion_status']})"
-                    if p.get("motion_status") and p["motion_status"] != "Direct"
-                    else ""
-                )
+                motion_status = p.get("motion_status") or "Direct"
+                motion_str = f" ({motion_status})"
                 if p.get("house_number"):
                     planet_lines.append(
                         f"- {p['name']}{motion_str} in {p['zodiac']} "

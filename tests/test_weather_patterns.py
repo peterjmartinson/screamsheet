@@ -1114,3 +1114,119 @@ def test_teleconnection_effects_provider_graceful_fallback_when_db_missing_or_co
     packet = bundle.to_llm_packet()
     assert "LOCAL_TELECONNECTION_CLIMATOLOGY" not in packet
 
+
+def test_space_weather_provider_parsers_and_charts():
+    from screamsheet.providers.space_weather_provider import (
+        SpaceWeatherProvider,
+        classify_geomagnetic_kp,
+        classify_xray_flare,
+    )
+    from screamsheet.weather_patterns import (
+        KpIndexPoint,
+        SolarCycleMonthPoint,
+        SpaceWeatherBundle,
+        XRayFluxPoint,
+        build_goes_xray_flux_chart,
+        build_planetary_kp_chart,
+        build_solar_cycle_chart,
+        build_sun_xray_image_panel,
+    )
+
+    assert classify_xray_flare(5e-8) == "A5.0"
+    assert classify_xray_flare(4.2e-7) == "B4.2"
+    assert classify_xray_flare(2.5e-6) == "C2.5"
+    assert classify_xray_flare(1.8e-5) == "M1.8"
+    assert classify_xray_flare(3.0e-4) == "X3.0"
+
+    assert classify_geomagnetic_kp(2.0) == "Quiet (G0)"
+    assert classify_geomagnetic_kp(4.3) == "Active (Kp 4)"
+    assert classify_geomagnetic_kp(5.3) == "G1 Minor Storm"
+    assert classify_geomagnetic_kp(7.0) == "G3 Strong Storm"
+
+    xray_parsed = SpaceWeatherProvider.parse_xray_json(
+        [
+            {"time_tag": f"2026-11-15T12:{m:02d}:00Z", "energy": "0.1-0.8nm", "flux": 4.0e-7 + m * 1e-7}
+            for m in range(12)
+        ]
+        + [
+            {"time_tag": f"2026-11-15T12:{m:02d}:00Z", "energy": "0.05-0.4nm", "flux": 2.0e-8}
+            for m in range(12)
+        ]
+    )
+    assert xray_parsed["latest_flux"] == pytest.approx(1.5e-6)
+    assert xray_parsed["max_flux"] == pytest.approx(1.5e-6)
+    assert len(xray_parsed["series"]) >= 3
+
+    kp_parsed = SpaceWeatherProvider.parse_kp_json(
+        [
+            {"time_tag": "2026-11-15T00:00:00", "Kp": 2.33, "a_running": 9},
+            {"time_tag": "2026-11-15T03:00:00", "Kp": 5.0, "a_running": 48},
+        ]
+    )
+    assert len(kp_parsed) == 2
+    assert kp_parsed[-1]["kp"] == pytest.approx(5.0)
+
+    cycle_parsed = SpaceWeatherProvider.parse_solar_cycle(
+        observed_raw=[
+            {"time-tag": "2024-08", "ssn": 215.5, "smoothed_ssn": 158.0},
+            {"time-tag": "2026-04", "ssn": 79.0, "smoothed_ssn": 88.6},
+            {"time-tag": "2026-10", "ssn": 45.7, "smoothed_ssn": -1.0},
+        ],
+        predicted_raw=[
+            {"time-tag": "2026-05", "predicted_ssn": 86.7, "low_ssn": 77.6, "high_ssn": 95.3},
+            {"time-tag": "2026-10", "predicted_ssn": 82.9, "low_ssn": 68.9, "high_ssn": 92.1},
+            {"time-tag": "2028-01", "predicted_ssn": 50.0, "low_ssn": 35.0, "high_ssn": 65.0},
+        ],
+    )
+    assert len(cycle_parsed) == 5
+
+    sw_bundle = SpaceWeatherBundle(
+        xray_series=[
+            XRayFluxPoint("2026-11-15T00:00:00Z", 5.0e-7, 2.0e-8),
+            XRayFluxPoint("2026-11-15T12:00:00Z", 2.1e-6, 1.5e-7),
+            XRayFluxPoint("2026-11-16T00:00:00Z", 6.0e-7, 2.5e-8),
+        ],
+        latest_xray_flux=6.0e-7,
+        latest_xray_class="B6.0",
+        max_24h_xray_flux=2.1e-6,
+        max_24h_xray_class="C2.1",
+        kp_series=[
+            KpIndexPoint("2026-11-15T18:00:00", 2.3),
+            KpIndexPoint("2026-11-15T21:00:00", 4.0),
+            KpIndexPoint("2026-11-16T00:00:00", 5.3),
+        ],
+        latest_kp=5.3,
+        max_24h_kp=5.3,
+        geomag_scale_label="G1 Minor Storm",
+        solar_cycle_series=[
+            SolarCycleMonthPoint("2022-01", 55.0, 60.0, None, None, None),
+            SolarCycleMonthPoint("2024-08", 215.5, 158.0, None, None, None),
+            SolarCycleMonthPoint("2026-04", 79.0, 88.6, None, None, None),
+            SolarCycleMonthPoint("2026-10", 45.7, None, 82.9, 68.9, 92.1),
+            SolarCycleMonthPoint("2028-01", None, None, 50.0, 35.0, 65.0),
+        ],
+        current_cycle_period="2026-10",
+        current_observed_ssn=45.7,
+        current_smoothed_ssn=88.6,
+        current_predicted_ssn=82.9,
+    )
+
+    assert build_sun_xray_image_panel(sw_bundle) is not None
+    assert isinstance(build_solar_cycle_chart(sw_bundle), Drawing)
+    assert isinstance(build_goes_xray_flux_chart(sw_bundle), Drawing)
+    assert isinstance(build_planetary_kp_chart(sw_bundle), Drawing)
+
+    bundle = _make_sample_bundle()
+    bundle.space_weather = sw_bundle
+    sheet = WeatherPatternsScreamsheet(
+        output_filename="test_sw.pdf",
+        target_date=datetime(2026, 11, 4),
+        data_bundle=bundle,
+        use_cache=False,
+    )
+    p2_blocks = sheet._build_location_section(bundle.locations[0], space_weather=sw_bundle)
+    p2_texts = [getattr(b, "text", "") for b in p2_blocks if hasattr(b, "text")]
+    assert not any("Local Weather &amp; Climatological Context" in t for t in p2_texts)
+    assert any("Space Weather &amp; Solar Activity" in t for t in p2_texts)
+
+

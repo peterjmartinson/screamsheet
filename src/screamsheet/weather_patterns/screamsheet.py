@@ -46,16 +46,21 @@ from .charts import (
     MJO_PHASE_REGIONS,
     build_enso_sparkline,
     build_forecast_evolution_chart,
+    build_goes_xray_flux_chart,
     build_local_pressure_chart,
     build_local_temperature_chart,
     build_mjo_phase_diagram,
+    build_planetary_kp_chart,
     build_polar_vortex_chart,
     build_snow_watch_chart,
+    build_solar_cycle_chart,
+    build_sun_xray_image_panel,
     build_teleconnections_chart,
 )
 from .models import (
     LocalLocationBundle,
     SourceProvenance,
+    SpaceWeatherBundle,
     WeatherPatternsDataBundle,
 )
 from .signals import compute_derived_signals
@@ -173,12 +178,17 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         data_bundle: Optional[WeatherPatternsDataBundle] = None,
         use_cache: bool = True,
         refresh_cache: bool = False,
+        title: Optional[str] = None,
     ) -> None:
+        cfg_title = title or (
+            getattr(weather_patterns_config, "title", None) if weather_patterns_config else None
+        )
         super().__init__(
             output_filename=output_filename or "WEATHER_PATTERNS.pdf",
             date=target_date,
+            title=cfg_title,
         )
-        self.title = "Climate Teleconnections"
+        self.title = self._custom_title or "Climate Teleconnections"
         self.wp_config = weather_patterns_config or WeatherPatternsConfig(
             locations=[
                 WeatherPatternsLocationConfig(
@@ -235,9 +245,9 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 "WP_NarrativeP",
                 parent=base_style,
                 fontName="Helvetica",
-                fontSize=9.7,
-                leading=11.8,
-                spaceAfter=2.5,
+                fontSize=8.8,
+                leading=10.6,
+                spaceAfter=2.0,
             ),
             "back_body": ParagraphStyle(
                 "WP_BackBody",
@@ -349,6 +359,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         from ..providers.mjo_provider import MJOProvider
         from ..providers.nws_patterns_provider import NWSWeatherPatternsProvider
         from ..providers.snow_provider import SnowProvider
+        from ..providers.space_weather_provider import SpaceWeatherProvider
         from ..providers.stratosphere_provider import StratosphereProvider
         from ..providers.teleconnection_effects_provider import TeleconnectionEffectsProvider
         from ..providers.teleconnection_provider import TeleconnectionProvider
@@ -397,6 +408,20 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         strat_bundle = strat_prov.get_stratosphere_bundle(target_date=self.date)
         if strat_bundle.provenance:
             provenance_list.append(strat_bundle.provenance)
+
+        # 4b. Space Weather (NOAA SWPC: SUVI X-Ray Sun, Solar Cycle 25, GOES X-Ray Flux, Planetary Kp)
+        space_weather_bundle: Optional[SpaceWeatherBundle] = None
+        if getattr(cfg.charts, "space_weather", True):
+            try:
+                sw_prov = SpaceWeatherProvider(
+                    use_cache=self.use_cache,
+                    refresh_cache=self.refresh_cache,
+                )
+                space_weather_bundle = sw_prov.get_space_weather_bundle(target_date=self.date)
+                if space_weather_bundle and space_weather_bundle.provenance:
+                    provenance_list.append(space_weather_bundle.provenance)
+            except Exception as sw_exc:
+                logger.warning("SpaceWeatherProvider failed: %s", sw_exc)
 
         # 5, 6, 7. Local NWS + NCEI Climate Normals + Snow for each configured location
         nws_prov = NWSWeatherPatternsProvider(
@@ -540,6 +565,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             stratosphere=strat_bundle,
             mjo=mjo_bundle,
             enso=enso_bundle,
+            space_weather=space_weather_bundle,
             locations=locations,
             derived=derived,
             forecast_vintages=forecast_vintages,
@@ -766,36 +792,30 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 build_enso_sparkline(
                     bundle.enso,
                     width=258.0,
-                    height=98.0,
+                    height=112.0,
                 )
             )
-            right_flowables.append(Spacer(1, 3))
+            right_flowables.append(Spacer(1, 6))
 
         if charts_cfg.polar_vortex:
             right_flowables.append(
                 build_polar_vortex_chart(
                     bundle.stratosphere,
                     width=258.0,
-                    height=105.0,
+                    height=120.0,
                     history_days=min(self.wp_config.history_days, 45),
                 )
             )
-            right_flowables.append(Spacer(1, 3))
+            right_flowables.append(Spacer(1, 6))
 
         if charts_cfg.mjo:
             right_flowables.append(
                 build_mjo_phase_diagram(
                     bundle.mjo,
                     width=258.0,
-                    height=108.0,
+                    height=122.0,
                 )
             )
-            right_flowables.append(Spacer(1, 4))
-
-        right_flowables.extend(
-            self._section_header_flowables("Forecast Evolution (Multi-Run Trend)")
-        )
-        right_flowables.append(self._build_forecast_evolution_table(bundle))
 
         return right_flowables
 
@@ -1036,6 +1056,81 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             flow.append(Paragraph(f"<i>{escape(loc_sub)}</i>", last_sub_st))
         return flow
 
+    def _build_local_forecast_flowables(
+        self, loc: LocalLocationBundle, back_page: bool = False
+    ) -> List[Any]:
+        """Build the 7-Day NWS Local Forecast section header and table."""
+        if not loc.daily_forecasts:
+            return []
+
+        st = self._wp_styles
+        hdr_st = st["back_table_hdr"] if back_page else st["table_hdr"]
+        cell_st = st["back_table_cell"] if back_page else st["table_cell"]
+        pad_v = 3.2 if back_page else 2.4
+
+        blocks: List[Any] = []
+        blocks.extend(
+            self._section_header_flowables(
+                f"7-Day NWS Local Forecast — {loc.name}",
+                back_page=back_page,
+            )
+        )
+        fcst_days = loc.daily_forecasts[:7]
+        hdr_row = [Paragraph("<b>Metric</b>", hdr_st)] + [
+            Paragraph(
+                f"<b>{escape(f.day_name[:3])} {escape(f.date[5:])}</b>",
+                hdr_st,
+            )
+            for f in fcst_days
+        ]
+        hi_lo_row = [Paragraph("<b>High / Low (°F)</b>", cell_st)] + [
+            Paragraph(
+                f"{f.high_f:.0f}° / {f.low_f:.0f}°"
+                if (f.high_f is not None and f.low_f is not None)
+                else f"{f.high_f or f.low_f or 0.0:.0f}°",
+                cell_st,
+            )
+            for f in fcst_days
+        ]
+        pop_qpf_row = [Paragraph("<b>PoP / QPF</b>", cell_st)] + [
+            Paragraph(
+                f"{f.pop_pct or 0}% / {f.qpf_in or 0.0:.2f}\"",
+                cell_st,
+            )
+            for f in fcst_days
+        ]
+        cond_row = [Paragraph("<b>Conditions</b>", cell_st)] + [
+            Paragraph(escape((f.short_forecast or "—")[:26]), cell_st)
+            for f in fcst_days
+        ]
+        f_rows = [hdr_row, hi_lo_row, pop_qpf_row, cond_row]
+        if any((f.snow_in or 0.0) > 0 for f in fcst_days):
+            snow_row = [Paragraph("<b>Grid Snow</b>", cell_st)] + [
+                Paragraph(f"{f.snow_in or 0.0:.1f}\"", cell_st)
+                for f in fcst_days
+            ]
+            f_rows.insert(3, snow_row)
+
+        col_w = [84.0] + [(492.0 / max(1, len(fcst_days)))] * len(fcst_days)
+        ft = Table(f_rows, colWidths=col_w)
+        ft.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAEAEA")),
+                    ("LINEBELOW", (0, 0), (-1, 0), 1.0, colors.black),
+                    ("GRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#777777")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), pad_v),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), pad_v),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4.0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4.0),
+                ]
+            )
+        )
+        blocks.append(ft)
+        return blocks
+
     def _build_page1(self, bundle: WeatherPatternsDataBundle) -> List[Any]:
         story: List[Any] = []
         story.extend(self._build_header())
@@ -1061,87 +1156,93 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
             )
         )
         story.append(top_two_col)
-        story.append(Spacer(1, 3))
+        story.append(Spacer(1, 5))
 
         charts_cfg = self.wp_config.charts
         if charts_cfg.teleconnections:
             c4 = build_teleconnections_chart(
                 bundle.teleconnections,
                 width=576.0,
-                height=114.0,
+                height=132.0,
                 history_days=min(self.wp_config.history_days, 55),
                 forecast_days=self.wp_config.forecast_days,
             )
             c4.hAlign = "CENTER"
             story.append(c4)
 
-        if getattr(charts_cfg, "forecast_evolution", True):
-            story.append(Spacer(1, 3))
-            c5 = build_forecast_evolution_chart(
-                forecast_vintages=bundle.forecast_vintages,
-                teleconnections=bundle.teleconnections,
-                stratosphere=bundle.stratosphere,
-                width=576.0,
-                height=88.0,
+        if bundle.locations and bundle.locations[0].daily_forecasts:
+            story.append(Spacer(1, 4))
+            story.extend(
+                self._build_local_forecast_flowables(
+                    bundle.locations[0], back_page=False
+                )
             )
-            c5.hAlign = "CENTER"
-            story.append(c5)
 
         return story
 
     # ------------------------------------------------------------------
-    # Page 2 Builder: Single Location Observations, Normals, AFD & Forecasts
+    # Page 2 Builder: AFD, Local Diagnostics & Space Weather
     # ------------------------------------------------------------------
-    def _build_location_section(self, loc: LocalLocationBundle) -> List[Any]:
-        st = self._wp_styles
-        charts_cfg = self.wp_config.charts
-        blocks: List[Any] = []
+    def _build_space_weather_section(
+        self, space_weather: Optional[SpaceWeatherBundle]
+    ) -> List[Any]:
+        if space_weather is None:
+            return []
 
-        stn_str = f" — Station {loc.station_id}" if loc.station_id else ""
-        wfo_str = f" (NWS {loc.grid_id})" if loc.grid_id else ""
+        blocks: List[Any] = []
         blocks.extend(
             self._section_header_flowables(
-                f"Local Weather & Climatological Context: {loc.name}{stn_str}{wfo_str}",
+                "Space Weather & Solar Activity (NOAA SWPC)",
                 back_page=True,
             )
         )
 
-        t_cur = f"{loc.current_temp_f:.1f}°F" if loc.current_temp_f is not None else "N/A"
-        td_cur = f" (Dewpoint {loc.current_dewpoint_f:.1f}°F)" if loc.current_dewpoint_f is not None else ""
-        tend = _pressure_tendency_label(loc.pressure_change_24h_hpa)
-        p_cur = (
-            f"{loc.current_pressure_hpa:.1f} hPa ({tend}, "
-            f"24h Δ {loc.pressure_change_24h_hpa or 0.0:+.1f} hPa)"
-            if loc.current_pressure_hpa is not None
-            else "N/A"
-        )
-        w_cur = (
-            f"{loc.current_wind_mph:.0f} mph"
-            + (f" ({loc.current_wind_dir_deg}°)" if loc.current_wind_dir_deg is not None else "")
-            if loc.current_wind_mph is not None
-            else "Calm / N/A"
-        )
-        t_anom = (
-            f"7-Day: {loc.temp_anomaly_7d_f:+.1f}°F  |  14-Day: {loc.temp_anomaly_14d_f or 0.0:+.1f}°F (vs. 1991–2020 NCEI Normal)"
-            if loc.temp_anomaly_7d_f is not None
-            else "Unavailable"
-        )
-        p_anom = (
-            f"{loc.precip_30d_in or 0.0:.2f}\" ({loc.precip_30d_pct_normal:.0f}% of 1991–2020 Normal {loc.precip_30d_normal_in or 0.0:.2f}\")"
-            if loc.precip_30d_pct_normal is not None
-            else "Unavailable"
-        )
+        sun_panel = build_sun_xray_image_panel(space_weather, width=196.0, height=208.0)
+        cycle_chart = build_solar_cycle_chart(space_weather, width=374.0, height=208.0)
 
-        list_items = [
-            f"&bull; <b>Latest Observation:</b> {escape(t_cur)}{escape(td_cur)}, {escape(loc.current_conditions or 'Reported')}",
-            f"&bull; <b>Wind:</b> {escape(w_cur)}",
-            f"&bull; <b>Sea-Level Pressure:</b> {escape(p_cur)}",
-            f"&bull; <b>Temperature Anomalies:</b> {escape(t_anom)}",
-            f"&bull; <b>30-Day Precipitation:</b> {escape(p_anom)}",
-        ]
-        for item_html in list_items:
-            blocks.append(Paragraph(item_html, st["back_list_item"]))
-        blocks.append(Spacer(1, 6))
+        row1 = Table([[sun_panel, cycle_chart]], colWidths=[202.0, 374.0])
+        row1.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (0, 0), 6),
+                    ("RIGHTPADDING", (1, 0), (1, 0), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
+        blocks.append(row1)
+        blocks.append(Spacer(1, 4))
+
+        xray_chart = build_goes_xray_flux_chart(space_weather, width=284.0, height=128.0)
+        kp_chart = build_planetary_kp_chart(space_weather, width=284.0, height=128.0)
+
+        row2 = Table([[xray_chart, kp_chart]], colWidths=[288.0, 288.0])
+        row2.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (0, 0), 4),
+                    ("RIGHTPADDING", (1, 0), (1, 0), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            )
+        )
+        blocks.append(row2)
+        return blocks
+
+    def _build_location_section(
+        self,
+        loc: LocalLocationBundle,
+        space_weather: Optional[SpaceWeatherBundle] = None,
+    ) -> List[Any]:
+        st = self._wp_styles
+        charts_cfg = self.wp_config.charts
+        blocks: List[Any] = []
 
         if loc.afd_synopsis:
             afd_paras = _format_afd_paragraphs(loc.afd_synopsis, max_chars=900)
@@ -1154,13 +1255,13 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 )
                 for p_html in afd_paras:
                     blocks.append(Paragraph(p_html, st["back_body"]))
-                blocks.append(Spacer(1, 6))
+                blocks.append(Spacer(1, 5))
 
         loc_charts: List[Any] = []
         if charts_cfg.local_pressure:
-            loc_charts.append(build_local_pressure_chart(loc, width=284.0, height=160.0))
+            loc_charts.append(build_local_pressure_chart(loc, width=284.0, height=140.0))
         if charts_cfg.local_temperature:
-            loc_charts.append(build_local_temperature_chart(loc, width=284.0, height=160.0))
+            loc_charts.append(build_local_temperature_chart(loc, width=284.0, height=140.0))
         if loc_charts:
             blocks.extend(
                 self._section_header_flowables(
@@ -1182,70 +1283,7 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                     )
                 )
                 blocks.append(ct)
-            blocks.append(Spacer(1, 8))
-
-        if loc.daily_forecasts:
-            blocks.extend(
-                self._section_header_flowables(
-                    f"7-Day NWS Local Forecast — {loc.name}",
-                    back_page=True,
-                )
-            )
-            fcst_days = loc.daily_forecasts[:7]
-            hdr_row = [Paragraph("<b>Metric</b>", st["back_table_hdr"])] + [
-                Paragraph(
-                    f"<b>{escape(f.day_name[:3])} {escape(f.date[5:])}</b>",
-                    st["back_table_hdr"],
-                )
-                for f in fcst_days
-            ]
-            hi_lo_row = [Paragraph("<b>High / Low (°F)</b>", st["back_table_cell"])] + [
-                Paragraph(
-                    f"{f.high_f:.0f}° / {f.low_f:.0f}°"
-                    if (f.high_f is not None and f.low_f is not None)
-                    else f"{f.high_f or f.low_f or 0.0:.0f}°",
-                    st["back_table_cell"],
-                )
-                for f in fcst_days
-            ]
-            pop_qpf_row = [Paragraph("<b>PoP / QPF</b>", st["back_table_cell"])] + [
-                Paragraph(
-                    f"{f.pop_pct or 0}% / {f.qpf_in or 0.0:.2f}\"",
-                    st["back_table_cell"],
-                )
-                for f in fcst_days
-            ]
-            cond_row = [Paragraph("<b>Conditions</b>", st["back_table_cell"])] + [
-                Paragraph(escape((f.short_forecast or "—")[:26]), st["back_table_cell"])
-                for f in fcst_days
-            ]
-            f_rows = [hdr_row, hi_lo_row, pop_qpf_row, cond_row]
-            if any((f.snow_in or 0.0) > 0 for f in fcst_days):
-                snow_row = [Paragraph("<b>Grid Snow</b>", st["back_table_cell"])] + [
-                    Paragraph(f"{f.snow_in or 0.0:.1f}\"", st["back_table_cell"])
-                    for f in fcst_days
-                ]
-                f_rows.insert(3, snow_row)
-
-            col_w = [84.0] + [(492.0 / max(1, len(fcst_days)))] * len(fcst_days)
-            ft = Table(f_rows, colWidths=col_w)
-            ft.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAEAEA")),
-                        ("LINEBELOW", (0, 0), (-1, 0), 1.0, colors.black),
-                        ("GRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#777777")),
-                        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
-                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                        ("TOPPADDING", (0, 0), (-1, -1), 5.0),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5.0),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 4.0),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 4.0),
-                    ]
-                )
-            )
-            blocks.append(ft)
-            blocks.append(Spacer(1, 8))
+            blocks.append(Spacer(1, 6))
 
         if charts_cfg.snow and loc.snow and loc.snow.has_useful_snow_data:
             sn = loc.snow
@@ -1263,8 +1301,12 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                 f"<b>7d NWS Fcst Snow:</b> {sn.forecast_snow_7d_in or 0.0:.1f}\""
             )
             blocks.append(Paragraph(sn_html, st["back_body"]))
-            blocks.append(Spacer(1, 4))
-            blocks.append(build_snow_watch_chart(sn, width=576.0, height=130.0))
+            blocks.append(Spacer(1, 3))
+            blocks.append(build_snow_watch_chart(sn, width=576.0, height=115.0))
+            blocks.append(Spacer(1, 5))
+
+        if getattr(charts_cfg, "space_weather", True) and space_weather is not None:
+            blocks.extend(self._build_space_weather_section(space_weather))
 
         return blocks
 
@@ -1345,7 +1387,14 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
         pages: List[List[Any]] = [self._build_page1(bundle)]
 
         if bundle.locations:
-            pages.append(self._build_location_section(bundle.locations[0]))
+            pages.append(
+                self._build_location_section(
+                    bundle.locations[0],
+                    space_weather=bundle.space_weather,
+                )
+            )
+        elif bundle.space_weather is not None:
+            pages.append(self._build_space_weather_section(bundle.space_weather))
 
         return self._build_multi_page_pdf(pages)
 
@@ -1460,6 +1509,25 @@ class WeatherPatternsScreamsheet(BaseScreamsheet):
                             if (tf is not None and pm is not None)
                             else f"  - **{idx_code} ({entry.get('current_state')})**"
                         )
+            lines.append("")
+
+        if bundle.space_weather:
+            sw = bundle.space_weather
+            lines.append("## Space Weather & Solar Activity (NOAA SWPC)")
+            lines.append(
+                f"- **Solar Cycle 25 ({sw.current_cycle_period or 'Latest'}):** "
+                f"Observed SSN {sw.current_observed_ssn if sw.current_observed_ssn is not None else 'N/A'}, "
+                f"SWPC Predicted SSN {sw.current_predicted_ssn if sw.current_predicted_ssn is not None else 'N/A'}"
+            )
+            lines.append(
+                f"- **GOES X-Ray Flux (0.1–0.8 nm):** "
+                f"Latest {sw.latest_xray_class}, 24h Peak {sw.max_24h_xray_class}"
+            )
+            lines.append(
+                f"- **Planetary K-Index (Kp):** "
+                f"Latest {sw.latest_kp if sw.latest_kp is not None else 'N/A'}, "
+                f"24h Max {sw.max_24h_kp if sw.max_24h_kp is not None else 'N/A'} ({sw.geomag_scale_label})"
+            )
             lines.append("")
 
         return "\n".join(lines)

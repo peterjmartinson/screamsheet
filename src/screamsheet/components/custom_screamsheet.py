@@ -45,14 +45,21 @@ class CustomScreamsheet(BaseScreamsheet):
         subtitle: Optional[str] = None,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ) -> None:
+        resolved_title = (
+            str(title).strip()
+            if (title is not None and str(title).strip())
+            else (screamsheet_title or "Screamsheet")
+        )
         super().__init__(
             output_filename=output_filename,
             date=date,
             display_date=display_date if display_date is not None else (date or datetime.now()),
+            title=resolved_title,
         )
         self.components: List[ScreamsheetComponent] = list(components or [])
-        self.screamsheet_title: str = screamsheet_title or "Screamsheet"
+        self.screamsheet_title: str = resolved_title
         self.subtitle_text: Optional[str] = subtitle
         self.seen_story_keys: Set[str] = set()
         self.packed_pages: List[List[ScreamsheetComponent]] = []

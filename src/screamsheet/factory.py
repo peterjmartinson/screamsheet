@@ -30,6 +30,7 @@ class ScreamsheetFactory:
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> MLBScreamsheet:
         """
         Create an MLB screamsheet.
@@ -42,6 +43,7 @@ class ScreamsheetFactory:
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
             
         Returns:
             MLBScreamsheet instance
@@ -54,6 +56,7 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
 
     @staticmethod
@@ -62,6 +65,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
+        title: Optional[str] = None,
     ) -> MLBAllStarScreamsheet:
         """
         Create an MLB All-Star Game screamsheet.
@@ -71,6 +75,7 @@ class ScreamsheetFactory:
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Optional list of (team_id, team_name) tuples.
+            title: Optional custom title override for the screamsheet header.
 
         Returns:
             MLBAllStarScreamsheet instance
@@ -80,6 +85,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             favorite_teams=favorite_teams,
+            title=title,
         )
 
     
@@ -92,6 +98,7 @@ class ScreamsheetFactory:
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> NHLScreamsheet:
         """
         Create an NHL screamsheet.
@@ -104,6 +111,7 @@ class ScreamsheetFactory:
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
             
         Returns:
             NHLScreamsheet instance
@@ -116,6 +124,7 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
     
     @staticmethod
@@ -127,6 +136,7 @@ class ScreamsheetFactory:
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> NFLScreamsheet:
         """
         Create an NFL screamsheet.
@@ -139,6 +149,7 @@ class ScreamsheetFactory:
             display_date: Publication date (defaults to today)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, enable fan rant on loss. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
             
         Returns:
             NFLScreamsheet instance
@@ -151,6 +162,7 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
     
     @staticmethod
@@ -162,6 +174,7 @@ class ScreamsheetFactory:
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> NBAScreamsheet:
         """
         Create an NBA screamsheet.
@@ -174,6 +187,7 @@ class ScreamsheetFactory:
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
             
         Returns:
             NBAScreamsheet instance
@@ -186,6 +200,7 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
 
     @staticmethod
@@ -197,6 +212,7 @@ class ScreamsheetFactory:
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> MLSScreamsheet:
         """
         Create an MLS screamsheet.
@@ -209,6 +225,7 @@ class ScreamsheetFactory:
             display_date: Date shown in the subtitle header (defaults to date)
             favorite_teams: Priority-ordered list of (team_id, team_name) tuples.
             mad_fan: If True, generate an enraged hometown-fan recap on loss. Defaults to False.
+            title: Optional custom title override for the screamsheet header.
 
         Returns:
             MLSScreamsheet instance
@@ -221,6 +238,7 @@ class ScreamsheetFactory:
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
     
     @staticmethod
@@ -234,6 +252,7 @@ class ScreamsheetFactory:
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
         sources: Optional[list] = None,
+        title: Optional[str] = None,
     ) -> MLBTradeRumorsScreamsheet:
         """
         Create an MLB Trade Rumors news screamsheet.
@@ -248,6 +267,7 @@ class ScreamsheetFactory:
             weather_location_name=weather_location_name,
             date=date,
             sources=sources,
+            title=title,
         )
     
     @staticmethod
@@ -260,6 +280,7 @@ class ScreamsheetFactory:
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
         sources: Optional[list] = None,
+        title: Optional[str] = None,
     ) -> MLBNewsScreamsheet:
         """
         Create an MLB News screamsheet sourced from MLB.com and secondary RSS feeds.
@@ -273,6 +294,7 @@ class ScreamsheetFactory:
             weather_location_name=weather_location_name,
             date=date,
             sources=sources,
+            title=title,
         )
 
     @staticmethod
@@ -285,6 +307,7 @@ class ScreamsheetFactory:
         weather_location_name: str = "Bryn Mawr, PA",
         date: Optional[datetime] = None,
         sources: Optional[list] = None,
+        title: Optional[str] = None,
     ) -> NHLNewsScreamsheet:
         """
         Create an NHL News screamsheet sourced from NHL.com and secondary RSS feeds.
@@ -298,6 +321,7 @@ class ScreamsheetFactory:
             weather_location_name=weather_location_name,
             date=date,
             sources=sources,
+            title=title,
         )
 
     @staticmethod
@@ -306,6 +330,7 @@ class ScreamsheetFactory:
         favorite_teams: Optional[List[str]] = None,
         grok_api_key: Optional[str] = None,
         date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ) -> FrenchMLBNewsScreamsheet:
         """
         Create a French MLB News screamsheet.
@@ -320,6 +345,7 @@ class ScreamsheetFactory:
                              (e.g. ``["Blue Jays", "Phillies"]``).
             grok_api_key:    xAI API key (defaults to ``GROK_API_KEY`` env var).
             date:            Target date (defaults to today).
+            title:           Optional custom title override.
 
         Returns:
             FrenchMLBNewsScreamsheet instance.
@@ -329,6 +355,7 @@ class ScreamsheetFactory:
             favorite_teams=favorite_teams,
             grok_api_key=grok_api_key,
             date=date,
+            title=title,
         )
 
     @staticmethod
@@ -341,6 +368,7 @@ class ScreamsheetFactory:
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
         sources: Optional[list] = None,
+        title: Optional[str] = None,
     ) -> PresidentialScreamsheet:
         """
         Create a Presidential Screamsheet.
@@ -354,12 +382,14 @@ class ScreamsheetFactory:
             weather_location_name=weather_location_name,
             date=date,
             sources=sources,
+            title=title,
         )
 
     @staticmethod
     def create_worldcup_screamsheet(
         output_filename: str,
         date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ) -> FIFAWorldCupScreamsheet:
         """
         Create a FIFA World Cup 2026 screamsheet.
@@ -369,6 +399,7 @@ class ScreamsheetFactory:
         Args:
             output_filename: Path to save the PDF.
             date:            Target date — fixtures from this day are shown (defaults to yesterday).
+            title:           Optional custom title override.
 
         Returns:
             FIFAWorldCupScreamsheet instance
@@ -376,6 +407,7 @@ class ScreamsheetFactory:
         return FIFAWorldCupScreamsheet(
             output_filename=output_filename,
             date=date,
+            title=title,
         )
 
     @staticmethod
@@ -390,6 +422,7 @@ class ScreamsheetFactory:
         leagues: Optional[List[Any]] = None,
         standings: Optional[List[Any]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ) -> SoccerScreamsheet:
         """
         Create an International Football/Soccer screamsheet.
@@ -405,6 +438,7 @@ class ScreamsheetFactory:
             leagues: Optional list of competition names or IDs to track.
             standings: Optional list of up to 2 league names or IDs for dual standings.
             mad_fan: If True, generate an enraged recap on loss. Defaults to False.
+            title: Optional custom title override.
 
         Returns:
             SoccerScreamsheet instance
@@ -420,6 +454,7 @@ class ScreamsheetFactory:
             leagues=leagues,
             standings=standings,
             mad_fan=mad_fan,
+            title=title,
         )
 
     @staticmethod
@@ -431,6 +466,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         people: Optional[list] = None,
         horoscope_style: str = "kepler",
+        title: Optional[str] = None,
     ) -> SkyTonightScreamsheet:
         """
         Create a Sky Tonight screamsheet.
@@ -447,6 +483,7 @@ class ScreamsheetFactory:
             date:            Target date (defaults to today).
             people:          Up to 2 PersonConfig entries for horoscope readings.
             horoscope_style: Default horoscope prompt style ("kepler" or "playbook").
+            title:           Optional custom title override.
 
         Returns:
             SkyTonightScreamsheet instance
@@ -459,6 +496,7 @@ class ScreamsheetFactory:
             date=date,
             people=people or [],
             horoscope_style=horoscope_style,
+            title=title,
         )
 
     @staticmethod
@@ -467,6 +505,7 @@ class ScreamsheetFactory:
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         game_pk: Optional[int] = None,
+        title: Optional[str] = None,
     ) -> HomeRunDerbyScreamsheet:
         """
         Create an MLB Home Run Derby PDF screamsheet.
@@ -476,6 +515,7 @@ class ScreamsheetFactory:
             date: Target date of the event
             display_date: Date shown in the header
             game_pk: Optional explicit MLB API event ID
+            title: Optional custom title override
             
         Returns:
             HomeRunDerbyScreamsheet instance
@@ -485,6 +525,7 @@ class ScreamsheetFactory:
             date=date,
             display_date=display_date,
             game_pk=game_pk,
+            title=title,
         )
 
     @staticmethod
@@ -508,6 +549,7 @@ class ScreamsheetFactory:
         email_provider: Optional[Any] = None,
         latest_email_per_sender: bool = True,
         unread_important_only: bool = True,
+        title: Optional[str] = None,
     ) -> MorningBriefingScreamsheet:
         """
         Create a Morning Briefing screamsheet.
@@ -532,6 +574,7 @@ class ScreamsheetFactory:
             email_provider: Optional custom email provider.
             latest_email_per_sender: Only show the latest email per sender (default True).
             unread_important_only: Only include unread (UNSEEN) priority emails (default True).
+            title: Optional custom title override.
 
         Returns:
             MorningBriefingScreamsheet instance
@@ -556,6 +599,7 @@ class ScreamsheetFactory:
             email_provider=email_provider,
             latest_email_per_sender=latest_email_per_sender,
             unread_important_only=unread_important_only,
+            title=title,
         )
 
     @staticmethod
@@ -566,6 +610,7 @@ class ScreamsheetFactory:
         subtitle: Optional[str] = None,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
+        title: Optional[str] = None,
     ) -> CustomScreamsheet:
         """Create a custom component-based screamsheet."""
         return CustomScreamsheet(
@@ -575,6 +620,7 @@ class ScreamsheetFactory:
             subtitle=subtitle,
             date=date,
             display_date=display_date,
+            title=title,
         )
 
     @staticmethod
@@ -589,6 +635,7 @@ class ScreamsheetFactory:
         grok_api_key: Optional[str] = None,
         use_cache: bool = True,
         refresh_cache: bool = False,
+        title: Optional[str] = None,
     ) -> WeatherPatternsScreamsheet:
         """Create a Climate / Weather Patterns screamsheet."""
         if (
@@ -612,6 +659,7 @@ class ScreamsheetFactory:
                         lon=float(weather_lon),
                     )
                 ],
+                title=title,
             )
         return WeatherPatternsScreamsheet(
             output_filename=output_filename,
@@ -621,6 +669,7 @@ class ScreamsheetFactory:
             grok_api_key=grok_api_key,
             use_cache=use_cache,
             refresh_cache=refresh_cache,
+            title=title,
         )
 
 

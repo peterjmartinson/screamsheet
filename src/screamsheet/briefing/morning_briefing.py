@@ -59,9 +59,10 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         email_provider: Optional[GmailNewsProvider] = None,
         latest_email_per_sender: bool = True,
         unread_important_only: bool = True,
+        title: Optional[str] = None,
     ):
         target_date = date if date is not None else datetime.now()
-        super().__init__(output_filename, date=target_date, display_date=target_date)
+        super().__init__(output_filename, date=target_date, display_date=target_date, title=title)
 
         self.subscriber_name = subscriber_name
         self.payload = payload or {}

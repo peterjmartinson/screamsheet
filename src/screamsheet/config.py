@@ -182,10 +182,11 @@ class WeatherPatternsChartsConfig:
     polar_vortex: bool = True
     mjo: bool = True
     enso: bool = True
-    forecast_evolution: bool = True
+    forecast_evolution: bool = False
     local_pressure: bool = True
     local_temperature: bool = True
     snow: bool = True
+    space_weather: bool = True
 
 
 @dataclass
@@ -217,6 +218,7 @@ class WeatherPatternsConfig:
     teleconnections_dir: str = ""
     charts: WeatherPatternsChartsConfig = field(default_factory=WeatherPatternsChartsConfig)
     narrative: WeatherPatternsNarrativeConfig = field(default_factory=WeatherPatternsNarrativeConfig)
+    title: Optional[str] = None
 
 
 @dataclass
@@ -478,10 +480,11 @@ def _parse_weather_patterns(
         polar_vortex=bool(charts_raw.get("polar_vortex", True)),
         mjo=bool(charts_raw.get("mjo", True)),
         enso=bool(charts_raw.get("enso", True)),
-        forecast_evolution=bool(charts_raw.get("forecast_evolution", True)),
+        forecast_evolution=bool(charts_raw.get("forecast_evolution", False)),
         local_pressure=bool(charts_raw.get("local_pressure", True)),
         local_temperature=bool(charts_raw.get("local_temperature", True)),
         snow=bool(charts_raw.get("snow", True)),
+        space_weather=bool(charts_raw.get("space_weather", True)),
     )
 
     narr_raw = raw.get("narrative") or {}

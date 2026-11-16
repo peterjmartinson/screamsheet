@@ -350,3 +350,27 @@ def test_has_content_true_with_person_options_from_order() -> None:
     assert len(section.people) == 1
     assert section.people[0].name == "Peter"
 
+
+def test_planet_direction_included_for_every_planet_in_llm_prompt(monkeypatch) -> None:
+    """Both Direct and Retrograde planet directions must appear in the LLM prompt data."""
+    astro = MagicMock()
+    astro.get_horoscope_data.return_value = {
+        "planets": [
+            {"name": "Sun", "zodiac": "Scorpio", "ecliptic_lon": 233.0, "two_letter": "Su", "motion_status": "Direct"},
+            {"name": "Mercury", "zodiac": "Sagittarius", "ecliptic_lon": 250.0, "two_letter": "Me", "motion_status": "Retrograde"},
+            {"name": "Venus", "zodiac": "Libra", "ecliptic_lon": 195.0, "two_letter": "Ve", "motion_status": "Direct"},
+        ],
+        "aspects": [],
+        "moon_phase": "Waxing Crescent",
+    }
+    astro.get_natal_positions.return_value = [
+        {"name": "Mercury", "zodiac": "Pisces", "ecliptic_lon": 340.0, "two_letter": "Me", "motion_status": "Retrograde"},
+        {"name": "Venus", "zodiac": "Aquarius", "ecliptic_lon": 315.0, "two_letter": "Ve", "motion_status": "Direct"},
+    ]
+    data = _call_get_horoscope_with_mock_summarizer(monkeypatch, astro)
+    assert "Mercury (Retrograde) in Sagittarius" in data["current_sky"]
+    assert "Venus (Direct) in Libra" in data["current_sky"]
+    assert "Mercury (Retrograde) in Pisces" in data["subject_natal"]
+    assert "Venus (Direct) in Aquarius" in data["subject_natal"]
+
+

@@ -16,9 +16,10 @@ class HomeRunDerbyScreamsheet(BaseScreamsheet):
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         game_pk: Optional[int] = None,
+        title: Optional[str] = None,
     ):
         """Initialize the Home Run Derby PDF screamsheet."""
-        super().__init__(output_filename=output_filename, date=date, display_date=display_date)
+        super().__init__(output_filename=output_filename, date=date, display_date=display_date, title=title)
         self.provider = MLBDataProvider()
         self.game_pk = game_pk
 

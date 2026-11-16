@@ -13,7 +13,7 @@ CURRENT SKY (transits):
 
 Writing Rules:
 1. The Opening: One fluid, elegant sentence acknowledging the subject's Sun, Moon, and Ascendant. Be explicit about the birth zodiac locations here.
-2. The Strategic Assessment: Identify the most powerful planet (the "Engine") and the most compromised planet (the "Friction"). Factor in planetary motion (Retrograde/Stationary status) to judge timing, delays, or internal momentum.
+2. The Strategic Assessment: Identify the most powerful planet (the "Engine") and the most compromised planet (the "Friction"). Each planet's direction (Direct, Retrograde, or Stationary) is provided; factor in planetary motion to judge timing, delays, or internal momentum—giving particular weight when personal planets (Mercury, Venus, Mars) or tight aspecting planets are retrograde/stationary, without overplaying routine outer-planet retrogrades unless geometrically prominent.
 3. The Keplerian Directive: Provide clear, imperative commands. Use the logic: "Because the geometry shows [X], you must avoid [Y] and instead execute [Z]." Incorporate active sign ingresses and eclipse portals into critical action windows.
 4. House-Grounded Advice: The advice must be specific to the House meanings. If the friction is in the 5th House, talk about creative risk or children. If the support is in the 7th, talk about contracts or the spouse.
 5. The Harmonic Synthesis: Instead of treating each planet as a separate item, describe the Aspects as 'chords' or 'dissonances' using exact degree precision (orbs). If a planet is 'Square' another, describe it as 'geometric friction' requiring 'resolution.'

@@ -34,6 +34,7 @@ class NFLScreamsheet(SportsScreamsheet):
         display_date: Optional[datetime] = None,
         favorite_teams: Optional[List[Tuple[int, str]]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
     ):
         super().__init__(
             sport_name="NFL",
@@ -44,6 +45,7 @@ class NFLScreamsheet(SportsScreamsheet):
             display_date=display_date,
             favorite_teams=favorite_teams,
             mad_fan=mad_fan,
+            title=title,
         )
         self.router = ScreamSheetRouter(override_date=self.display_date or self.date)
         self.strategy = self.router.get_strategy(self.display_date or self.date)

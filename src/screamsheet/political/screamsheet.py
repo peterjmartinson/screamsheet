@@ -23,12 +23,14 @@ class PresidentialScreamsheet(NewsScreamsheet):
         weather_location_name: str = "Washington, DC",
         date: Optional[datetime] = None,
         sources: Optional[List[Any]] = None,
+        title: Optional[str] = None,
     ):
         super().__init__(
             news_source="Presidential Screamsheet",
             output_filename=output_filename,
             include_weather=include_weather,
             date=date,
+            title=title,
         )
         self.max_articles = max_articles
         self.weather_lat = weather_lat

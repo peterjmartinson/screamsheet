@@ -40,6 +40,7 @@ class SoccerScreamsheet(BaseScreamsheet):
         leagues: Optional[List[Any]] = None,
         standings: Optional[List[Any]] = None,
         mad_fan: bool = False,
+        title: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -47,6 +48,7 @@ class SoccerScreamsheet(BaseScreamsheet):
             date=date,
             display_date=display_date,
             suppress_empty=False,
+            title=title,
         )
         self.sport_name = "Soccer"
         self.mad_fan = mad_fan

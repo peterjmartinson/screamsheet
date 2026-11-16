@@ -31,12 +31,27 @@ class BaseScreamsheet(ABC):
     to define its specific sections and generate the PDF.
     """
     
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "get_title" in cls.__dict__:
+            orig_get_title = cls.__dict__["get_title"]
+            if not getattr(orig_get_title, "__isabstractmethod__", False):
+                def _wrapped_get_title(self: Any, _orig: Any = orig_get_title) -> str:
+                    custom = getattr(self, "_custom_title", None)
+                    if custom:
+                        return str(custom)
+                    return _orig(self)
+                _wrapped_get_title.__name__ = orig_get_title.__name__
+                _wrapped_get_title.__doc__ = orig_get_title.__doc__
+                setattr(cls, "get_title", _wrapped_get_title)
+
     def __init__(
         self,
         output_filename: str,
         date: Optional[datetime] = None,
         display_date: Optional[datetime] = None,
         suppress_empty: bool = False,
+        title: Optional[str] = None,
     ):
         """
         Initialize the screamsheet.
@@ -46,11 +61,15 @@ class BaseScreamsheet(ABC):
             date: Target date for game data lookups (defaults to yesterday)
             display_date: Date shown in the subtitle header (defaults to date)
             suppress_empty: Whether to suppress generation when all sections are empty
+            title: Optional custom title override for the screamsheet header
         """
         self.output_filename = output_filename
         self.date = date or (datetime.now() - timedelta(days=1))
         self.display_date: datetime = display_date if display_date is not None else self.date
         self.suppress_empty = suppress_empty
+        self._custom_title: Optional[str] = (
+            str(title).strip() if (title is not None and str(title).strip()) else None
+        )
         self.sections: List[Section] = []
         self.styles = getSampleStyleSheet()
         self.branding: str = self._load_branding()

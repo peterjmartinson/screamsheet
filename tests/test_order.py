@@ -198,3 +198,49 @@ class TestMadFanOrderOptions:
             _run_nfl(order_nfl, _TODAY, "20260914", "/tmp")
             assert mock_factory.call_args[1]["display_date"] == _TODAY
             assert mock_factory.call_args[1]["mad_fan"] is True
+
+
+class TestCustomTitleAcrossScreamsheets:
+    def test_custom_title_overrides_get_title_on_all_screamsheet_types(self) -> None:
+        from screamsheet.factory import ScreamsheetFactory
+
+        nba = ScreamsheetFactory.create_nba_screamsheet("out.pdf", title="My Basketball")
+        assert nba.get_title() == "My Basketball"
+
+        mlb = ScreamsheetFactory.create_mlb_screamsheet("out.pdf", title="My Baseball")
+        assert mlb.get_title() == "My Baseball"
+
+        nhl = ScreamsheetFactory.create_nhl_screamsheet("out.pdf", title="My Hockey")
+        assert nhl.get_title() == "My Hockey"
+
+        mlb_news = ScreamsheetFactory.create_mlb_news_screamsheet("out.pdf", title="Custom MLB News")
+        assert mlb_news.get_title() == "Custom MLB News"
+
+        pres = ScreamsheetFactory.create_presidential_screamsheet("out.pdf", title="White House Watch")
+        assert pres.get_title() == "White House Watch"
+
+        sky = ScreamsheetFactory.create_sky_tonight_screamsheet("out.pdf", title="Tonight's Heavens")
+        assert sky.get_title() == "Tonight's Heavens"
+
+        wp = ScreamsheetFactory.create_weather_patterns_screamsheet("out.pdf", title="My Climate Sheet")
+        assert wp.get_title() == "My Climate Sheet"
+
+    def test_default_title_preserved_when_title_is_none(self) -> None:
+        from screamsheet.factory import ScreamsheetFactory
+
+        nba = ScreamsheetFactory.create_nba_screamsheet("out.pdf")
+        assert nba.get_title() == "NBA Screamsheet"
+
+    def test_runner_forwards_custom_title_to_factory(self) -> None:
+        from screamsheet.order import NBAOrderOptions
+        from screamsheet.runner import _run_nba
+
+        opts = NBAOrderOptions(
+            favorite_teams=[TeamEntry(id=1610612755, name="Philadelphia 76ers")],
+            title="My Basketball",
+        )
+        with patch("screamsheet.runner.ScreamsheetFactory.create_nba_screamsheet") as mock_factory:
+            mock_factory.return_value = MagicMock()
+            _run_nba(opts, _TODAY, "20261115", "/tmp")
+            assert mock_factory.call_args.kwargs["title"] == "My Basketball"
+

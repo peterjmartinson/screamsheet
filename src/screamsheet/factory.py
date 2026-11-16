@@ -507,6 +507,7 @@ class ScreamsheetFactory:
         important_senders: Optional[List[str]] = None,
         email_provider: Optional[Any] = None,
         latest_email_per_sender: bool = True,
+        unread_important_only: bool = True,
     ) -> MorningBriefingScreamsheet:
         """
         Create a Morning Briefing screamsheet.
@@ -530,6 +531,7 @@ class ScreamsheetFactory:
             important_senders: Optional list of priority senders (addresses or domains) to scan from INBOX.
             email_provider: Optional custom email provider.
             latest_email_per_sender: Only show the latest email per sender (default True).
+            unread_important_only: Only include unread (UNSEEN) priority emails (default True).
 
         Returns:
             MorningBriefingScreamsheet instance
@@ -553,6 +555,7 @@ class ScreamsheetFactory:
             important_senders=important_senders,
             email_provider=email_provider,
             latest_email_per_sender=latest_email_per_sender,
+            unread_important_only=unread_important_only,
         )
 
     @staticmethod

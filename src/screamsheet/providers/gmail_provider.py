@@ -291,6 +291,7 @@ class GmailNewsProvider:
         since: Optional[datetime] = None,
         lookback_hours: int = 24,
         mailbox: str = "INBOX",
+        unread_only: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Fetch emails from priority senders (matching specific addresses or domains)
@@ -301,6 +302,7 @@ class GmailNewsProvider:
             since: Reference datetime (defaults to current UTC time).
             lookback_hours: Hours to look back (default 24).
             mailbox: Mailbox to search (default 'INBOX').
+            unread_only: Whether to limit search to unread (UNSEEN) messages (default True).
 
         Returns:
             List of matched email dicts.
@@ -335,10 +337,19 @@ class GmailNewsProvider:
                     logger.info("Could not select mailbox %r in Gmail: %s", mailbox, data)
                     return []
 
-                # Search by SINCE date to limit scope
-                search_status, search_data = imap.uid("SEARCH", None, f'SINCE "{since_date_str}"')
-                if search_status != "OK" or not search_data or not search_data[0]:
-                    search_status, search_data = imap.uid("SEARCH", None, "ALL")
+                # Search by SINCE date (and UNSEEN if unread_only) to limit scope
+                if unread_only:
+                    search_status, search_data = imap.uid(
+                        "SEARCH", None, f'UNSEEN SINCE "{since_date_str}"'
+                    )
+                    if search_status != "OK":
+                        search_status, search_data = imap.uid("SEARCH", None, "UNSEEN")
+                else:
+                    search_status, search_data = imap.uid(
+                        "SEARCH", None, f'SINCE "{since_date_str}"'
+                    )
+                    if search_status != "OK" or not search_data or not search_data[0]:
+                        search_status, search_data = imap.uid("SEARCH", None, "ALL")
 
                 if search_status != "OK" or not search_data or not search_data[0]:
                     return []

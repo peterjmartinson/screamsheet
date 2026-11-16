@@ -44,6 +44,7 @@ class ImportantEmailsComponent(ScreamsheetComponent):
         summarizer_class: Any = None,
         senders: Optional[List[str]] = None,
         latest_per_sender: bool = True,
+        unread_only: bool = True,
         gmail_label: str = "Morning Briefing",
         gmail_username: Optional[str] = None,
         gmail_app_password: Optional[str] = None,
@@ -61,6 +62,7 @@ class ImportantEmailsComponent(ScreamsheetComponent):
             max_emails=max_emails,
             lookback_hours=lookback_hours,
             latest_per_sender=latest_per_sender,
+            unread_only=unread_only,
             gmail_label=gmail_label,
             **kwargs,
         )
@@ -69,6 +71,7 @@ class ImportantEmailsComponent(ScreamsheetComponent):
         self.lookback_hours = lookback_hours
         self._summarizer_class = summarizer_class
         self.latest_per_sender = latest_per_sender
+        self.unread_only = unread_only
         self.items: List[Dict[str, Any]] = []
         self._setup_styles()
 
@@ -137,6 +140,7 @@ class ImportantEmailsComponent(ScreamsheetComponent):
             important_senders=self.important_senders,
             since=self.date,
             lookback_hours=self.lookback_hours,
+            unread_only=self.unread_only,
         )
 
         if not emails:

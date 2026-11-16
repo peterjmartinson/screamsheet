@@ -40,12 +40,15 @@ class BriefingBackComponent(ScreamsheetComponent):
         gmail_label: str = "Morning Briefing",
         important_senders: Optional[List[str]] = None,
         latest_per_sender: bool = True,
+        unread_important_only: bool = True,
+        unread_only: Optional[bool] = None,
         date: Optional[datetime] = None,
         email_provider: Optional[Any] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(title=title, date=date, page_slot="back", **kwargs)
         self.max_left_news = max_left_news
+        effective_unread_only = unread_only if unread_only is not None else unread_important_only
 
         if news_section is None and (
             include_email_news is True
@@ -67,6 +70,7 @@ class BriefingBackComponent(ScreamsheetComponent):
                 date=self.date,
                 gmail_label=gmail_label,
                 latest_per_sender=latest_per_sender,
+                unread_only=effective_unread_only,
             )
 
         self.news_section = news_section

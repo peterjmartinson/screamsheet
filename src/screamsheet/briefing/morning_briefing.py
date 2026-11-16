@@ -58,6 +58,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         important_senders: Optional[List[str]] = None,
         email_provider: Optional[GmailNewsProvider] = None,
         latest_email_per_sender: bool = True,
+        unread_important_only: bool = True,
     ):
         target_date = date if date is not None else datetime.now()
         super().__init__(output_filename, date=target_date, display_date=target_date)
@@ -78,6 +79,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.important_senders = important_senders or []
         self.email_provider = email_provider
         self.latest_email_per_sender = latest_email_per_sender
+        self.unread_important_only = unread_important_only
         self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
         self.xkcd_provider = XKCDProvider() if self.include_xkcd else None
 
@@ -151,6 +153,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
                 date=self.date,
                 title="Important Notices & Updates",
                 latest_per_sender=self.latest_email_per_sender,
+                unread_only=self.unread_important_only,
             )
 
         if news_sec or important_sec:

@@ -11,7 +11,11 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import HRFlowable, Paragraph, Spacer, Table, TableStyle
 
-from ...providers.agenda_provider import AgendaProvider, DEFAULT_AGENDA_ENDPOINT
+from ...providers.agenda_provider import (
+    AgendaProvider,
+    DEFAULT_AGENDA_ENDPOINT,
+    DEFAULT_AGENDA_TIMEZONE,
+)
 from ..base import ComponentLayoutSpec, ScreamsheetComponent
 from ..registry import ComponentRegistry
 
@@ -20,11 +24,71 @@ EASTERN_TZ = zoneinfo.ZoneInfo("America/New_York")
 UTC_TZ = zoneinfo.ZoneInfo("UTC")
 
 
+def _resolve_zoneinfo(
+    tz_name: Optional[str],
+    default: zoneinfo.ZoneInfo = EASTERN_TZ,
+) -> zoneinfo.ZoneInfo:
+    """Resolve an IANA timezone name to a ZoneInfo, falling back to default."""
+    if not tz_name or not isinstance(tz_name, str):
+        return default
+    try:
+        return zoneinfo.ZoneInfo(tz_name.strip())
+    except Exception:
+        logger.warning("Unknown timezone '%s'; falling back to %s", tz_name, default.key)
+        return default
+
+
+def resolve_response_timezone(day_data: Optional[Dict[str, Any]]) -> zoneinfo.ZoneInfo:
+    """Determine the timezone used for formatted clock strings in an API day response.
+
+    Newer random-task responses include ``metadata.timezone`` (e.g. ``"America/New_York"``).
+    Legacy responses omit ``metadata.timezone`` and return UTC clock strings.
+    """
+    metadata = (day_data or {}).get("metadata")
+    if isinstance(metadata, dict):
+        tz_name = metadata.get("timezone")
+        if isinstance(tz_name, str) and tz_name.strip():
+            return _resolve_zoneinfo(tz_name, default=UTC_TZ)
+    return UTC_TZ
+
+
+def _parse_iso_datetime(iso_str: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO-8601 datetime with offset/Z into a timezone-aware datetime.
+
+    Returns None for empty values, date-only strings (YYYY-MM-DD), or naive timestamps.
+    """
+    if not iso_str or not isinstance(iso_str, str):
+        return None
+    s = iso_str.strip()
+    if "T" not in s and " " not in s:
+        return None
+    if s.endswith("Z") or s.endswith("z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        return None
+    return dt
+
+
 def parse_eastern_start_time(
     time_str: str,
     ref_date: Optional[Union[datetime, dt_date]] = None,
+    source_tz: zoneinfo.ZoneInfo = UTC_TZ,
+    target_tz: zoneinfo.ZoneInfo = EASTERN_TZ,
+    start_iso: Optional[str] = None,
+    all_day: Optional[bool] = None,
 ) -> dt_time:
-    """Extract the event start time in Eastern timezone for within-day sorting."""
+    """Extract the event start time in target timezone (Eastern by default) for within-day sorting."""
+    if all_day is True:
+        return dt_time(0, 0)
+
+    dt_iso = _parse_iso_datetime(start_iso)
+    if dt_iso is not None:
+        return dt_iso.astimezone(target_tz).time()
+
     if not time_str or time_str.strip().lower() == "all day":
         return dt_time(0, 0)
 
@@ -49,32 +113,76 @@ def parse_eastern_start_time(
         now = datetime.now()
         year, month, day = now.year, now.month, now.day
 
-    dt_utc = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
-    dt_est = dt_utc.astimezone(EASTERN_TZ)
-    return dt_est.time()
+    dt_src = datetime(year, month, day, h1, m1, tzinfo=source_tz)
+    dt_local = dt_src.astimezone(target_tz)
+    return dt_local.time()
 
 
 def sort_agenda_events(
     events: List[Dict[str, Any]],
     ref_date: Optional[Union[datetime, dt_date]] = None,
+    source_tz: zoneinfo.ZoneInfo = UTC_TZ,
+    target_tz: zoneinfo.ZoneInfo = EASTERN_TZ,
 ) -> List[Dict[str, Any]]:
-    """Sort events by start time in Eastern Time, then alphabetically by title."""
+    """Sort events by start time in target timezone (Eastern by default), then alphabetically by title."""
     return sorted(
         events,
         key=lambda ev: (
-            parse_eastern_start_time(ev.get("time", ""), ref_date=ref_date),
+            parse_eastern_start_time(
+                ev.get("time", ""),
+                ref_date=ref_date,
+                source_tz=source_tz,
+                target_tz=target_tz,
+                start_iso=ev.get("start"),
+                all_day=ev.get("allDay"),
+            ),
             (ev.get("title") or "").strip().lower(),
         ),
     )
 
 
+def _format_duration(duration_mins: int) -> str:
+    if duration_mins <= 0:
+        return ""
+    if duration_mins % 60 == 0:
+        hrs = duration_mins // 60
+        return f" ({hrs} hr)" if hrs == 1 else f" ({hrs} hrs)"
+    if duration_mins < 60:
+        return f" ({duration_mins} min)"
+    hrs = duration_mins // 60
+    mins = duration_mins % 60
+    return f" ({hrs} hr {mins} min)"
+
+
 def convert_time_to_eastern_and_duration(
     time_str: str,
     ref_date: Optional[Union[datetime, dt_date]] = None,
+    source_tz: zoneinfo.ZoneInfo = UTC_TZ,
+    target_tz: zoneinfo.ZoneInfo = EASTERN_TZ,
+    start_iso: Optional[str] = None,
+    end_iso: Optional[str] = None,
+    all_day: Optional[bool] = None,
 ) -> str:
-    """Convert a UTC time range string from the API into Eastern timezone with duration."""
-    if not time_str or time_str.strip().lower() == "all day":
+    """Convert an event time range into target timezone (Eastern by default) with duration.
+
+    Prefers exact ISO ``start_iso``/``end_iso`` timestamps when supplied; otherwise parses
+    ``time_str`` in ``source_tz`` (defaults to UTC for legacy API responses) and converts to
+    ``target_tz``.
+    """
+    if all_day is True or not time_str or time_str.strip().lower() == "all day":
         return "All Day"
+
+    dt_iso_start = _parse_iso_datetime(start_iso)
+    dt_iso_end = _parse_iso_datetime(end_iso)
+    if dt_iso_start is not None and dt_iso_end is not None:
+        dt_local1 = dt_iso_start.astimezone(target_tz)
+        duration_mins = int((dt_iso_end - dt_iso_start).total_seconds() / 60)
+        if duration_mins < 0:
+            duration_mins = 0
+        dur_str = _format_duration(duration_mins)
+        est_hour = dt_local1.strftime("%I").lstrip("0")
+        start_fmt = f"{est_hour}:{dt_local1.strftime('%M %p')}"
+        return f"{start_fmt}{dur_str}"
 
     m = re.match(
         r"(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)",
@@ -101,38 +209,28 @@ def convert_time_to_eastern_and_duration(
         now = datetime.now()
         year, month, day = now.year, now.month, now.day
 
-    dt_utc1 = datetime(year, month, day, h1, m1, tzinfo=UTC_TZ)
-    dt_utc2 = datetime(year, month, day, h2, m2, tzinfo=UTC_TZ)
+    dt_src1 = datetime(year, month, day, h1, m1, tzinfo=source_tz)
+    dt_src2 = datetime(year, month, day, h2, m2, tzinfo=source_tz)
 
-    dt_est1 = dt_utc1.astimezone(EASTERN_TZ)
+    dt_local1 = dt_src1.astimezone(target_tz)
 
-    duration_mins = int((dt_utc2 - dt_utc1).total_seconds() / 60)
+    duration_mins = int((dt_src2 - dt_src1).total_seconds() / 60)
     if duration_mins < 0:
         duration_mins += 24 * 60
 
-    if duration_mins == 0:
-        dur_str = ""
-    elif duration_mins % 60 == 0:
-        hrs = duration_mins // 60
-        dur_str = f" ({hrs} hr)" if hrs == 1 else f" ({hrs} hrs)"
-    else:
-        if duration_mins < 60:
-            dur_str = f" ({duration_mins} min)"
-        else:
-            hrs = duration_mins // 60
-            mins = duration_mins % 60
-            dur_str = f" ({hrs} hr {mins} min)"
-
-    est_hour = dt_est1.strftime("%I").lstrip("0")
-    start_fmt = f"{est_hour}:{dt_est1.strftime('%M %p')}"
+    dur_str = _format_duration(duration_mins)
+    est_hour = dt_local1.strftime("%I").lstrip("0")
+    start_fmt = f"{est_hour}:{dt_local1.strftime('%M %p')}"
     return f"{start_fmt}{dur_str}"
 
 
 def convert_accessory_to_eastern(
     accessory: Optional[str],
     ref_date: Optional[Union[datetime, dt_date]] = None,
+    source_tz: zoneinfo.ZoneInfo = UTC_TZ,
+    target_tz: zoneinfo.ZoneInfo = EASTERN_TZ,
 ) -> str:
-    """Convert UTC departure/leave-by timestamps inside the accessory string into Eastern timezone."""
+    """Convert departure/leave-by timestamps inside the accessory string into target timezone."""
     if not accessory:
         return ""
 
@@ -149,10 +247,10 @@ def convert_accessory_to_eastern(
             h += 12
         elif p == "AM" and h == 12:
             h = 0
-        dt_utc = datetime(year, month, day, h, m, tzinfo=UTC_TZ)
-        dt_est = dt_utc.astimezone(EASTERN_TZ)
-        est_hour = dt_est.strftime("%I").lstrip("0")
-        est_time = f"{est_hour}:{dt_est.strftime('%M %p')}"
+        dt_src = datetime(year, month, day, h, m, tzinfo=source_tz)
+        dt_local = dt_src.astimezone(target_tz)
+        est_hour = dt_local.strftime("%I").lstrip("0")
+        est_time = f"{est_hour}:{dt_local.strftime('%M %p')}"
         return f"{prefix}{est_time}"
 
     return re.sub(
@@ -288,10 +386,17 @@ class AgendaComponent(ScreamsheetComponent):
         upcoming_days: int = 1,
         payload: Optional[Dict[str, Any]] = None,
         api_url: str = DEFAULT_AGENDA_ENDPOINT,
+        timezone: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self.payload = payload or {}
         self.api_url = api_url
+        self.timezone = (
+            timezone
+            or (self.payload.get("timezone") if isinstance(self.payload, dict) else None)
+            or DEFAULT_AGENDA_TIMEZONE
+        )
+        self._target_tz = _resolve_zoneinfo(self.timezone, default=EASTERN_TZ)
         super().__init__(
             title=title,
             provider=provider,
@@ -304,7 +409,11 @@ class AgendaComponent(ScreamsheetComponent):
         self._setup_styles()
 
     def create_default_provider(self) -> Any:
-        return AgendaProvider(payload=self.payload, api_url=self.api_url)
+        return AgendaProvider(
+            payload=self.payload,
+            api_url=self.api_url,
+            timezone=self.timezone,
+        )
 
     def _setup_styles(self) -> None:
         base = getSampleStyleSheet()
@@ -416,18 +525,37 @@ class AgendaComponent(ScreamsheetComponent):
         self,
         events: List[Dict[str, Any]],
         ref_date: Optional[Union[datetime, dt_date]] = None,
+        source_tz: zoneinfo.ZoneInfo = UTC_TZ,
     ) -> List[Any]:
         flowables: List[Any] = []
         target_date = ref_date or self.date
         if not events:
             flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
         else:
-            sorted_events = sort_agenda_events(events, ref_date=target_date)
+            sorted_events = sort_agenda_events(
+                events,
+                ref_date=target_date,
+                source_tz=source_tz,
+                target_tz=self._target_tz,
+            )
             for ev in sorted_events:
                 time_raw = ev.get("time", "")
-                converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=target_date)
+                converted_time = convert_time_to_eastern_and_duration(
+                    time_raw,
+                    ref_date=target_date,
+                    source_tz=source_tz,
+                    target_tz=self._target_tz,
+                    start_iso=ev.get("start"),
+                    end_iso=ev.get("end"),
+                    all_day=ev.get("allDay"),
+                )
                 title = ev.get("title", "")
-                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=target_date)
+                accessory = convert_accessory_to_eastern(
+                    ev.get("accessory", ""),
+                    ref_date=target_date,
+                    source_tz=source_tz,
+                    target_tz=self._target_tz,
+                )
 
                 line_text = f"<b>{converted_time}</b> - {title}"
                 flowables.append(Paragraph(line_text, self._item_style))
@@ -521,7 +649,8 @@ class AgendaComponent(ScreamsheetComponent):
             today_dt = self.date
 
         events = today_data.get("agenda", [])
-        flowables.extend(self._render_events_block(events, ref_date=today_dt))
+        today_source_tz = resolve_response_timezone(today_data)
+        flowables.extend(self._render_events_block(events, ref_date=today_dt, source_tz=today_source_tz))
 
         if self.upcoming_days == 1:
             flowables.append(Spacer(1, 6))
@@ -537,7 +666,14 @@ class AgendaComponent(ScreamsheetComponent):
             except Exception:
                 tomorrow_dt = today_dt + timedelta(days=1)
             tomorrow_events = (tomorrow_data or {}).get("agenda", [])
-            flowables.extend(self._render_events_block(tomorrow_events, ref_date=tomorrow_dt))
+            tomorrow_source_tz = resolve_response_timezone(tomorrow_data)
+            flowables.extend(
+                self._render_events_block(
+                    tomorrow_events,
+                    ref_date=tomorrow_dt,
+                    source_tz=tomorrow_source_tz,
+                )
+            )
         else:
             flowables.append(Spacer(1, 4))
             sections = today_data.get("sections", [])
@@ -582,15 +718,34 @@ class AgendaComponent(ScreamsheetComponent):
                 flowables.append(Paragraph(f"<b>{heading_str}</b>", self._day_hdr))
 
                 events = day_dict.get("agenda", [])
+                day_source_tz = resolve_response_timezone(day_dict)
                 if not events:
                     flowables.append(Paragraph("<i>No scheduled events</i>", self._empty_style))
                 else:
-                    sorted_events = sort_agenda_events(events, ref_date=d_obj)
+                    sorted_events = sort_agenda_events(
+                        events,
+                        ref_date=d_obj,
+                        source_tz=day_source_tz,
+                        target_tz=self._target_tz,
+                    )
                     for ev in sorted_events:
                         time_raw = ev.get("time", "")
-                        converted_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
+                        converted_time = convert_time_to_eastern_and_duration(
+                            time_raw,
+                            ref_date=d_obj,
+                            source_tz=day_source_tz,
+                            target_tz=self._target_tz,
+                            start_iso=ev.get("start"),
+                            end_iso=ev.get("end"),
+                            all_day=ev.get("allDay"),
+                        )
                         title = ev.get("title", "")
-                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
+                        accessory = convert_accessory_to_eastern(
+                            ev.get("accessory", ""),
+                            ref_date=d_obj,
+                            source_tz=day_source_tz,
+                            target_tz=self._target_tz,
+                        )
 
                         if accessory:
                             acc_short = accessory.split("\n")[0]
@@ -649,15 +804,34 @@ class AgendaComponent(ScreamsheetComponent):
         lines = []
         lines.append("## TODAY'S AGENDA\n")
         events = today_data.get("agenda", [])
+        today_source_tz = resolve_response_timezone(today_data)
         if not events:
             lines.append("_No scheduled events_\n")
         else:
-            sorted_events = sort_agenda_events(events, ref_date=today_dt)
+            sorted_events = sort_agenda_events(
+                events,
+                ref_date=today_dt,
+                source_tz=today_source_tz,
+                target_tz=self._target_tz,
+            )
             for ev in sorted_events:
                 time_raw = ev.get("time", "")
-                c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=today_dt)
+                c_time = convert_time_to_eastern_and_duration(
+                    time_raw,
+                    ref_date=today_dt,
+                    source_tz=today_source_tz,
+                    target_tz=self._target_tz,
+                    start_iso=ev.get("start"),
+                    end_iso=ev.get("end"),
+                    all_day=ev.get("allDay"),
+                )
                 title = ev.get("title", "")
-                accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=today_dt)
+                accessory = convert_accessory_to_eastern(
+                    ev.get("accessory", ""),
+                    ref_date=today_dt,
+                    source_tz=today_source_tz,
+                    target_tz=self._target_tz,
+                )
                 lines.append(f"{c_time} - {title}")
                 if accessory:
                     acc_clean = accessory.replace("\n", " • ")
@@ -678,15 +852,34 @@ class AgendaComponent(ScreamsheetComponent):
 
             lines.append("## TOMORROW'S AGENDA\n")
             t_evs = tomorrow_data.get("agenda", [])
+            tomorrow_source_tz = resolve_response_timezone(tomorrow_data)
             if not t_evs:
                 lines.append("_No scheduled events_\n")
             else:
-                sorted_tomorrow = sort_agenda_events(t_evs, ref_date=tomorrow_dt)
+                sorted_tomorrow = sort_agenda_events(
+                    t_evs,
+                    ref_date=tomorrow_dt,
+                    source_tz=tomorrow_source_tz,
+                    target_tz=self._target_tz,
+                )
                 for ev in sorted_tomorrow:
                     time_raw = ev.get("time", "")
-                    c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=tomorrow_dt)
+                    c_time = convert_time_to_eastern_and_duration(
+                        time_raw,
+                        ref_date=tomorrow_dt,
+                        source_tz=tomorrow_source_tz,
+                        target_tz=self._target_tz,
+                        start_iso=ev.get("start"),
+                        end_iso=ev.get("end"),
+                        all_day=ev.get("allDay"),
+                    )
                     title = ev.get("title", "")
-                    accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=tomorrow_dt)
+                    accessory = convert_accessory_to_eastern(
+                        ev.get("accessory", ""),
+                        ref_date=tomorrow_dt,
+                        source_tz=tomorrow_source_tz,
+                        target_tz=self._target_tz,
+                    )
                     lines.append(f"{c_time} - {title}")
                     if accessory:
                         acc_clean = accessory.replace("\n", " • ")
@@ -786,15 +979,34 @@ class AgendaComponent(ScreamsheetComponent):
 
                 lines.append(f"### {heading_str}\n")
                 evs = day_dict.get("agenda", [])
+                day_source_tz = resolve_response_timezone(day_dict)
                 if not evs:
                     lines.append("_No scheduled events_\n")
                 else:
-                    sorted_day_evs = sort_agenda_events(evs, ref_date=d_obj)
+                    sorted_day_evs = sort_agenda_events(
+                        evs,
+                        ref_date=d_obj,
+                        source_tz=day_source_tz,
+                        target_tz=self._target_tz,
+                    )
                     for ev in sorted_day_evs:
                         time_raw = ev.get("time", "")
-                        c_time = convert_time_to_eastern_and_duration(time_raw, ref_date=d_obj)
+                        c_time = convert_time_to_eastern_and_duration(
+                            time_raw,
+                            ref_date=d_obj,
+                            source_tz=day_source_tz,
+                            target_tz=self._target_tz,
+                            start_iso=ev.get("start"),
+                            end_iso=ev.get("end"),
+                            all_day=ev.get("allDay"),
+                        )
                         title = ev.get("title", "")
-                        accessory = convert_accessory_to_eastern(ev.get("accessory", ""), ref_date=d_obj)
+                        accessory = convert_accessory_to_eastern(
+                            ev.get("accessory", ""),
+                            ref_date=d_obj,
+                            source_tz=day_source_tz,
+                            target_tz=self._target_tz,
+                        )
                         acc_str = f" ({accessory.replace(chr(10), ' ')})" if accessory else ""
                         lines.append(f"{c_time} - {title}{acc_str}")
                     lines.append("")

@@ -380,6 +380,7 @@ def _run_briefing(
         "important_senders": options.important_senders,
         "latest_email_per_sender": options.latest_email_per_sender,
         "unread_important_only": options.unread_important_only,
+        "timezone": options.timezone,
         "date": today,
         "title": options.title,
     }

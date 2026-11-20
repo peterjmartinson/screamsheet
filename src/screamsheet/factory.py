@@ -549,6 +549,7 @@ class ScreamsheetFactory:
         email_provider: Optional[Any] = None,
         latest_email_per_sender: bool = True,
         unread_important_only: bool = True,
+        timezone: str = "America/New_York",
         title: Optional[str] = None,
     ) -> MorningBriefingScreamsheet:
         """
@@ -599,6 +600,7 @@ class ScreamsheetFactory:
             email_provider=email_provider,
             latest_email_per_sender=latest_email_per_sender,
             unread_important_only=unread_important_only,
+            timezone=timezone,
             title=title,
         )
 

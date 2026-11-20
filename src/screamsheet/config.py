@@ -101,6 +101,7 @@ class BriefingConfig:
     important_senders: List[str] = field(default_factory=list)
     latest_email_per_sender: bool = True
     unread_important_only: bool = True
+    timezone: str = "America/New_York"
     weather: WeatherLocationConfig = field(
         default_factory=lambda: WeatherLocationConfig(40.02, -75.34, "Bryn Mawr, PA")
     )
@@ -373,6 +374,7 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
     unread_important_only = bool(
         raw.get("unread_important_only", raw.get("important_unread_only", True))
     )
+    timezone = str(raw.get("timezone", "America/New_York"))
     weather_raw = raw.get("weather", {})
     if weather_raw:
         weather_loc = _parse_weather_location(weather_raw, 40.02, -75.34, "Bryn Mawr, PA")
@@ -389,6 +391,7 @@ def _parse_briefing(raw: dict, weather_cfg: WeatherConfig) -> BriefingConfig:
         important_senders=important_senders,
         latest_email_per_sender=latest_email_per_sender,
         unread_important_only=unread_important_only,
+        timezone=timezone,
         weather=weather_loc,
     )
 

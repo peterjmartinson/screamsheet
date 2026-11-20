@@ -1040,3 +1040,135 @@ def test_important_emails_unread_only_forwarding():
     )
 
 
+def test_agenda_provider_sends_timezone():
+    original_payload = {"default_start_location": "Bryn Mawr, PA"}
+    provider = AgendaProvider(payload=original_payload, api_url="https://fake.url/api/agenda")
+
+    with patch("requests.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = MOCK_AGENDA_DATA
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        provider.get_day_agenda(datetime(2026, 11, 20))
+
+        mock_post.assert_called_once()
+        called_url = mock_post.call_args.args[0]
+        called_json = mock_post.call_args.kwargs["json"]
+        assert called_url == "https://fake.url/api/agenda?date=2026-11-20&tz=America%2FNew_York"
+        assert called_json["timezone"] == "America/New_York"
+        assert called_json["default_start_location"] == "Bryn Mawr, PA"
+        # Caller payload dict should not be mutated
+        assert "timezone" not in original_payload
+
+
+def test_agenda_timezone_aware_response_no_double_conversion():
+    """When random-task returns metadata.timezone='America/New_York', do NOT shift by -5h again."""
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection, resolve_response_timezone
+
+    winter_dt = datetime(2026, 11, 20)
+    assert resolve_response_timezone({"metadata": {"timezone": "America/New_York"}}).key == "America/New_York"
+    assert resolve_response_timezone({"metadata": {}}).key == "UTC"
+    assert resolve_response_timezone({}).key == "UTC"
+
+    multi_day = [
+        {
+            "date": "2026-11-20",
+            "metadata": {"timezone": "America/New_York", "total_events": 2, "total_tasks": 0},
+            "agenda": [
+                {
+                    "id": "evt-dinner",
+                    "type": "event",
+                    "title": "Evening Dinner",
+                    "time": "08:00 PM - 09:30 PM",
+                    "start": "2026-11-21T01:00:00.000Z",
+                    "end": "2026-11-21T02:30:00.000Z",
+                    "allDay": False,
+                    "accessory": "Address: 104 Main St (15 min drive time. Leave by 07:45 PM)",
+                },
+                {
+                    "id": "evt-morning",
+                    "type": "event",
+                    "title": "Talk Money",
+                    "time": "10:00 AM - 11:00 AM",
+                    "start": "2026-11-20T15:00:00.000Z",
+                    "end": "2026-11-20T16:00:00.000Z",
+                    "allDay": False,
+                },
+            ],
+            "sections": [],
+        },
+        {
+            "date": "2026-11-21",
+            "metadata": {"timezone": "America/New_York", "total_events": 1, "total_tasks": 0},
+            "agenda": [
+                {
+                    "id": "evt-tmrw",
+                    "type": "event",
+                    "title": "Prime Winter Training",
+                    "time": "10:00 AM - 11:30 AM",
+                    "start": "2026-11-21T15:00:00.000Z",
+                    "end": "2026-11-21T16:30:00.000Z",
+                    "allDay": False,
+                }
+            ],
+            "sections": [],
+        },
+    ]
+
+    section = TwoColumnAgendaSection(
+        date=winter_dt,
+        multi_day_data=multi_day,
+        upcoming_days=1,
+        timezone="America/New_York",
+    )
+
+    md = section.render_markdown()
+    # Morning event before evening event, and NO double -5h conversion
+    assert "10:00 AM (1 hr) - Talk Money" in md
+    assert "8:00 PM (1 hr 30 min) - Evening Dinner" in md
+    assert "Leave by 7:45 PM" in md
+    assert "Leave by 2:45 PM" not in md
+    assert "10:00 AM (1 hr 30 min) - Prime Winter Training" in md
+    assert md.index("Talk Money") < md.index("Evening Dinner")
+
+    # Verify PDF left-column flowables also avoid double conversion
+    left_flowables = section._build_left_column_flowables(multi_day[0], tomorrow_data=multi_day[1])
+    rendered_text = " ".join(getattr(f, "text", "") for f in left_flowables)
+    assert "10:00 AM (1 hr)" in rendered_text
+    assert "8:00 PM (1 hr 30 min)" in rendered_text
+    assert "Leave by 7:45 PM" in rendered_text
+    assert "Leave by 2:45 PM" not in rendered_text
+
+
+def test_agenda_timezone_aware_without_iso_timestamps():
+    """Even if start/end ISO fields are omitted, metadata.timezone prevents double conversion."""
+    from screamsheet.renderers.agenda import TwoColumnAgendaSection
+
+    winter_dt = datetime(2026, 11, 20)
+    multi_day = [
+        {
+            "date": "2026-11-20",
+            "metadata": {"timezone": "America/New_York"},
+            "agenda": [
+                {
+                    "id": "evt-1",
+                    "type": "event",
+                    "title": "Local Formatted Meeting",
+                    "time": "07:00 PM - 08:00 PM",
+                    "accessory": "Address: Gym (10 min drive time. Leave by 06:50 PM)",
+                }
+            ],
+            "sections": [],
+        }
+    ]
+
+    section = TwoColumnAgendaSection(date=winter_dt, multi_day_data=multi_day, upcoming_days=1)
+    md = section.render_markdown()
+    assert "7:00 PM (1 hr) - Local Formatted Meeting" in md
+    assert "Leave by 6:50 PM" in md
+    assert "2:00 PM" not in md
+    assert "1:50 PM" not in md
+
+
+

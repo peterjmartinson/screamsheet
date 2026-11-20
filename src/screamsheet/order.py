@@ -208,6 +208,7 @@ class BriefingOrderOptions:
     important_senders: list[str] = field(default_factory=list)
     latest_email_per_sender: bool = True
     unread_important_only: bool = True
+    timezone: str = "America/New_York"
     title: str | None = None
 
 

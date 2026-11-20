@@ -12,7 +12,7 @@ from ..components.briefing import (
     XKCDComponent,
 )
 from ..components.weather import WeatherComponent
-from ..providers.agenda_provider import AgendaProvider
+from ..providers.agenda_provider import AgendaProvider, DEFAULT_AGENDA_TIMEZONE
 from ..providers.gmail_provider import GmailNewsProvider
 from ..providers.xkcd_provider import XKCDProvider
 from .constants import DEFAULT_AGENDA_ENDPOINT
@@ -59,6 +59,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         email_provider: Optional[GmailNewsProvider] = None,
         latest_email_per_sender: bool = True,
         unread_important_only: bool = True,
+        timezone: str = DEFAULT_AGENDA_TIMEZONE,
         title: Optional[str] = None,
     ):
         target_date = date if date is not None else datetime.now()
@@ -67,6 +68,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.subscriber_name = subscriber_name
         self.payload = payload or {}
         self.api_url = api_url
+        self.timezone = timezone
         self.include_weather = include_weather
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon
@@ -81,7 +83,11 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
         self.email_provider = email_provider
         self.latest_email_per_sender = latest_email_per_sender
         self.unread_important_only = unread_important_only
-        self.provider = AgendaProvider(payload=self.payload, api_url=self.api_url)
+        self.provider = AgendaProvider(
+            payload=self.payload,
+            api_url=self.api_url,
+            timezone=self.timezone,
+        )
         self.xkcd_provider = XKCDProvider() if self.include_xkcd else None
 
     def get_title(self) -> str:
@@ -114,6 +120,7 @@ class MorningBriefingScreamsheet(BaseScreamsheet):
             provider=self.provider,
             title="Agenda",
             upcoming_days=self.upcoming_days,
+            timezone=self.timezone,
         )
         sections.append(agenda_sec)
 
